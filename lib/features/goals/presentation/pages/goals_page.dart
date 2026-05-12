@@ -28,6 +28,7 @@ class GoalsPage extends StatelessWidget {
     final theme = Theme.of(context);
 
     return ListView(
+      key: const ValueKey('goals-page-scroll'),
       padding: const EdgeInsets.fromLTRB(
         AppThemeTokens.pagePadding,
         AppThemeTokens.spaceXl,
@@ -967,7 +968,7 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
   }
 
   int _compareResults(_PlanSearchResult a, _PlanSearchResult b) {
-    return switch (_sortMode) {
+    final primary = switch (_sortMode) {
       _PlanSortMode.hierarchy => a.index.compareTo(b.index),
       _PlanSortMode.dueDate => _dueSortKey(
         a.dueDate,
@@ -976,6 +977,12 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
         a.priority,
       ).compareTo(_priorityRank(b.priority)),
     };
+
+    if (primary != 0) {
+      return primary;
+    }
+
+    return a.index.compareTo(b.index);
   }
 
   bool _isDueToday(_PlanSearchResult result) {
@@ -1267,7 +1274,11 @@ class _AddGoalSection extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          FilledButton(onPressed: onPressed, child: const Text('添加目标')),
+          FilledButton(
+            key: const ValueKey('add-goal-button'),
+            onPressed: onPressed,
+            child: const Text('添加目标'),
+          ),
         ],
       ),
     );
@@ -1436,12 +1447,10 @@ class _TaskEditDraft {
 
 class _PlanningMetadataController {
   _PlanningMetadataController({
-    String? dueDate,
-    PlanPriority? priority,
+    this.dueDate,
+    this.priority,
     List<String> tags = const <String>[],
-  }) : dueDate = dueDate,
-       priority = priority,
-       tags = List<String>.of(tags);
+  }) : tags = List<String>.of(tags);
 
   String? dueDate;
   PlanPriority? priority;
@@ -3026,6 +3035,16 @@ class _ProjectStatsSheet extends StatelessWidget {
                 SoftSurface(
                   padding: const EdgeInsets.all(14),
                   borderRadius: AppThemeTokens.radiusLg,
+                  child: _ProjectYearActivityPanel(
+                    projectId: project.id,
+                    stats: stats,
+                    accentColor: projectColor,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SoftSurface(
+                  padding: const EdgeInsets.all(14),
+                  borderRadius: AppThemeTokens.radiusLg,
                   child: _ProjectNumericTotals(
                     projectId: project.id,
                     stats: stats,
@@ -3440,6 +3459,332 @@ class _ProjectMonthHeatmap extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _ProjectYearActivityPanel extends StatelessWidget {
+  const _ProjectYearActivityPanel({
+    required this.projectId,
+    required this.stats,
+    required this.accentColor,
+  });
+
+  final String projectId;
+  final ProjectRecordStats stats;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final monthCounts = List<int>.generate(
+      12,
+      (index) => stats.currentYearCountsByMonth[index + 1] ?? 0,
+    );
+    final maxMonthCount = monthCounts.fold<int>(
+      0,
+      (current, count) => count > current ? count : current,
+    );
+    final recentDateEntries = stats.currentYearCountsByLocalDate.entries.toList(
+      growable: false,
+    )..sort((a, b) => b.key.compareTo(a.key));
+    final visibleRecentEntries = recentDateEntries
+        .take(5)
+        .toList(growable: false);
+
+    return Column(
+      key: ValueKey('project-stats-year-activity-$projectId'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '年度活动',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Text(
+              '${stats.currentYearRecordCount} 条',
+              key: ValueKey('project-stats-year-count-$projectId'),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${stats.currentYear} 年 · ${stats.currentYearCountsByLocalDate.length} 个活跃日 · 只读记录统计',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: AppThemeTokens.secondaryTextTone(colorScheme),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          key: ValueKey('project-stats-year-heatmap-$projectId'),
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (var month = 1; month <= 12; month++)
+              SizedBox(
+                width: 54,
+                child: MiniHeatmapCell(
+                  key: ValueKey('project-stats-year-month-$projectId-$month'),
+                  count: stats.currentYearCountsByMonth[month] ?? 0,
+                  dateLabel: '$month月',
+                  height: 28,
+                  borderRadius: 8,
+                  accentColor: accentColor,
+                  semanticLabel:
+                      '${stats.currentYear}年$month月 ${stats.currentYearCountsByMonth[month] ?? 0} 条记录',
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _ProjectYearMonthChart(
+          projectId: projectId,
+          monthCounts: monthCounts,
+          maxMonthCount: maxMonthCount,
+          accentColor: accentColor,
+        ),
+        const SizedBox(height: 12),
+        _ProjectRecentActivityTimeline(
+          projectId: projectId,
+          entries: visibleRecentEntries,
+          accentColor: accentColor,
+        ),
+      ],
+    );
+  }
+}
+
+class _ProjectYearMonthChart extends StatelessWidget {
+  const _ProjectYearMonthChart({
+    required this.projectId,
+    required this.monthCounts,
+    required this.maxMonthCount,
+    required this.accentColor,
+  });
+
+  final String projectId;
+  final List<int> monthCounts;
+  final int maxMonthCount;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      key: ValueKey('project-stats-year-chart-$projectId'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '月度分布',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 70,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var index = 0; index < monthCounts.length; index++) ...[
+                Expanded(
+                  child: _ProjectYearMonthBar(
+                    month: index + 1,
+                    count: monthCounts[index],
+                    maxCount: maxMonthCount,
+                    accentColor: accentColor,
+                  ),
+                ),
+                if (index < monthCounts.length - 1) const SizedBox(width: 3),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProjectYearMonthBar extends StatelessWidget {
+  const _ProjectYearMonthBar({
+    required this.month,
+    required this.count,
+    required this.maxCount,
+    required this.accentColor,
+  });
+
+  final int month;
+  final int count;
+  final int maxCount;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final ratio = maxCount <= 0
+        ? 0.0
+        : (count / maxCount).clamp(0.0, 1.0).toDouble();
+    final barHeight = count <= 0 ? 4.0 : 10 + 34 * ratio;
+
+    return Semantics(
+      label: '$month月 $count 条记录',
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Container(
+            height: barHeight,
+            constraints: const BoxConstraints(minWidth: 8),
+            decoration: BoxDecoration(
+              color: count <= 0
+                  ? AppThemeTokens.borderTone(
+                      colorScheme,
+                    ).withValues(alpha: 0.48)
+                  : accentColor.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '$month',
+            maxLines: 1,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectRecentActivityTimeline extends StatelessWidget {
+  const _ProjectRecentActivityTimeline({
+    required this.projectId,
+    required this.entries,
+    required this.accentColor,
+  });
+
+  final String projectId;
+  final List<MapEntry<String, int>> entries;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      key: ValueKey('project-stats-timeline-$projectId'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '最近活动',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (entries.isEmpty)
+          Text(
+            '今年还没有项目记录。',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+            ),
+          )
+        else
+          Column(
+            children: [
+              for (final entry in entries)
+                _ProjectRecentActivityRow(
+                  projectId: projectId,
+                  localDate: entry.key,
+                  count: entry.value,
+                  accentColor: accentColor,
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _ProjectRecentActivityRow extends StatelessWidget {
+  const _ProjectRecentActivityRow({
+    required this.projectId,
+    required this.localDate,
+    required this.count,
+    required this.accentColor,
+  });
+
+  final String projectId;
+  final String localDate;
+  final int count;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      key: ValueKey('project-stats-timeline-row-$projectId-$localDate'),
+      margin: const EdgeInsets.only(bottom: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppThemeTokens.softSurfaceTone(colorScheme),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
+        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.78),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              localDate,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$count 条',
+            key: ValueKey('project-stats-timeline-count-$projectId-$localDate'),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

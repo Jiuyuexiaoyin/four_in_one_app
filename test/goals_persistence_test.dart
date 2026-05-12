@@ -203,7 +203,7 @@ void main() {
               'id': 'project-1',
               'goalId': 'goal-1',
               'title': 'Project',
-              'dueDate': 'not-a-date',
+              'dueDate': '2026-13-40',
               'priority': 'loud',
               'tags': [' work ', '', 42, 'work', 'very-long-tag-name-value'],
               'createdAt': '2026-04-25T08:10:00.000Z',
@@ -216,7 +216,7 @@ void main() {
               'projectId': 'project-1',
               'title': 'Action',
               'isCompleted': false,
-              'dueDate': 20260430,
+              'dueDate': '2026-02-30',
               'priority': 'urgent',
               'tags': [' next ', 'next', null, 'today'],
               'createdAt': '2026-04-25T08:20:00.000Z',
@@ -527,6 +527,9 @@ void main() {
     expect(stats.photoAttachmentCount, 1);
     expect(stats.numericTotalsByUnit, {'pages': 12});
     expect(stats.currentMonthCountsByLocalDate, {'2026-04-25': 2});
+    expect(stats.currentYearRecordCount, 2);
+    expect(stats.currentYearCountsByLocalDate, {'2026-04-25': 2});
+    expect(stats.currentYearCountsByMonth, {4: 2});
     expect(store.computeProjectProgress('project-1').completedTasks, 0);
     expect(store.computeProjectProgress('project-1').totalTasks, 1);
 
@@ -678,6 +681,13 @@ void main() {
         '2026-04-25': 1,
         '2026-04-26': 2,
       });
+      expect(stats.currentYearRecordCount, 4);
+      expect(stats.currentYearCountsByLocalDate, {
+        '2026-04-25': 1,
+        '2026-04-26': 2,
+        '2026-03-25': 1,
+      });
+      expect(stats.currentYearCountsByMonth, {4: 3, 3: 1});
     },
   );
 
@@ -710,6 +720,9 @@ void main() {
     expect(stats.activeDaysCount, 0);
     expect(stats.currentMonthRecordCount, 0);
     expect(stats.currentMonthCountsByLocalDate, isEmpty);
+    expect(stats.currentYearRecordCount, 0);
+    expect(stats.currentYearCountsByLocalDate, isEmpty);
+    expect(stats.currentYearCountsByMonth, isEmpty);
   });
 
   test('creates goals, projects, subprojects, and tasks', () async {
@@ -786,6 +799,13 @@ void main() {
       '2026-04-25': 2,
       '2026-04-24': 1,
     });
+    expect(stats.currentYearRecordCount, 4);
+    expect(stats.currentYearCountsByLocalDate, {
+      '2026-04-25': 2,
+      '2026-04-24': 1,
+      '2026-03-25': 1,
+    });
+    expect(stats.currentYearCountsByMonth, {4: 3, 3: 1});
     expect(stats.numericTotalsByUnit['个'], 30);
     expect(stats.numericTotalsByUnit['分钟'], 20);
 
@@ -894,6 +914,33 @@ void main() {
       expect(saved['tasks'].single['priority'], 'urgent');
       expect(saved['tasks'].single['tags'], ['today', 'focus']);
       expect(saved['tasks'].single['isCompleted'], isTrue);
+
+      expect(
+        await store.updateProjectPlanningMeta(
+          'project-1',
+          dueDate: '2026-11-31',
+          priority: PlanPriority.low,
+          tags: ['later'],
+        ),
+        isTrue,
+      );
+      expect(
+        await store.updateTaskPlanningMeta(
+          'task-1',
+          dueDate: '2026-02-30',
+          priority: PlanPriority.medium,
+          tags: ['retry'],
+        ),
+        isTrue,
+      );
+
+      expect(store.projects.single.dueDate, isNull);
+      expect(store.projects.single.priority, PlanPriority.low);
+      expect(store.projects.single.tags, ['later']);
+      expect(store.tasks.single.dueDate, isNull);
+      expect(store.tasks.single.priority, PlanPriority.medium);
+      expect(store.tasks.single.tags, ['retry']);
+      expect(store.tasks.single.isCompleted, isTrue);
 
       expect(
         await store.updateProjectPlanningMeta(

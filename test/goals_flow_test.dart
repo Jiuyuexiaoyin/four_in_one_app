@@ -8,6 +8,92 @@ import 'package:four_in_one_app/features/goals/data/goals_local_storage.dart';
 import 'package:four_in_one_app/features/goals/domain/models/goal_item.dart';
 import 'package:four_in_one_app/features/habits/application/habits_store.dart';
 
+Finder _goalsPageScrollView() =>
+    find.byKey(const ValueKey('goals-page-scroll'));
+
+Future<void> _tapPlanTab(WidgetTester tester) async {
+  await tester.tap(find.byType(NavigationDestination).at(1));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const ValueKey('goals-page-scroll')), findsOneWidget);
+}
+
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+
+  var hitTestable = finder.hitTestable();
+  if (hitTestable.evaluate().isEmpty &&
+      find.byType(AlertDialog).evaluate().isNotEmpty) {
+    final dialogScroll = find.descendant(
+      of: find.byType(AlertDialog).last,
+      matching: find.byType(Scrollable),
+    );
+    for (
+      var attempt = 0;
+      attempt < 4 &&
+          hitTestable.evaluate().isEmpty &&
+          dialogScroll.evaluate().isNotEmpty;
+      attempt++
+    ) {
+      await tester.drag(dialogScroll.last, const Offset(0, -96));
+      await tester.pumpAndSettle();
+      hitTestable = finder.hitTestable();
+    }
+  }
+
+  await tester.tap(
+    hitTestable.evaluate().isNotEmpty ? hitTestable.first : finder,
+  );
+  await tester.pumpAndSettle();
+}
+
+Finder _activeDialogTextField() => find
+    .descendant(
+      of: find.byType(AlertDialog).last,
+      matching: find.byType(TextField),
+    )
+    .first;
+
+Finder _activeDialogSubmitButton() => find
+    .descendant(
+      of: find.byType(AlertDialog).last,
+      matching: find.byType(FilledButton),
+    )
+    .last;
+
+// The add-goal button lives in _AddGoalSection above the empty state.
+Finder _goalsEmptyStateAddButton() =>
+    find.byKey(const ValueKey('add-goal-button'));
+
+Future<void> _scrollPlanUntilVisible(
+  WidgetTester tester,
+  Finder finder, [
+  double delta = 300,
+]) async {
+  // .first / .last finders throw StateError when empty; guard with try-catch.
+  bool finderPresent() {
+    try {
+      return finder.evaluate().isNotEmpty;
+    } on StateError {
+      return false;
+    }
+  }
+
+  final scrollView = _goalsPageScrollView();
+  for (
+    var attempt = 0;
+    attempt < 20 && !finderPresent() && scrollView.evaluate().isNotEmpty;
+    attempt++
+  ) {
+    await tester.drag(scrollView, Offset(0, -delta));
+    await tester.pumpAndSettle();
+  }
+  if (finderPresent()) {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+  }
+}
+
 void main() {
   testWidgets('shows empty goals state and creates a nested hierarchy', (
     tester,
@@ -19,12 +105,12 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('计划'));
-    await tester.pumpAndSettle();
+    await _tapPlanTab(tester);
 
     expect(find.text('目标树概览'), findsOneWidget);
     expect(find.text('推进 0 / 0'), findsWidgets);
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goals-empty-state')),
       200,
     );
@@ -33,19 +119,17 @@ void main() {
     expect(find.text('还没有长期目标'), findsOneWidget);
     expect(find.byKey(const ValueKey('goals-empty-state')), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.widgetWithText(FilledButton, '添加目标'),
-      -200,
-    );
+    await _scrollPlanUntilVisible(tester, _goalsEmptyStateAddButton(), -200);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, '添加目标'));
+    await tester.tap(_goalsEmptyStateAddButton());
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Ship MVP shell');
-    await tester.tap(find.text('创建'));
+    await tester.enterText(_activeDialogTextField(), 'Ship MVP shell');
+    await tester.tap(_activeDialogSubmitButton());
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goal-row-goal-1')),
       200,
     );
@@ -88,8 +172,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('goal-add-project-goal-1')));
     await tester.pumpAndSettle();
     expect(find.text('新建项目'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Alpha planning');
-    await tester.tap(find.text('创建'));
+    await tester.enterText(_activeDialogTextField(), 'Alpha planning');
+    await tester.tap(_activeDialogSubmitButton());
     await tester.pumpAndSettle();
 
     expect(find.text('Alpha planning'), findsOneWidget);
@@ -105,7 +189,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('project-add-task-project-1')),
       200,
     );
@@ -113,8 +198,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('project-add-task-project-1')));
     await tester.pumpAndSettle();
     expect(find.text('新建行动'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Write launch checklist');
-    await tester.tap(find.text('创建'));
+    await tester.enterText(_activeDialogTextField(), 'Write launch checklist');
+    await tester.tap(_activeDialogSubmitButton());
     await tester.pumpAndSettle();
 
     expect(find.text('Write launch checklist'), findsOneWidget);
@@ -124,7 +209,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('project-add-subproject-project-1')),
       200,
     );
@@ -134,8 +220,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('新建子项目'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Launch content');
-    await tester.tap(find.text('创建'));
+    await tester.enterText(_activeDialogTextField(), 'Launch content');
+    await tester.tap(_activeDialogSubmitButton());
     await tester.pumpAndSettle();
 
     expect(find.text('Launch content'), findsOneWidget);
@@ -149,7 +235,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('subproject-empty-tasks-cue')),
       200,
     );
@@ -157,8 +244,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('subproject-empty-tasks-cue')));
     await tester.pumpAndSettle();
     expect(find.text('新建行动'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Draft release note');
-    await tester.tap(find.text('创建'));
+    await tester.enterText(_activeDialogTextField(), 'Draft release note');
+    await tester.tap(_activeDialogSubmitButton());
     await tester.pumpAndSettle();
 
     expect(find.text('Draft release note'), findsOneWidget);
@@ -172,7 +259,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goal-task-toggle-task-2')),
       200,
     );
@@ -190,7 +278,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('project-edit-project-1')),
       200,
     );
@@ -218,7 +307,8 @@ void main() {
     expect(find.text('Planning identity'), findsOneWidget);
     expect(find.text('Alpha planning'), findsNothing);
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('subproject-edit-subproject-1')),
       200,
     );
@@ -228,14 +318,15 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('编辑分组'), findsWidgets);
-    await tester.enterText(find.byType(TextField), 'Launch narrative');
+    await tester.enterText(_activeDialogTextField(), 'Launch narrative');
     await tester.tap(find.byKey(const ValueKey('title-dialog-submit-保存')));
     await tester.pumpAndSettle();
 
     expect(find.text('Launch narrative'), findsOneWidget);
     expect(find.text('Launch content'), findsNothing);
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goal-task-edit-task-2')),
       200,
     );
@@ -243,14 +334,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('goal-task-edit-task-2')));
     await tester.pumpAndSettle();
     expect(find.text('编辑行动'), findsWidgets);
-    await tester.enterText(find.byType(TextField), 'Draft launch note');
-    await tester.tap(find.byKey(const ValueKey('title-dialog-submit-保存')));
+    await tester.enterText(_activeDialogTextField(), 'Draft launch note');
+    await tester.tap(find.byKey(const ValueKey('plan-task-submit')));
     await tester.pumpAndSettle();
 
     expect(find.text('Draft launch note'), findsOneWidget);
     expect(find.text('Draft release note'), findsNothing);
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('project-add-record-project-1')),
       200,
     );
@@ -280,7 +372,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goal-task-add-record-task-2')),
       200,
     );
@@ -288,7 +381,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('goal-task-add-record-task-2')));
     await tester.pumpAndSettle();
     expect(find.text('添加行动记录'), findsOneWidget);
-    await tester.tap(find.text('数值记录'));
+    final numericRecordTab = find
+        .descendant(
+          of: find.byType(AlertDialog).last,
+          matching: find.text('数值记录'),
+        )
+        .first;
+    await tester.tap(numericRecordTab);
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('plan-record-value-field')),
@@ -309,7 +408,8 @@ void main() {
       _findKeyedText('project-record-total-project-1-个', '30'),
       findsOneWidget,
     );
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('project-record-open-stats-project-1')),
       200,
     );
@@ -337,6 +437,26 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.byKey(const ValueKey('project-stats-year-activity-project-1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-count-project-1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-heatmap-project-1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-chart-project-1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-timeline-project-1')),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const ValueKey('project-stats-record-row-record-1')),
       findsOneWidget,
     );
@@ -350,7 +470,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goal-open-focus-goal-1')),
       200,
     );
@@ -481,9 +602,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('计划'));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
+    await _tapPlanTab(tester);
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('project-open-detail-project-detail')),
       300,
     );
@@ -556,6 +677,50 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('project-stats-record-context-record-numeric')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-activity-project-detail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-count-project-detail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-heatmap-project-detail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-month-project-detail-4')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-year-chart-project-detail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-stats-timeline-project-detail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('project-stats-timeline-row-project-detail-2026-04-25'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey(
+          'project-stats-timeline-count-project-detail-2026-04-25',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('project-stats-timeline-row-project-detail-2026-04-24'),
+      ),
       findsOneWidget,
     );
 
@@ -639,25 +804,31 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('璁″垝'));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
+    await _tapPlanTab(tester);
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('project-edit-project-meta')),
       300,
     );
     await tester.tap(find.byKey(const ValueKey('project-edit-project-meta')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('plan-project-priority-high')));
-    await tester.ensureVisible(
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('plan-project-priority-high')),
+    );
+    await _tapVisible(
+      tester,
       find.byKey(const ValueKey('plan-project-due-date-clear')),
     );
-    await tester.tap(find.byKey(const ValueKey('plan-project-due-date-clear')));
     await tester.enterText(
       find.byKey(const ValueKey('plan-project-tags-field')),
       'launch',
     );
-    await tester.tap(find.byKey(const ValueKey('plan-project-tags-add')));
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('plan-project-tags-add')),
+    );
     await tester.tap(find.byKey(const ValueKey('plan-identity-submit')));
     await tester.pumpAndSettle();
 
@@ -665,23 +836,27 @@ void main() {
     expect(goalsStore.projects.single.priority, PlanPriority.high);
     expect(goalsStore.projects.single.tags, ['launch']);
 
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goal-task-edit-task-meta')),
       300,
     );
     await tester.tap(find.byKey(const ValueKey('goal-task-edit-task-meta')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('plan-task-priority-urgent')));
-    await tester.ensureVisible(
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('plan-task-priority-urgent')),
+    );
+    await _tapVisible(
+      tester,
       find.byKey(const ValueKey('plan-task-due-date-clear')),
     );
-    await tester.tap(find.byKey(const ValueKey('plan-task-due-date-clear')));
     await tester.enterText(
       find.byKey(const ValueKey('plan-task-tags-field')),
       'focus',
     );
-    await tester.tap(find.byKey(const ValueKey('plan-task-tags-add')));
+    await _tapVisible(tester, find.byKey(const ValueKey('plan-task-tags-add')));
     await tester.tap(find.byKey(const ValueKey('plan-task-submit')));
     await tester.pumpAndSettle();
 
@@ -756,8 +931,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('璁″垝'));
-    await tester.pumpAndSettle();
+    await _tapPlanTab(tester);
 
     await tester.enterText(
       find.byKey(const ValueKey('plan-search-field')),
@@ -775,9 +949,8 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('plan-search-clear')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('plan-filter-tag')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('plan-tag-launch')));
+    await _tapVisible(tester, find.byKey(const ValueKey('plan-filter-tag')));
+    await _tapVisible(tester, find.byKey(const ValueKey('plan-tag-launch')));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('plan-filtered-result-task-task-overdue')),
@@ -788,8 +961,10 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byKey(const ValueKey('plan-filter-overdue')));
-    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('plan-filter-overdue')),
+    );
     expect(
       find.byKey(const ValueKey('plan-filtered-result-task-task-overdue')),
       findsOneWidget,
@@ -801,22 +976,25 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byKey(const ValueKey('plan-filter-today')));
-    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const ValueKey('plan-filter-today')));
     expect(
       find.byKey(const ValueKey('plan-filtered-result-project-project-today')),
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('plan-filter-highPriority')));
-    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('plan-filter-highPriority')),
+    );
     expect(
       find.byKey(const ValueKey('plan-filtered-result-task-task-overdue')),
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('plan-filter-completed')));
-    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('plan-filter-completed')),
+    );
     expect(
       find.byKey(
         const ValueKey('plan-filtered-result-task-task-complete-overdue'),
@@ -824,17 +1002,17 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('plan-filter-incomplete')));
-    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('plan-filter-incomplete')),
+    );
     expect(
       find.byKey(const ValueKey('plan-filtered-result-task-task-overdue')),
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('plan-filter-all')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('plan-sort-dueDate')));
-    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const ValueKey('plan-filter-all')));
+    await _tapVisible(tester, find.byKey(const ValueKey('plan-sort-dueDate')));
     final overdueTop = tester.getTopLeft(
       find.byKey(const ValueKey('plan-filtered-result-task-task-overdue')),
     );
@@ -843,8 +1021,7 @@ void main() {
     );
     expect(overdueTop.dy, lessThan(todayTop.dy));
 
-    await tester.tap(find.byKey(const ValueKey('plan-sort-priority')));
-    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const ValueKey('plan-sort-priority')));
     final urgentTop = tester.getTopLeft(
       find.byKey(const ValueKey('plan-filtered-result-task-task-overdue')),
     );
@@ -875,11 +1052,11 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('计划'));
-    await tester.pumpAndSettle();
+    await _tapPlanTab(tester);
 
     expect(find.text('推进 0 / 2'), findsWidgets);
-    await tester.scrollUntilVisible(
+    await _scrollPlanUntilVisible(
+      tester,
       find.byKey(const ValueKey('goal-row-goal-7')),
       200,
     );
@@ -960,9 +1137,9 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('计划'));
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
+      await _tapPlanTab(tester);
+      await _scrollPlanUntilVisible(
+        tester,
         find.byKey(const ValueKey('goal-row-goal-responsive')),
         300,
       );
@@ -982,7 +1159,8 @@ void main() {
       );
 
       if (width == 360) {
-        await tester.scrollUntilVisible(
+        await _scrollPlanUntilVisible(
+          tester,
           find.byKey(
             const ValueKey('project-record-open-stats-project-responsive'),
           ),
@@ -1010,7 +1188,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.scrollUntilVisible(
+        await _scrollPlanUntilVisible(
+          tester,
           find.byKey(const ValueKey('goal-open-focus-goal-responsive')),
           -300,
         );

@@ -1,3 +1,7 @@
+OBSOLETE HISTORICAL HANDOFF — DO NOT USE AS CURRENT EXECUTION RULES.
+Current V6B validation rule is .\tooling\v6b.cmd only.
+This document is historical context only and may contain outdated commands.
+
 # Codex 账号切换交接文档
 
 > 项目根目录：`D:\AI\Projects\four_in_one_app`  
@@ -1152,4 +1156,3 @@ HabitDone 的成熟 habit tracking
 ```
 
 继续做的时候，保持这个方向。
-

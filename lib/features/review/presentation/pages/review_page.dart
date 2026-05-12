@@ -71,6 +71,7 @@ class _ReviewData {
     required this.focusCompletedSessions,
     required this.focusCompletedMinutes,
     required this.latestFocusTargetTitle,
+    required this.focusRecentDayCounts,
   });
 
   final int habitTotalCount;
@@ -87,6 +88,7 @@ class _ReviewData {
   final int focusCompletedSessions;
   final int focusCompletedMinutes;
   final String? latestFocusTargetTitle;
+  final List<int> focusRecentDayCounts;
 
   int? get habitCompletionRate => habitTotalCount > 0
       ? ((habitCompletedCount / habitTotalCount) * 100).round()
@@ -134,6 +136,7 @@ class _ReviewData {
       focusCompletedSessions: focusStore.completedSessionCount,
       focusCompletedMinutes: focusCompletedMinutes,
       latestFocusTargetTitle: _latestFocusTargetTitle(focusStore),
+      focusRecentDayCounts: focusStore.recentDayCounts(focusStore.now),
     );
   }
 
@@ -486,6 +489,26 @@ class _ReviewFocusSection extends StatelessWidget {
                 value: '${focusStore.defaultDurationSeconds ~/ 60} 分钟',
                 label: '默认时长',
               ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '近 7 天活动',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ActivityStrip(
+            valueKey: 'review-focus-recent-strip',
+            items: [
+              for (var i = 0; i < data.focusRecentDayCounts.length; i++)
+                ActivityStripItem(
+                  count: data.focusRecentDayCounts[i],
+                  cellKey: ValueKey<String>('review-focus-recent-day-$i'),
+                  semanticLabel:
+                      '${i == 0 ? '今日' : '$i 天前'} ${data.focusRecentDayCounts[i]} 次',
+                ),
             ],
           ),
           const SizedBox(height: 14),

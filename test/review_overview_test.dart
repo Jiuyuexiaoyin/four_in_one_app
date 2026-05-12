@@ -218,6 +218,50 @@ void main() {
     );
   });
 
+  testWidgets('focus recent strip appears when sessions exist in past 7 days', (
+    tester,
+  ) async {
+    final fakeNow = DateTime(2026, 4, 25, 10);
+    await tester.pumpWidget(
+      FourInOneApp(
+        habitsStore: HabitsStore.seededInMemory(
+          initialHabits: const <HabitItem>[],
+          initialRecords: const <HabitRecord>[],
+        ),
+        goalsStore: GoalsStore.inMemory(),
+        focusStore: FocusStore.inMemory(
+          defaultDurationSeconds: 25 * 60,
+          nowProvider: () => fakeNow,
+          initialSessions: [
+            FocusSessionItem(
+              id: 'focus-recent-1',
+              completedAt: DateTime.utc(2026, 4, 25, 8),
+              durationSeconds: 1500,
+            ),
+            FocusSessionItem(
+              id: 'focus-recent-2',
+              completedAt: DateTime.utc(2026, 4, 23, 9),
+              durationSeconds: 1500,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await _openReview(tester);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('review-focus-section')),
+      300,
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('review-focus-recent-strip')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('does not show empty habit or plan progress rates', (
     tester,
   ) async {

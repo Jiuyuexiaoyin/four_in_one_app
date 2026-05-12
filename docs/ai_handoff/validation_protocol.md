@@ -47,35 +47,37 @@ Previous diagnosis:
 
 If wrappers hang again, diagnose Flutter SDK wrapper health before touching project code.
 
-## Preferred V6B Validation
+## V6B Validation — Canonical Command
 
-Use the script:
-
-```powershell
-Set-Location "D:\AI\Projects\four_in_one_app"
-.\tooling\validate_v6b.ps1
+```
+.\tooling\v6b.cmd
 ```
 
-This script uses exact paths and one command per line.
+Run from the project root. This is the **only** approved V6B validation entry.
 
-If the script fails, copy the exact failed command and output into the report. Fix only the related V6B code.
+It calls `tooling\check_v6b_readonly.ps1`, which is read-only:
+no file formatting, no log writes, no APK build.
 
-## Manual Fallback
+Output includes `FAILED_STEP: <name>` on failure.
 
-Only if the script cannot run, use direct invocations one at a time.
+## DEPRECATED: validate_v6b.ps1
 
-Example:
+`tooling\validate_v6b.ps1` is **forbidden** for the current V6B workflow.
 
-```powershell
-& 'D:\AI\Tools\Flutter\flutter\bin\flutter.bat' test --no-pub 'test\goals_persistence_test.dart'
-```
+It formats files, writes logs, and builds a debug APK.
+Do not run it unless the user explicitly starts a phone-test APK release process.
 
-Inspect every command before execution:
+## If the Shell Stalls
 
-- executable path;
-- subcommand;
-- `--no-pub`;
-- exact test or source path;
-- no accidental path concatenation;
-- no extra parameters unless the user approved them.
+Stop and report to the user. Do not repeat the command.
+The user can run `.\tooling\v6b.cmd` manually and paste the `FAILED_STEP` line.
 
+## Manual Fallback Is User-Run Only
+
+Codex must not switch to direct Flutter or Dart commands automatically.
+
+Codex must not bypass `.\tooling\v6b.cmd`.
+
+If `.\tooling\v6b.cmd` is unreliable in Codex App shell, stop and ask the user to run it manually in normal PowerShell and paste `FAILED_STEP`.
+
+The user may run direct fallback commands manually only if they decide `v6b.cmd` itself is broken.

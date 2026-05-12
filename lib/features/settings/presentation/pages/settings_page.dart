@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/settings/application/app_settings_store.dart';
 import 'package:four_in_one_app/app/settings/presentation/app_settings_scope.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
+import 'package:four_in_one_app/features/focus/presentation/focus_scope.dart';
+import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
+import 'package:four_in_one_app/features/habits/presentation/habits_scope.dart';
 import 'package:four_in_one_app/shared/widgets/product/my_settings_section.dart';
 import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
 
@@ -65,12 +68,7 @@ class _SettingsContent extends StatelessWidget {
           icon: Icons.privacy_tip_outlined,
         ),
         const SizedBox(height: AppThemeTokens.spaceLg),
-        const _FutureSection(
-          title: '备份与导出',
-          rowTitle: '本地数据',
-          helper: '后续支持本地备份与导出',
-          icon: Icons.file_upload_outlined,
-        ),
+        const _DataSummarySection(),
         const SizedBox(height: AppThemeTokens.spaceLg),
         const _FutureSection(
           title: '关于',
@@ -1293,6 +1291,47 @@ class _PresetColorOption extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DataSummarySection extends StatelessWidget {
+  const _DataSummarySection();
+
+  @override
+  Widget build(BuildContext context) {
+    final habitsStore = HabitsScope.of(context);
+    final goalsStore = GoalsScope.of(context);
+    final focusStore = FocusStoreScope.of(context);
+    final habitCount = habitsStore.habits.length;
+    final taskCount = goalsStore.tasks.length;
+    final focusCount = focusStore.completedSessionCount;
+
+    return MySettingsSection(
+      key: const ValueKey('settings-data-summary'),
+      title: '本地数据',
+      subtitle: '当前设备存储的数据记录，数据只保留在本机。',
+      leadingIcon: Icons.storage_rounded,
+      rows: [
+        MySettingsRow(
+          title: '习惯与打卡',
+          subtitle: '$habitCount 个习惯',
+          leadingIcon: Icons.spa_rounded,
+          enabled: false,
+        ),
+        MySettingsRow(
+          title: '目标与行动',
+          subtitle: '$taskCount 条行动',
+          leadingIcon: Icons.account_tree_rounded,
+          enabled: false,
+        ),
+        MySettingsRow(
+          title: '专注记录',
+          subtitle: '$focusCount 次专注',
+          leadingIcon: Icons.timer_rounded,
+          enabled: false,
+        ),
+      ],
     );
   }
 }

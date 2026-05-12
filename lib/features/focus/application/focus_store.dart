@@ -173,11 +173,71 @@ class FocusStore extends ChangeNotifier {
   bool get isRunning => _status == FocusStatus.running;
   bool get isPaused => _status == FocusStatus.paused;
 
+  /// Current time as reported by the store's clock (real or injected for tests).
+  DateTime get now => _nowProvider();
+
   bool get canStart => !isRunning;
   bool get canPause => isRunning;
   bool get canReset =>
       _remainingSeconds != _selectedDurationSeconds ||
       _status != FocusStatus.idle;
+
+  /// Number of completed sessions whose local date falls in the ISO week
+  /// containing [now] (Monday–Sunday).
+  int weeklySessionCount(DateTime now) =>
+      _weeklyDayCounts(now).fold(0, (a, b) => a + b);
+
+  /// Total completed minutes for sessions in the ISO week containing [now].
+  int weeklyFocusMinutes(DateTime now) {
+    final weekStart = _startOfIsoWeek(now);
+    return _sessions
+        .where((s) {
+          final local = s.completedAt.toLocal();
+          final d = DateTime(local.year, local.month, local.day);
+          final offset = d.difference(weekStart).inDays;
+          return offset >= 0 && offset < 7;
+        })
+        .fold<int>(0, (total, s) => total + (s.durationSeconds ~/ 60));
+  }
+
+  /// Per-day session counts for the ISO week containing [now].
+  /// Index 0 = Monday, index 6 = Sunday.
+  List<int> weeklyDayCounts(DateTime now) => _weeklyDayCounts(now);
+
+  /// Session counts for the 7 days ending today (inclusive).
+  /// Index 0 = today, index 6 = six days ago.
+  List<int> recentDayCounts(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final counts = List<int>.filled(7, 0);
+    for (final session in _sessions) {
+      final local = session.completedAt.toLocal();
+      final d = DateTime(local.year, local.month, local.day);
+      final daysAgo = today.difference(d).inDays;
+      if (daysAgo >= 0 && daysAgo < 7) {
+        counts[daysAgo]++;
+      }
+    }
+    return counts;
+  }
+
+  List<int> _weeklyDayCounts(DateTime now) {
+    final weekStart = _startOfIsoWeek(now);
+    final counts = List<int>.filled(7, 0);
+    for (final session in _sessions) {
+      final local = session.completedAt.toLocal();
+      final d = DateTime(local.year, local.month, local.day);
+      final offset = d.difference(weekStart).inDays;
+      if (offset >= 0 && offset < 7) {
+        counts[offset]++;
+      }
+    }
+    return counts;
+  }
+
+  static DateTime _startOfIsoWeek(DateTime date) {
+    final d = DateTime(date.year, date.month, date.day);
+    return d.subtract(Duration(days: d.weekday - 1));
+  }
 
   String get formattedRemaining {
     final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');

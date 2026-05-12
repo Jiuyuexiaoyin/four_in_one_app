@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:four_in_one_app/app/app.dart';
 import 'package:four_in_one_app/app/settings/application/app_settings_store.dart';
+import 'package:four_in_one_app/features/focus/application/focus_store.dart';
+import 'package:four_in_one_app/features/focus/domain/models/focus_session_item.dart';
 import 'package:four_in_one_app/features/goals/application/goals_store.dart';
+import 'package:four_in_one_app/features/goals/domain/models/goal_item.dart';
 import 'package:four_in_one_app/features/habits/application/habits_store.dart';
+import 'package:four_in_one_app/features/habits/domain/models/habit_item.dart';
 
 void main() {
   testWidgets('Settings page can change theme mode', (tester) async {
@@ -203,6 +207,51 @@ void main() {
     expect(settingsStore.accentColorValue, isNull);
     expect(settingsStore.backgroundColorValue, isNull);
     expect(settingsStore.surfaceColorValue, isNull);
+  });
+
+  testWidgets('data summary section shows local record counts', (tester) async {
+    final settingsStore = AppSettingsStore.inMemory();
+    final habit = HabitItem(
+      id: 'h1',
+      name: 'Run',
+      emoji: HabitItem.defaultEmoji,
+      description: '',
+      targetCountPerDay: 1,
+      reminderTime: null,
+      createdAt: DateTime.parse('2026-04-25T08:00:00Z'),
+    );
+    final goal = GoalItem(
+      id: 'g1',
+      title: 'Ship V6',
+      createdAt: DateTime.parse('2026-04-25T08:00:00Z'),
+    );
+
+    await tester.pumpWidget(
+      FourInOneApp(
+        appSettingsStore: settingsStore,
+        habitsStore: HabitsStore.seededInMemory(initialHabits: [habit]),
+        goalsStore: GoalsStore.inMemory(initialGoals: [goal]),
+        focusStore: FocusStore.inMemory(
+          defaultDurationSeconds: 25 * 60,
+          initialSessions: [
+            FocusSessionItem(
+              id: 'fs1',
+              completedAt: DateTime.utc(2026, 4, 25, 8),
+              durationSeconds: 1500,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await _openSettings(tester);
+
+    await _ensureVisible(tester, const ValueKey('settings-data-summary'));
+
+    expect(find.byKey(const ValueKey('settings-data-summary')), findsOneWidget);
+    expect(find.text('1 个习惯'), findsOneWidget);
+    expect(find.text('0 条行动'), findsOneWidget);
+    expect(find.text('1 次专注'), findsOneWidget);
   });
 
   testWidgets('Theme Studio renders on common phone widths with larger text', (

@@ -6,7 +6,7 @@ Path: `D:\AI\Projects\four_in_one_app`
 
 Current version: `1.1.2+14`
 
-Current stage: V6B in progress, V6A completed.
+Current stage: V6 full-pass completed and validated. V6H docs updated.
 
 ## App Overview
 
@@ -52,10 +52,102 @@ OffScreen guides restrained premium data surfaces: calm dashboards, clear metric
 - Plan project detail and records table.
 - Plan note/numeric/image/habit-source records.
 - Plan project statistics and visual analytics.
+- V6B Plan due dates, priority, tags, and read-only search/filter/sort.
+- V6C Plan project year heatmap and timeline from real PlanRecord data.
+- V6D Focus weekly overview: per-day ActivityStrip + MetricStrip week totals on FocusPage. FocusPage migrated from ListView to SingleChildScrollView+Column.
+- V6E Review focus activity strip: recent 7-day ActivityStrip on ReviewPage (`review-focus-recent-strip`).
+- V6F Settings data summary section: replaces "备份与导出" placeholder; shows real counts of habits, actions, and focus sessions (`settings-data-summary`).
+- V6G Digital wellbeing research: docs-only, no code change. See `docs/digital_wellbeing_research_v6g_report.md`.
+- V6H Final benchmark review: docs updated (`docs/final_benchmark_ui_feature_review_v6h.md`).
 - Habit -> Plan linking.
 - Focus task/action binding.
 - Review real metrics.
 - Responsive UI polish.
+
+## Latest Completed Package
+
+V6 full-pass closure is complete. The current completed set is:
+
+- V6A completed.
+- V6B Plan Due Dates / Priority / Tags / Search / Filter / Sort completed and validated.
+- V6C Plan Timeline / Project Charts / Year Heatmap read-only MVP implemented.
+- V6D Focus Weekly Overview implemented.
+- V6E Review Focus Activity Strip implemented.
+- V6F Settings Data Summary implemented.
+- V6G Digital Wellbeing Research completed as docs-only.
+- V6H Final Benchmark Review docs updated.
+
+Validation entry (only approved entry):
+
+```powershell
+.\tooling\v6b.cmd
+```
+
+Confirmed validation result:
+
+- V6B read-only validation completed
+- focused goals tests passed
+- targeted analyze passed
+- full analyze passed
+- full tests passed: 172 tests
+
+Version remains `1.1.2+14`.
+
+No version bump was made.
+No phone-test APK was prepared.
+No `flutter build apk` was run.
+No `pubspec.yaml` or dependency change was made.
+No Android/iOS native change was made.
+
+Semantic guardrails confirmed:
+
+- PlanRecord schema and semantics remain untouched.
+- PlanRecord note/numeric/image/source semantics remain untouched.
+- Plan progress semantics remain untouched.
+- task completion semantics remain untouched.
+- Habit -> Plan linking semantics remain untouched.
+
+Human review focus before any future release step:
+
+- `lib/features/focus/presentation/pages/focus_page.dart`: `ListView` to `SingleChildScrollView` + `Column` migration.
+- `lib/features/goals/presentation/pages/goals_page.dart`: V6C read-only Plan timeline/chart/year heatmap display.
+- `lib/features/goals/application/goals_store.dart` and `lib/features/goals/domain/models/goal_item.dart`: derived statistics helpers.
+- `tooling\validate_v6b.ps1`: forbidden historical script, not a direct validation entry.
+
+Historical pre-closure note follows.
+
+V6G Digital Wellbeing Research and V6H Final Benchmark Review docs are the latest completions. All V6D–V6F code packages are validated.
+
+Validation entry (only approved entry):
+
+```powershell
+.\tooling\v6b.cmd
+```
+
+Result after V6D–V6F:
+
+- full tests passed: 172 tests
+- no test regressions
+
+Version remains `1.1.2+14`.
+
+No version bump was made.
+No phone-test APK was prepared.
+No `flutter build apk` was run.
+
+The only allowed validation entry remains `.\tooling\v6b.cmd`.
+
+Do not run `tooling\validate_v6b.ps1` directly. It is forbidden for this workflow.
+
+The `.claude` worktree and experimental/old validation wrappers were moved out of the main project directory.
+
+Backup location:
+
+```text
+D:\AI\Backups\four_in_one_app_cleanup_20260511_155835
+```
+
+Before starting the next feature package, confirm scope explicitly with the user. Do not automatically bump version, prepare APK, or enter a phone-test release flow.
 
 ## Version History Summary
 
@@ -81,4 +173,3 @@ Future phone-test versions should follow `1.2.0+15`, `1.3.0+16`, etc., unless th
 Do not prepare a phone-test APK unless the user explicitly asks.
 
 Do not bump `pubspec.yaml` for ordinary feature implementation, validation, or UI polish.
-

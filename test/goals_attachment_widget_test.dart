@@ -26,15 +26,25 @@ void main() {
 
     await _pumpGoalsPage(tester, store, attachmentStorage);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('project-record-attach-record-1')),
-      300,
+    final attachFinder = find.byKey(
+      const ValueKey('project-record-attach-record-1'),
     );
+    await tester.scrollUntilVisible(
+      attachFinder,
+      300,
+      scrollable: find
+          .ancestor(of: attachFinder, matching: find.byType(Scrollable))
+          .first,
+    );
+    await tester.ensureVisible(attachFinder);
     await tester.tap(
       find.byKey(const ValueKey('project-record-attach-record-1')),
     );
     await _pumpStableFrame(tester);
-    await tester.tap(find.byKey(const ValueKey('record-image-pick-record-1')));
+    final pickFinder = find.byKey(const ValueKey('record-image-pick-record-1'));
+    await tester.ensureVisible(pickFinder);
+    await tester.pump();
+    await tester.tap(pickFinder);
     await _pumpStableFrame(tester);
 
     expect(attachmentStorage.pickedRecordIds, ['record-1']);
@@ -78,10 +88,18 @@ void main() {
       await _pumpGoalsPage(tester, store, attachmentStorage);
 
       await _pumpStableFrame(tester);
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('project-record-missing-image-record-1')),
-        300,
+      final missingImageFinder = find.byKey(
+        const ValueKey('project-record-missing-image-record-1'),
       );
+      await tester.scrollUntilVisible(
+        missingImageFinder,
+        300,
+        scrollable: find
+            .ancestor(of: missingImageFinder, matching: find.byType(Scrollable))
+            .first,
+      );
+      await tester.ensureVisible(missingImageFinder);
+      await tester.pump();
       await tester.tap(
         find.byKey(const ValueKey('project-record-missing-image-record-1')),
       );
@@ -136,10 +154,18 @@ void main() {
 
     await _pumpGoalsPage(tester, store, attachmentStorage);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('project-record-open-stats-project-1')),
-      300,
+    final openStatsFinder = find.byKey(
+      const ValueKey('project-record-open-stats-project-1'),
     );
+    await tester.scrollUntilVisible(
+      openStatsFinder,
+      300,
+      scrollable: find
+          .ancestor(of: openStatsFinder, matching: find.byType(Scrollable))
+          .first,
+    );
+    await tester.ensureVisible(openStatsFinder);
+    await tester.pump();
     await tester.tap(
       find.byKey(const ValueKey('project-record-open-stats-project-1')),
     );
@@ -186,7 +212,7 @@ Future<void> _pumpGoalsPage(
   GoalsStore store,
   PlanRecordAttachmentStorage attachmentStorage,
 ) {
-  tester.view.physicalSize = const Size(900, 1400);
+  tester.view.physicalSize = const Size(900, 2000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

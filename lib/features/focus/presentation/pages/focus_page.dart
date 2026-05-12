@@ -6,7 +6,10 @@ import 'package:four_in_one_app/features/focus/presentation/focus_scope.dart';
 import 'package:four_in_one_app/features/goals/application/goals_store.dart';
 import 'package:four_in_one_app/features/goals/domain/models/goal_item.dart';
 import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
+import 'package:four_in_one_app/shared/widgets/product/activity_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/focus_timer_hero.dart';
+import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
+import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 
 class FocusPage extends StatelessWidget {
   const FocusPage({super.key});
@@ -18,31 +21,36 @@ class FocusPage extends StatelessWidget {
     final theme = Theme.of(context);
     final targets = _buildSelectableTargets(goalsStore);
 
-    return ListView(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         AppThemeTokens.pagePadding,
         AppThemeTokens.spaceXl,
         AppThemeTokens.pagePadding,
         AppThemeTokens.pagePadding,
       ),
-      children: [
-        Text('把注意力交给此刻。', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text(
-          '选择一段时间，开始、暂停或重置这一轮专注。',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(theme.colorScheme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('把注意力交给此刻。', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          Text(
+            '选择一段时间，开始、暂停或重置这一轮专注。',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(theme.colorScheme),
+            ),
           ),
-        ),
-        const SizedBox(height: AppThemeTokens.pagePadding),
-        _FocusTargetSection(focusStore: focusStore, targets: targets),
-        const SizedBox(height: 18),
-        _FocusTimerPanel(focusStore: focusStore),
-        const SizedBox(height: 18),
-        _FocusDurationSelector(focusStore: focusStore),
-        const SizedBox(height: 18),
-        _FocusActionRow(focusStore: focusStore),
-      ],
+          const SizedBox(height: AppThemeTokens.pagePadding),
+          _FocusTargetSection(focusStore: focusStore, targets: targets),
+          const SizedBox(height: 18),
+          _FocusTimerPanel(focusStore: focusStore),
+          const SizedBox(height: 18),
+          _FocusDurationSelector(focusStore: focusStore),
+          const SizedBox(height: 18),
+          _FocusActionRow(focusStore: focusStore),
+          const SizedBox(height: 18),
+          _FocusWeeklyOverview(focusStore: focusStore),
+        ],
+      ),
     );
   }
 }
@@ -634,6 +642,103 @@ class _FocusActionRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _FocusWeeklyOverview extends StatelessWidget {
+  const _FocusWeeklyOverview({required this.focusStore});
+
+  final FocusStore focusStore;
+
+  static const _dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+
+  @override
+  Widget build(BuildContext context) {
+    final now = focusStore.now;
+    final weekCount = focusStore.weeklySessionCount(now);
+    final weekMinutes = focusStore.weeklyFocusMinutes(now);
+    final dayCounts = focusStore.weeklyDayCounts(now);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      key: const ValueKey('focus-weekly-section'),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppThemeTokens.softSurfaceTone(colorScheme),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
+        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('本周专注', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          MetricStrip(
+            metrics: [
+              MetricTileData(
+                valueKey: 'focus-weekly-sessions',
+                value: '$weekCount 次',
+                label: '本周次数',
+              ),
+              MetricTileData(
+                valueKey: 'focus-weekly-minutes',
+                value: '$weekMinutes 分钟',
+                label: '本周时长',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '周一至周日',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+            ),
+          ),
+          ActivityStrip(
+            valueKey: 'focus-weekly-strip',
+            items: [
+              for (var i = 0; i < dayCounts.length; i++)
+                ActivityStripItem(
+                  count: dayCounts[i],
+                  cellKey: ValueKey<String>('focus-weekly-day-$i'),
+                  semanticLabel: '周${_dayLabels[i]} ${dayCounts[i]} 次',
+                ),
+            ],
+          ),
+          const SizedBox(height: AppThemeTokens.spaceXs),
+          Row(
+            children: [
+              for (var i = 0; i < _dayLabels.length; i++) ...[
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      _dayLabels[i],
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AppThemeTokens.secondaryTextTone(colorScheme),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+                if (i != _dayLabels.length - 1)
+                  const SizedBox(width: AppThemeTokens.spaceXs),
+              ],
+            ],
+          ),
+          if (weekCount == 0) ...[
+            const SizedBox(height: 10),
+            Text(
+              '本周还没有完成的专注记录。',
+              key: const ValueKey('focus-weekly-empty'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppThemeTokens.secondaryTextTone(colorScheme),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

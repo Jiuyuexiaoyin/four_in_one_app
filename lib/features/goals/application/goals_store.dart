@@ -744,6 +744,7 @@ class GoalsStore extends ChangeNotifier {
     final projectRecords = recordsForProject(projectId);
     final now = _nowProvider().toLocal();
     final currentMonthRecords = recordsForMonth(projectId, now.year, now.month);
+    final currentYearPrefix = '${now.year.toString().padLeft(4, '0')}-';
     final activeDays = projectRecords
         .where((record) => _isValidLocalDate(record.localDate))
         .map((record) => record.localDate)
@@ -754,6 +755,8 @@ class GoalsStore extends ChangeNotifier {
         .map((attachment) => attachment.recordId)
         .toSet();
     final currentMonthCountsByLocalDate = <String, int>{};
+    final currentYearCountsByLocalDate = <String, int>{};
+    final currentYearCountsByMonth = <int, int>{};
     final totals = <String, double>{};
     var noteRecordCount = 0;
 
@@ -763,6 +766,17 @@ class GoalsStore extends ChangeNotifier {
     }
 
     for (final record in projectRecords) {
+      if (_isValidLocalDate(record.localDate) &&
+          record.localDate.startsWith(currentYearPrefix)) {
+        final month = int.tryParse(record.localDate.substring(5, 7));
+        if (month != null && month >= 1 && month <= 12) {
+          currentYearCountsByLocalDate[record.localDate] =
+              (currentYearCountsByLocalDate[record.localDate] ?? 0) + 1;
+          currentYearCountsByMonth[month] =
+              (currentYearCountsByMonth[month] ?? 0) + 1;
+        }
+      }
+
       if (record.type == PlanRecordType.note) {
         noteRecordCount += 1;
       }
@@ -785,6 +799,16 @@ class GoalsStore extends ChangeNotifier {
       numericTotalsByUnit: Map<String, double>.unmodifiable(totals),
       currentMonthCountsByLocalDate: Map<String, int>.unmodifiable(
         currentMonthCountsByLocalDate,
+      ),
+      currentYearRecordCount: currentYearCountsByLocalDate.values.fold<int>(
+        0,
+        (total, count) => total + count,
+      ),
+      currentYearCountsByLocalDate: Map<String, int>.unmodifiable(
+        currentYearCountsByLocalDate,
+      ),
+      currentYearCountsByMonth: Map<int, int>.unmodifiable(
+        currentYearCountsByMonth,
       ),
       currentYear: now.year,
       currentMonth: now.month,
@@ -1043,7 +1067,7 @@ class GoalsStore extends ChangeNotifier {
 
   String? _normalizeLocalDate(String? value) {
     final trimmed = value?.trim() ?? '';
-    return _isValidLocalDate(trimmed) ? trimmed : null;
+    return _isValidPlanningLocalDate(trimmed) ? trimmed : null;
   }
 
   List<String> _normalizeTags(List<String> tags) {
@@ -1086,6 +1110,19 @@ class GoalsStore extends ChangeNotifier {
 
   bool _isValidLocalDate(String value) {
     return RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value);
+  }
+
+  bool _isValidPlanningLocalDate(String value) {
+    if (!_isValidLocalDate(value)) {
+      return false;
+    }
+
+    final year = int.parse(value.substring(0, 4));
+    final month = int.parse(value.substring(5, 7));
+    final day = int.parse(value.substring(8, 10));
+    final parsed = DateTime.utc(year, month, day);
+
+    return parsed.year == year && parsed.month == month && parsed.day == day;
   }
 }
 

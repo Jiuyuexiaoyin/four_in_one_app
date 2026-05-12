@@ -711,6 +711,9 @@ class ProjectRecordStats {
     required this.photoAttachmentCount,
     required this.numericTotalsByUnit,
     required this.currentMonthCountsByLocalDate,
+    required this.currentYearRecordCount,
+    required this.currentYearCountsByLocalDate,
+    required this.currentYearCountsByMonth,
     required this.currentYear,
     required this.currentMonth,
     required this.currentLocalDate,
@@ -723,6 +726,9 @@ class ProjectRecordStats {
   final int photoAttachmentCount;
   final Map<String, double> numericTotalsByUnit;
   final Map<String, int> currentMonthCountsByLocalDate;
+  final int currentYearRecordCount;
+  final Map<String, int> currentYearCountsByLocalDate;
+  final Map<int, int> currentYearCountsByMonth;
   final int currentYear;
   final int currentMonth;
   final String currentLocalDate;
@@ -733,6 +739,9 @@ class ProjectRecordStats {
 
   bool get hasCurrentMonthActivity =>
       currentMonthCountsByLocalDate.values.any((count) => count > 0);
+
+  bool get hasCurrentYearActivity =>
+      currentYearCountsByLocalDate.values.any((count) => count > 0);
 }
 
 DateTime _parseDateTime(Object? value) {
@@ -753,7 +762,7 @@ String? _parseOptionalLocalDate(Object? value) {
   }
 
   final trimmed = value.trim();
-  return _isValidLocalDate(trimmed) ? trimmed : null;
+  return _isValidPlanningLocalDate(trimmed) ? trimmed : null;
 }
 
 String _parseOptionalText(Object? value, String fallback) {
@@ -816,4 +825,17 @@ int _parseOptionalColorValue(Object? value, int fallback) {
 
 bool _isValidColorValue(int value) {
   return value >= 0 && value <= 0xFFFFFFFF;
+}
+
+bool _isValidPlanningLocalDate(String value) {
+  if (!_isValidLocalDate(value)) {
+    return false;
+  }
+
+  final year = int.parse(value.substring(0, 4));
+  final month = int.parse(value.substring(5, 7));
+  final day = int.parse(value.substring(8, 10));
+  final parsed = DateTime.utc(year, month, day);
+
+  return parsed.year == year && parsed.month == month && parsed.day == day;
 }

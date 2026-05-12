@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:four_in_one_app/app/app.dart';
 import 'package:four_in_one_app/features/focus/application/focus_store.dart';
 import 'package:four_in_one_app/features/focus/domain/models/focus_active_session.dart';
+import 'package:four_in_one_app/features/focus/domain/models/focus_session_item.dart';
 import 'package:four_in_one_app/features/focus/domain/models/focus_target_snapshot.dart';
 import 'package:four_in_one_app/features/goals/application/goals_store.dart';
 import 'package:four_in_one_app/features/goals/domain/models/goal_item.dart';
@@ -233,6 +234,73 @@ void main() {
     expect(find.text('正在推进'), findsOneWidget);
     expect(_findKeyedText('focus-target-title', '旧行动快照'), findsOneWidget);
   });
+
+  testWidgets('weekly overview shows session count and day strip', (
+    tester,
+  ) async {
+    // Monday 2026-04-20 in local time; sessions span Mon–Fri of that week.
+    final fakeNow = DateTime(2026, 4, 24, 10); // Friday
+    final focusStore = FocusStore.inMemory(
+      initialSessions: [
+        FocusSessionItem(
+          id: 'fs-1',
+          completedAt: DateTime(2026, 4, 20, 9).toUtc(), // Monday
+          durationSeconds: 1500,
+        ),
+        FocusSessionItem(
+          id: 'fs-2',
+          completedAt: DateTime(2026, 4, 22, 9).toUtc(), // Wednesday
+          durationSeconds: 900,
+        ),
+        FocusSessionItem(
+          id: 'fs-3',
+          completedAt: DateTime(2026, 4, 24, 9).toUtc(), // Friday
+          durationSeconds: 1500,
+        ),
+        FocusSessionItem(
+          id: 'fs-old',
+          completedAt: DateTime(2026, 4, 13, 9).toUtc(), // previous week
+          durationSeconds: 1500,
+        ),
+      ],
+      nowProvider: () => fakeNow,
+    );
+
+    await tester.pumpWidget(
+      FourInOneApp(
+        habitsStore: HabitsStore.seededInMemory(),
+        goalsStore: GoalsStore.inMemory(),
+        focusStore: focusStore,
+      ),
+    );
+
+    await tester.tap(find.text('专注'));
+    await tester.pumpAndSettle();
+
+    final weeklySectionFinder = find.byKey(
+      const ValueKey('focus-weekly-section'),
+    );
+    await tester.scrollUntilVisible(
+      weeklySectionFinder,
+      100,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.ensureVisible(weeklySectionFinder);
+    await tester.pumpAndSettle();
+
+    expect(find.text('本周专注'), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-weekly-strip')), findsOneWidget);
+
+    // 3 sessions this week: Mon (25 min), Wed (15 min), Fri (25 min) = 65 min
+    expect(
+      _findKeyedTextStartingWith('focus-weekly-sessions', '3'),
+      findsOneWidget,
+    );
+    expect(
+      _findKeyedTextStartingWith('focus-weekly-minutes', '65'),
+      findsOneWidget,
+    );
+  });
 }
 
 Finder _findKeyedText(String key, String text) {
@@ -241,6 +309,15 @@ Finder _findKeyedText(String key, String text) {
         widget is Text &&
         widget.key == ValueKey<String>(key) &&
         widget.data == text,
+  );
+}
+
+Finder _findKeyedTextStartingWith(String key, String prefix) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Text &&
+        widget.key == ValueKey<String>(key) &&
+        (widget.data?.startsWith(prefix) ?? false),
   );
 }
 
