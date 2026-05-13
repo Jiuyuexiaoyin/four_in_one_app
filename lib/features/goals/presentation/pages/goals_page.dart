@@ -12,6 +12,7 @@ import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/mini_heatmap_cell.dart';
 import 'package:four_in_one_app/shared/widgets/product/plan_goal_card.dart';
 import 'package:four_in_one_app/shared/widgets/product/plan_tree_row.dart';
+import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
 import 'package:four_in_one_app/shared/widgets/product/progress_rail.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
 
@@ -25,7 +26,6 @@ class GoalsPage extends StatelessWidget {
     final goalsStore = GoalsScope.of(context);
     final effectiveAttachmentStorage =
         attachmentStorage ?? const LocalPlanRecordAttachmentStorage();
-    final theme = Theme.of(context);
 
     return ListView(
       key: const ValueKey('goals-page-scroll'),
@@ -36,13 +36,9 @@ class GoalsPage extends StatelessWidget {
         AppThemeTokens.pagePadding,
       ),
       children: [
-        Text('计划你的长期推进。', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text(
-          '目标是方向，项目是路径，行动才是下一步。',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(theme.colorScheme),
-          ),
+        const ProductPageHeader(
+          title: '计划你的长期推进。',
+          subtitle: '目标是方向，项目是路径，行动才是下一步。',
         ),
         const SizedBox(height: AppThemeTokens.spaceXl),
         _PlanOverviewSurface(goalsStore: goalsStore),

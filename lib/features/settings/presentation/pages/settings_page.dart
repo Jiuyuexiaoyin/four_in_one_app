@@ -7,6 +7,7 @@ import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
 import 'package:four_in_one_app/features/focus/presentation/focus_scope.dart';
 import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
 import 'package:four_in_one_app/features/habits/presentation/habits_scope.dart';
+import 'package:four_in_one_app/shared/widgets/product/app_quiet_badge.dart';
 import 'package:four_in_one_app/shared/widgets/product/my_settings_section.dart';
 import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
 
@@ -1361,42 +1362,9 @@ class _FutureSection extends StatelessWidget {
           subtitle: helper,
           leadingIcon: icon,
           enabled: false,
-          trailing: _QuietBadge(label: badgeLabel),
+          trailing: AppQuietBadge(label: badgeLabel),
         ),
       ],
-    );
-  }
-}
-
-class _QuietBadge extends StatelessWidget {
-  const _QuietBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppThemeTokens.spaceSm,
-          vertical: AppThemeTokens.spaceXs,
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(colorScheme),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
     );
   }
 }

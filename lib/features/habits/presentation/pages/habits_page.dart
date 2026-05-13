@@ -20,6 +20,7 @@ import 'package:four_in_one_app/shared/widgets/product/habit_identity_card.dart'
 import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/mini_heatmap_cell.dart';
+import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
 
 const _habitEmojiPresets = <String>[
@@ -88,18 +89,9 @@ class HabitsPage extends StatelessWidget {
           AppThemeTokens.pagePadding,
         ),
         children: [
-          Text(
-            '轻量记录每天的重复行为。',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '一次打卡就是一条记录，习惯完成度由今日次数自动计算。',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(
-                Theme.of(context).colorScheme,
-              ),
-            ),
+          const ProductPageHeader(
+            title: '轻量记录每天的重复行为。',
+            subtitle: '一次打卡就是一条记录，习惯完成度由今日次数自动计算。',
           ),
           const SizedBox(height: AppThemeTokens.pagePadding),
           _AddHabitSection(
@@ -1437,9 +1429,7 @@ class _HabitRecordSheetState extends State<_HabitRecordSheet> {
                         attachments: widget.habitsStore.attachmentsForRecord(
                           record.id,
                         ),
-                        metrics: widget.habitsStore.metricsForRecord(
-                          record.id,
-                        ),
+                        metrics: widget.habitsStore.metricsForRecord(record.id),
                         attachmentStorage: widget.attachmentStorage,
                         onAttachmentTap: () =>
                             _showRecordAttachmentSheet(record),
@@ -1485,9 +1475,7 @@ class _HabitRecordSheetState extends State<_HabitRecordSheet> {
                         attachments: widget.habitsStore.attachmentsForRecord(
                           record.id,
                         ),
-                        metrics: widget.habitsStore.metricsForRecord(
-                          record.id,
-                        ),
+                        metrics: widget.habitsStore.metricsForRecord(record.id),
                         attachmentStorage: widget.attachmentStorage,
                         onAttachmentTap: () =>
                             _showRecordAttachmentSheet(record),
@@ -1566,10 +1554,7 @@ class _HabitRecordSheetState extends State<_HabitRecordSheet> {
         return null;
       }
       inputs.add(
-        HabitRecordMetricInput(
-          templateId: template.id,
-          numericValue: value,
-        ),
+        HabitRecordMetricInput(templateId: template.id, numericValue: value),
       );
     }
 
@@ -3963,7 +3948,7 @@ class _HabitFormDialog extends StatefulWidget {
     this.initialHabit, {
     required this.initialTemplates,
   }) : title = '编辑习惯',
-      submitLabel = '保存';
+       submitLabel = '保存';
 
   final HabitItem? initialHabit;
   final List<HabitCheckInTemplate> initialTemplates;
@@ -4195,7 +4180,8 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
     if (_templateDrafts.where((draft) => !draft.isArchived).length >=
         HabitsStore.maxCheckInTemplatesPerHabit) {
       setState(() {
-        _templateError = '最多添加 ${HabitsStore.maxCheckInTemplatesPerHabit} 个打卡项目';
+        _templateError =
+            '最多添加 ${HabitsStore.maxCheckInTemplatesPerHabit} 个打卡项目';
       });
       return;
     }
@@ -4239,7 +4225,8 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
     if (_templateDrafts.where((item) => !item.isArchived).length >=
         HabitsStore.maxCheckInTemplatesPerHabit) {
       setState(() {
-        _templateError = '最多添加 ${HabitsStore.maxCheckInTemplatesPerHabit} 个打卡项目';
+        _templateError =
+            '最多添加 ${HabitsStore.maxCheckInTemplatesPerHabit} 个打卡项目';
       });
       return;
     }
@@ -4342,14 +4329,12 @@ class _HabitTemplateEditorSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final activeDrafts = drafts
-        .where((draft) => !draft.isArchived)
-        .toList(growable: false)
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    final archivedDrafts = drafts
-        .where((draft) => draft.isArchived)
-        .toList(growable: false)
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final activeDrafts =
+        drafts.where((draft) => !draft.isArchived).toList(growable: false)
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final archivedDrafts =
+        drafts.where((draft) => draft.isArchived).toList(growable: false)
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4534,9 +4519,9 @@ class _HabitTemplateDraftSheetState extends State<_HabitTemplateDraftSheet> {
             children: [
               Text(
                 widget.initialDraft == null ? '添加打卡项目' : '编辑打卡项目',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: AppThemeTokens.spaceMd),
               TextField(
@@ -4560,9 +4545,7 @@ class _HabitTemplateDraftSheetState extends State<_HabitTemplateDraftSheet> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(
-                  labelText: '默认数值（可选）',
-                ),
+                decoration: const InputDecoration(labelText: '默认数值（可选）'),
               ),
               if (_errorText != null) ...[
                 const SizedBox(height: AppThemeTokens.spaceSm),
@@ -4617,11 +4600,11 @@ class _HabitTemplateDraftSheetState extends State<_HabitTemplateDraftSheet> {
       (initialDraft ??
               const _HabitTemplateDraft(title: '', unit: '', sortOrder: 0))
           .copyWith(
-        title: title,
-        unit: unit,
-        defaultValue: defaultValue,
-        clearDefaultValue: defaultValue == null,
-      ),
+            title: title,
+            unit: unit,
+            defaultValue: defaultValue,
+            clearDefaultValue: defaultValue == null,
+          ),
     );
   }
 }
@@ -4720,8 +4703,9 @@ class _HabitTemplateDraft {
       id: id ?? this.id,
       title: title ?? this.title,
       unit: unit ?? this.unit,
-      defaultValue:
-          clearDefaultValue ? null : (defaultValue ?? this.defaultValue),
+      defaultValue: clearDefaultValue
+          ? null
+          : (defaultValue ?? this.defaultValue),
       sortOrder: sortOrder ?? this.sortOrder,
       isArchived: isArchived ?? this.isArchived,
     );
@@ -5364,10 +5348,10 @@ String _formatMetricValue(double value) {
   if (value == value.roundToDouble()) {
     return value.toInt().toString();
   }
-  return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '').replaceFirst(
-        RegExp(r'\.$'),
-        '',
-      );
+  return value
+      .toStringAsFixed(2)
+      .replaceFirst(RegExp(r'0+$'), '')
+      .replaceFirst(RegExp(r'\.$'), '');
 }
 
 String _reminderFieldControllerText(List<HabitReminderRule> rules) {
