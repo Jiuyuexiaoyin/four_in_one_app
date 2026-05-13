@@ -6,10 +6,13 @@ import 'package:four_in_one_app/features/focus/presentation/focus_scope.dart';
 import 'package:four_in_one_app/features/goals/application/goals_store.dart';
 import 'package:four_in_one_app/features/goals/domain/models/goal_item.dart';
 import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
+import 'package:four_in_one_app/shared/theme/app_text_styles.dart';
 import 'package:four_in_one_app/shared/widgets/product/activity_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/focus_timer_hero.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
+import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
+import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
 
 class FocusPage extends StatelessWidget {
   const FocusPage({super.key});
@@ -18,7 +21,6 @@ class FocusPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final focusStore = FocusStoreScope.of(context);
     final goalsStore = GoalsScope.of(context);
-    final theme = Theme.of(context);
     final targets = _buildSelectableTargets(goalsStore);
 
     return SingleChildScrollView(
@@ -31,23 +33,19 @@ class FocusPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('把注意力交给此刻。', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          Text(
-            '选择一段时间，开始、暂停或重置这一轮专注。',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(theme.colorScheme),
-            ),
+          const ProductPageHeader(
+            title: '把注意力交给此刻。',
+            subtitle: '选择一段时间，开始、暂停或重置这一轮专注。',
           ),
           const SizedBox(height: AppThemeTokens.pagePadding),
           _FocusTargetSection(focusStore: focusStore, targets: targets),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppThemeTokens.spaceLg2),
           _FocusTimerPanel(focusStore: focusStore),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppThemeTokens.spaceLg2),
           _FocusDurationSelector(focusStore: focusStore),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppThemeTokens.spaceLg2),
           _FocusActionRow(focusStore: focusStore),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppThemeTokens.spaceLg2),
           _FocusWeeklyOverview(focusStore: focusStore),
         ],
       ),
@@ -193,21 +191,19 @@ class _FocusTargetSection extends StatelessWidget {
     final target = focusStore.currentTarget;
     final isLocked = !focusStore.isIdle;
 
-    return Container(
+    return SoftSurface(
       key: const ValueKey('focus-target-section'),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
+      tone: SoftSurfaceTone.flat,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: Text('本轮专注对象', style: theme.textTheme.titleMedium),
+                child: Text(
+                  '本轮专注对象',
+                  style: AppTextStyles.sectionTitle(context),
+                ),
               ),
               Text(
                 isLocked ? '对象已锁定' : '可选',
@@ -275,18 +271,10 @@ class _FocusTargetSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 if (targets.isEmpty)
-                  Container(
+                  SoftSurface(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppThemeTokens.softSurfaceTone(colorScheme),
-                      borderRadius: BorderRadius.circular(
-                        AppThemeTokens.radiusLg,
-                      ),
-                      border: Border.all(
-                        color: AppThemeTokens.borderTone(colorScheme),
-                      ),
-                    ),
+                    tone: SoftSurfaceTone.flat,
+                    borderRadius: AppThemeTokens.radiusLg,
                     child: Text(
                       '暂无可选择行动',
                       style: theme.textTheme.bodyLarge?.copyWith(
@@ -468,19 +456,16 @@ class _FocusDurationSelector extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
+    return SoftSurface(
+      tone: SoftSurfaceTone.flat,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('选择时长', style: theme.textTheme.titleMedium)),
+              Expanded(
+                child: Text('选择时长', style: AppTextStyles.sectionTitle(context)),
+              ),
               Text(
                 focusStore.isIdle ? '下一轮' : '本轮已锁定',
                 style: theme.textTheme.labelLarge?.copyWith(
@@ -662,18 +647,13 @@ class _FocusWeeklyOverview extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
+    return SoftSurface(
       key: const ValueKey('focus-weekly-section'),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
+      tone: SoftSurfaceTone.flat,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('本周专注', style: theme.textTheme.titleMedium),
+          Text('本周专注', style: AppTextStyles.sectionTitle(context)),
           const SizedBox(height: 12),
           MetricStrip(
             metrics: [
