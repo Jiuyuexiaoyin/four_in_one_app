@@ -7,6 +7,7 @@ import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
 import 'package:four_in_one_app/features/habits/application/habits_store.dart';
 import 'package:four_in_one_app/features/habits/presentation/habits_scope.dart';
 import 'package:four_in_one_app/shared/widgets/product/activity_strip.dart';
+import 'package:four_in_one_app/shared/widgets/product/app_section_panel.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
@@ -266,7 +267,7 @@ class _ReviewHabitsSection extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final completionRate = data.habitCompletionRate;
 
-    return _ReviewPanel(
+    return AppSectionPanel(
       key: const ValueKey('review-habits-section'),
       title: '习惯活动',
       subtitle: data.habitTotalCount == 0 ? '还没有习惯数据。' : '今日目标与近 7 天打卡',
@@ -361,7 +362,7 @@ class _ReviewPlanSection extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final progressRate = data.planProgressRate;
 
-    return _ReviewPanel(
+    return AppSectionPanel(
       key: const ValueKey('review-goals-section'),
       title: '计划推进',
       subtitle: _supportingLine(),
@@ -454,7 +455,7 @@ class _ReviewFocusSection extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final latestTarget = data.latestFocusTargetTitle;
 
-    return _ReviewPanel(
+    return AppSectionPanel(
       key: sectionKey,
       title: '专注执行',
       subtitle: data.focusCompletedSessions == 0 ? '还没有完成的专注记录。' : '基于已完成专注',
@@ -580,69 +581,6 @@ class _ReviewFocusSection extends StatelessWidget {
     }
 
     return '专注记录来自完整倒计时。';
-  }
-}
-
-class _ReviewPanel extends StatelessWidget {
-  const _ReviewPanel({
-    required super.key,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.child,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return SoftSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppThemeTokens.selectedStateTone(colorScheme),
-                  borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-                  border: Border.all(
-                    color: colorScheme.primary.withValues(alpha: 0.12),
-                  ),
-                ),
-                child: Icon(icon, color: colorScheme.primary, size: 21),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: theme.textTheme.titleLarge),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          child,
-        ],
-      ),
-    );
   }
 }
 
