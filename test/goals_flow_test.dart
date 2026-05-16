@@ -12,7 +12,9 @@ Finder _goalsPageScrollView() =>
     find.byKey(const ValueKey('goals-page-scroll'));
 
 Future<void> _tapPlanTab(WidgetTester tester) async {
-  await tester.tap(find.byType(NavigationDestination).at(1));
+  await tester.tap(
+    find.descendant(of: find.byType(NavigationBar), matching: find.text('计划')),
+  );
   await tester.pumpAndSettle();
   expect(find.byKey(const ValueKey('goals-page-scroll')), findsOneWidget);
 }

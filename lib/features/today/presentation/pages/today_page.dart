@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/router/app_router.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
@@ -10,10 +12,6 @@ import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
 import 'package:four_in_one_app/features/habits/application/habits_store.dart';
 import 'package:four_in_one_app/features/habits/domain/models/habit_item.dart';
 import 'package:four_in_one_app/features/habits/presentation/habits_scope.dart';
-import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
-import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
-import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
-import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
 
 class TodayPage extends StatelessWidget {
   const TodayPage({super.key});
@@ -23,7 +21,10 @@ class TodayPage extends StatelessWidget {
     final habitsStore = HabitsScope.of(context);
     final goalsStore = GoalsScope.of(context);
     final focusStore = FocusStoreScope.of(context);
-    final pendingHabits = habitsStore.habits
+    final activeHabits = habitsStore.habits
+        .where((habit) => habit.isActive)
+        .toList(growable: false);
+    final pendingHabits = activeHabits
         .where((habit) => !habitsStore.isCompletedToday(habit))
         .take(2)
         .toList(growable: false);
@@ -31,6 +32,10 @@ class TodayPage extends StatelessWidget {
         .where((task) => task.isCompleted)
         .length;
     final totalActionCount = goalsStore.tasks.length;
+    final previewActions = goalsStore.tasks
+        .where((task) => !task.isCompleted)
+        .take(2)
+        .toList(growable: false);
     final todayKey = habitsStore.currentDayKey;
     final todayPlanRecords = goalsStore.records
         .where((record) => record.localDate == todayKey)
@@ -40,13 +45,6 @@ class TodayPage extends StatelessWidget {
           (record) => record.sourceType == GoalsStore.habitPlanRecordSourceType,
         )
         .length;
-    final bestHabitStreak = _bestHabitStreak(habitsStore);
-    final todayReminderCount = _todayReminderCount(habitsStore);
-    final recentHabitActivityCount = _recentHabitActivityCount(habitsStore);
-    final previewActions = goalsStore.tasks
-        .where((task) => !task.isCompleted)
-        .take(2)
-        .toList(growable: false);
     final todayFocusSessions = focusStore.sessions
         .where(
           (session) => _localDateKey(session.completedAt.toLocal()) == todayKey,
@@ -56,540 +54,1010 @@ class TodayPage extends StatelessWidget {
       0,
       (sum, session) => sum + session.durationSeconds ~/ 60,
     );
+    final stageProgress = _todayProgress(
+      completedHabits: habitsStore.completedCount,
+      totalHabits: habitsStore.totalCount,
+      completedActions: completedActionCount,
+      totalActions: totalActionCount,
+      focusMinutes: todayFocusMinutes,
+      selectedFocusMinutes: focusStore.selectedDurationSeconds ~/ 60,
+    );
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final stageHeight = math.min(460.0, math.max(350.0, screenHeight * 0.44));
 
     return ListView(
-      padding: const EdgeInsets.all(AppThemeTokens.pagePadding),
+      padding: EdgeInsets.zero,
+      cacheExtent: 1600,
       children: [
-        const ProductPageHeader(title: '今日中心', subtitle: '先看今天要养成、要推进、要专注的事。'),
-        const SizedBox(height: 20),
-        _TodayRhythmSurface(
-          completedHabits: habitsStore.completedCount,
-          totalHabits: habitsStore.totalCount,
-          totalCheckInsToday: habitsStore.totalCheckInsToday,
-          completedActions: completedActionCount,
-          totalActions: totalActionCount,
-          bestHabitStreak: bestHabitStreak,
-          todayPlanRecordCount: todayPlanRecords.length,
-          remainingHabits: habitsStore.remainingCount,
-          planCueLabel: _planCueLabel(goalsStore, previewActions),
-          focusCueLabel: _focusCueLabel(focusStore, todayFocusMinutes),
-          todayFocusMinutes: todayFocusMinutes,
-          onViewHabits: () {
-            Navigator.of(context).pushNamed(AppRoute.habits);
-          },
-        ),
-        const SizedBox(height: 18),
-        _TodayHabitsSummaryCard(
-          completedCount: habitsStore.completedCount,
-          totalCount: habitsStore.totalCount,
-          remainingCount: habitsStore.remainingCount,
-          totalCheckInsToday: habitsStore.totalCheckInsToday,
-          bestStreakDays: bestHabitStreak,
-          todayReminderCount: todayReminderCount,
-          recentActivityCount: recentHabitActivityCount,
-          pendingPreviewHabits: pendingHabits,
-          habitsStore: habitsStore,
-          onViewAll: () {
-            Navigator.of(context).pushNamed(AppRoute.habits);
-          },
-        ),
-        const SizedBox(height: 16),
-        _TodayGoalsSummaryCard(
-          previewGoals: goalsStore.goals.take(2).toList(growable: false),
-          previewActions: previewActions,
-          goalsStore: goalsStore,
-          todayPlanRecordCount: todayPlanRecords.length,
-          habitLinkedPlanRecordCount: habitLinkedPlanRecordCount,
-          onViewAll: () {
-            Navigator.of(context).pushNamed(AppRoute.goals);
-          },
-        ),
-        const SizedBox(height: 16),
-        _TodayFocusSummaryCard(
-          focusStore: focusStore,
-          todaySessionCount: todayFocusSessions.length,
-          todayFocusMinutes: todayFocusMinutes,
-          onViewAll: () {
+        _TodayStage(
+          height: stageHeight,
+          progress: stageProgress,
+          primaryLabel: previewActions.isNotEmpty ? '继续下一项' : '开始今天',
+          habitSignal: '${habitsStore.completedCount}/${habitsStore.totalCount}',
+          planSignal: '$completedActionCount/$totalActionCount',
+          focusSignal: '$todayFocusMinutes 分钟',
+          onPrimaryAction: () {
+            if (previewActions.isNotEmpty || goalsStore.goals.isNotEmpty) {
+              Navigator.of(context).pushNamed(AppRoute.goals);
+              return;
+            }
+            if (pendingHabits.isNotEmpty) {
+              Navigator.of(context).pushNamed(AppRoute.habits);
+              return;
+            }
             Navigator.of(context).pushNamed(AppRoute.focus);
           },
         ),
-        const SizedBox(height: 16),
-        _TodayReviewPreviewCard(
-          totalCheckInsToday: habitsStore.totalCheckInsToday,
-          completedActions: completedActionCount,
-          todayPlanRecordCount: todayPlanRecords.length,
-          todayFocusSessionCount: todayFocusSessions.length,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppThemeTokens.pagePadding,
+            18,
+            AppThemeTokens.pagePadding,
+            0,
+          ),
+          child: _TodayActionRail(
+            completedHabits: habitsStore.completedCount,
+            totalHabits: habitsStore.totalCount,
+            totalCheckInsToday: habitsStore.totalCheckInsToday,
+            pendingHabits: pendingHabits,
+            habitsStore: habitsStore,
+            planCueLabel: _planCueLabel(goalsStore, previewActions),
+            focusCueLabel: _focusCueLabel(focusStore, todayFocusMinutes),
+            todayFocusMinutes: todayFocusMinutes,
+            onViewHabits: () {
+              Navigator.of(context).pushNamed(AppRoute.habits);
+            },
+            onViewPlan: () {
+              Navigator.of(context).pushNamed(AppRoute.goals);
+            },
+            onViewFocus: () {
+              Navigator.of(context).pushNamed(AppRoute.focus);
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppThemeTokens.pagePadding,
+            22,
+            AppThemeTokens.pagePadding,
+            0,
+          ),
+          child: _TodayPlanSection(
+            goalsStore: goalsStore,
+            previewGoals: goalsStore.goals.take(2).toList(growable: false),
+            previewActions: previewActions,
+            todayPlanRecordCount: todayPlanRecords.length,
+            habitLinkedPlanRecordCount: habitLinkedPlanRecordCount,
+            completedActionCount: completedActionCount,
+            totalActionCount: totalActionCount,
+            onViewAll: () {
+              Navigator.of(context).pushNamed(AppRoute.goals);
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppThemeTokens.pagePadding,
+            18,
+            AppThemeTokens.pagePadding,
+            0,
+          ),
+          child: _TodayFocusSection(
+            focusStore: focusStore,
+            todaySessionCount: todayFocusSessions.length,
+            todayFocusMinutes: todayFocusMinutes,
+            onViewAll: () {
+              Navigator.of(context).pushNamed(AppRoute.focus);
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppThemeTokens.pagePadding,
+            18,
+            AppThemeTokens.pagePadding,
+            110,
+          ),
+          child: _TodayReviewStrip(
+            totalCheckInsToday: habitsStore.totalCheckInsToday,
+            completedActions: completedActionCount,
+            todayPlanRecordCount: todayPlanRecords.length,
+            todayFocusSessionCount: todayFocusSessions.length,
+          ),
         ),
       ],
     );
   }
 }
 
-class _TodayRhythmSurface extends StatelessWidget {
-  const _TodayRhythmSurface({
+class _TodayStage extends StatelessWidget {
+  const _TodayStage({
+    required this.height,
+    required this.progress,
+    required this.primaryLabel,
+    required this.habitSignal,
+    required this.planSignal,
+    required this.focusSignal,
+    required this.onPrimaryAction,
+  });
+
+  final double height;
+  final double progress;
+  final String primaryLabel;
+  final String habitSignal;
+  final String planSignal;
+  final String focusSignal;
+  final VoidCallback onPrimaryAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return SizedBox(
+      height: height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          IgnorePointer(
+            child: CustomPaint(
+              painter: _TodayBackdropPainter(
+                colorScheme: colorScheme,
+                progress: progress,
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colorScheme.surfaceContainerLowest.withValues(alpha: 0.10),
+                    colorScheme.surfaceContainerLowest.withValues(alpha: 0.78),
+                    colorScheme.surfaceContainerLowest,
+                  ],
+                  stops: const [0.0, 0.70, 1.0],
+                ),
+              ),
+            ),
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final compact = constraints.maxHeight < 420 || textScale > 1.0;
+              final horizontalPadding = compact ? 22.0 : 26.0;
+              final topPadding = compact ? 22.0 : 34.0;
+              final bottomPadding = compact ? 20.0 : 30.0;
+              final titleSize = compact ? 30.0 : 36.0;
+              final sectionGap = compact ? 10.0 : 18.0;
+              final actionGap = compact ? 16.0 : 24.0;
+              final signalGap = compact ? 16.0 : 24.0;
+
+              return Padding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  topPadding,
+                  horizontalPadding,
+                  bottomPadding,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 52),
+                      child: Row(
+                        children: [
+                          _StageLabel(text: '今日', compact: compact),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '今日中心',
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.82,
+                                    ),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  '今天的节奏',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: AppThemeTokens.secondaryTextTone(
+                                      colorScheme,
+                                    ).withValues(alpha: 0.74),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (compact)
+                      SizedBox(height: sectionGap)
+                    else
+                      const Spacer(),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 340),
+                      child: Text(
+                        '今天，先推进一件事',
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontSize: titleSize,
+                          height: compact ? 1.05 : 1.08,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: sectionGap),
+                    Text(
+                      '先看最重要的事',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: AppThemeTokens.secondaryTextTone(
+                          colorScheme,
+                        ).withValues(alpha: 0.82),
+                        fontWeight: FontWeight.w500,
+                        height: 1.36,
+                      ),
+                    ),
+                    SizedBox(height: actionGap),
+                    _PrimaryActionPill(
+                      label: primaryLabel,
+                      compact: compact,
+                      onPressed: onPrimaryAction,
+                    ),
+                    SizedBox(height: signalGap),
+                    _StageSignalRow(
+                      habitSignal: habitSignal,
+                      planSignal: planSignal,
+                      focusSignal: focusSignal,
+                      compact: compact,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayBackdropPainter extends CustomPainter {
+  const _TodayBackdropPainter({
+    required this.colorScheme,
+    required this.progress,
+  });
+
+  final ColorScheme colorScheme;
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final backgroundPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.lerp(
+                colorScheme.surfaceContainerLowest,
+                colorScheme.primary,
+                0.12,
+              ) ??
+              colorScheme.surfaceContainerLowest,
+          colorScheme.surfaceContainerLowest,
+          Color.lerp(
+                colorScheme.surfaceContainerLowest,
+                colorScheme.surface,
+                0.62,
+              ) ??
+              colorScheme.surface,
+        ],
+        stops: const [0.0, 0.48, 1.0],
+      ).createShader(rect);
+    canvas.drawRect(rect, backgroundPaint);
+
+    final bandPath = Path()
+      ..moveTo(size.width * 0.12, size.height * 0.66)
+      ..cubicTo(
+        size.width * 0.34,
+        size.height * 0.52,
+        size.width * 0.52,
+        size.height * 0.76,
+        size.width * 0.72,
+        size.height * 0.58,
+      )
+      ..cubicTo(
+        size.width * 0.86,
+        size.height * 0.45,
+        size.width * 0.96,
+        size.height * 0.50,
+        size.width + 24,
+        size.height * 0.40,
+      );
+    final bandPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 30
+      ..strokeCap = StrokeCap.round
+      ..color = colorScheme.primary.withValues(alpha: 0.075);
+    canvas.drawPath(bandPath, bandPaint);
+
+    final progressPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..color = colorScheme.primary.withValues(alpha: 0.48);
+    final progressPath = Path()
+      ..moveTo(size.width * 0.34, size.height * 0.46)
+      ..cubicTo(
+        size.width * 0.48,
+        size.height * 0.34,
+        size.width * 0.62,
+        size.height * 0.50,
+        size.width * 0.74,
+        size.height * 0.38,
+      )
+      ..cubicTo(
+        size.width * 0.82,
+        size.height * 0.30,
+        size.width * 0.90,
+        size.height * 0.34,
+        size.width * 0.98,
+        size.height * 0.26,
+      );
+    canvas.drawPath(progressPath, progressPaint);
+
+    final pulseCenter = Offset(size.width * 0.80, size.height * 0.44);
+    for (var index = 0; index < 3; index += 1) {
+      canvas.drawCircle(
+        pulseCenter,
+        38.0 + index * 26,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = colorScheme.primary.withValues(alpha: 0.09 - index * 0.02),
+      );
+    }
+
+    final dotPaint = Paint()
+      ..color = colorScheme.onSurface.withValues(alpha: 0.13);
+    final activeDotPaint = Paint()
+      ..color = colorScheme.primary.withValues(alpha: 0.62);
+    final dotCount = 18;
+    final activeCount = (dotCount * progress.clamp(0, 1)).round();
+    for (var index = 0; index < dotCount; index += 1) {
+      final x = size.width * (0.11 + index * 0.046);
+      final y =
+          size.height * 0.84 +
+          math.sin(index * 0.82) * 9 +
+          (index.isEven ? 0 : 4);
+      canvas.drawCircle(
+        Offset(x, y),
+        index < activeCount ? 2.4 : 1.7,
+        index < activeCount ? activeDotPaint : dotPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TodayBackdropPainter oldDelegate) {
+    return oldDelegate.colorScheme != colorScheme ||
+        oldDelegate.progress != progress;
+  }
+}
+
+class _StageLabel extends StatelessWidget {
+  const _StageLabel({required this.text, required this.compact});
+
+  final String text;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 5 : 6,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.14)),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryActionPill extends StatelessWidget {
+  const _PrimaryActionPill({
+    required this.label,
+    required this.compact,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool compact;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+        child: Ink(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 14 : 16,
+            vertical: compact ? 9 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: colorScheme.primary.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.primary.withValues(alpha: 0.14),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: colorScheme.onPrimary,
+                size: compact ? 17 : 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StageSignalRow extends StatelessWidget {
+  const _StageSignalRow({
+    required this.habitSignal,
+    required this.planSignal,
+    required this.focusSignal,
+    required this.compact,
+  });
+
+  final String habitSignal;
+  final String planSignal;
+  final String focusSignal;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: compact ? 16 : 22,
+      runSpacing: compact ? 6 : 8,
+      children: [
+        _StageSignal(label: '习惯完成', value: habitSignal),
+        _StageSignal(label: '计划行动', value: planSignal),
+        _StageSignal(label: '专注分钟', value: focusSignal),
+      ],
+    );
+  }
+}
+
+class _StageSignal extends StatelessWidget {
+  const _StageSignal({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: value,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.88),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          TextSpan(
+            text: '  $label',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _TodayActionRail extends StatelessWidget {
+  const _TodayActionRail({
     required this.completedHabits,
     required this.totalHabits,
     required this.totalCheckInsToday,
-    required this.completedActions,
-    required this.totalActions,
-    required this.bestHabitStreak,
-    required this.todayPlanRecordCount,
-    required this.remainingHabits,
+    required this.pendingHabits,
+    required this.habitsStore,
     required this.planCueLabel,
     required this.focusCueLabel,
     required this.todayFocusMinutes,
     required this.onViewHabits,
+    required this.onViewPlan,
+    required this.onViewFocus,
   });
 
   final int completedHabits;
   final int totalHabits;
   final int totalCheckInsToday;
-  final int completedActions;
-  final int totalActions;
-  final int bestHabitStreak;
-  final int todayPlanRecordCount;
-  final int remainingHabits;
+  final List<HabitItem> pendingHabits;
+  final HabitsStore habitsStore;
   final String planCueLabel;
   final String focusCueLabel;
   final int todayFocusMinutes;
   final VoidCallback onViewHabits;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return SoftSurface(
-      backgroundColor: AppThemeTokens.selectedStateTone(colorScheme).withValues(
-        alpha: colorScheme.brightness == Brightness.dark ? 0.28 : 0.44,
-      ),
-      borderColor: colorScheme.primary.withValues(alpha: 0.08),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '今天的节奏',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton.icon(
-                key: const ValueKey('today-habits-view-all'),
-                onPressed: onViewHabits,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                label: const Text('查看习惯'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            '今日优先：养成、推进、专注',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.8,
-            ),
-          ),
-          const SizedBox(height: AppThemeTokens.spaceXs),
-          Text(
-            '先看最重要的事',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 16),
-          MetricStrip(
-            tileWidth: 118,
-            metrics: [
-              MetricTileData(
-                value: '$completedHabits/$totalHabits',
-                label: '今日达标',
-              ),
-              MetricTileData(
-                value: '$completedActions/$totalActions',
-                label: '计划推进',
-              ),
-              MetricTileData(
-                value: todayFocusMinutes > 0 ? '$todayFocusMinutes 分' : '待开始',
-                label: '专注状态',
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _TodaySignalChips(
-            labels: [
-              totalHabits == 0
-                  ? '先建立一项习惯'
-                  : remainingHabits == 0
-                  ? '习惯已达标'
-                  : '习惯待达标 $remainingHabits',
-              '打卡 $totalCheckInsToday',
-              '计划记录 $todayPlanRecordCount',
-              todayFocusMinutes > 0 ? focusCueLabel : '连续 $bestHabitStreak 天',
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodayHabitsSummaryCard extends StatelessWidget {
-  const _TodayHabitsSummaryCard({
-    required this.completedCount,
-    required this.totalCount,
-    required this.remainingCount,
-    required this.totalCheckInsToday,
-    required this.bestStreakDays,
-    required this.todayReminderCount,
-    required this.recentActivityCount,
-    required this.pendingPreviewHabits,
-    required this.habitsStore,
-    required this.onViewAll,
-  });
-
-  final int completedCount;
-  final int totalCount;
-  final int remainingCount;
-  final int totalCheckInsToday;
-  final int bestStreakDays;
-  final int todayReminderCount;
-  final int recentActivityCount;
-  final List<HabitItem> pendingPreviewHabits;
-  final HabitsStore habitsStore;
-  final VoidCallback onViewAll;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final allCompleted = totalCount > 0 && remainingCount == 0;
-
-    return _TodayModuleCard(
-      title: '今日习惯',
-      subtitle: '每天重复的小事，轻一点完成。',
-      viewAllKey: const ValueKey('today-habits-card-view-all'),
-      onViewAll: onViewAll,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _TodayMetricRow(
-            completedCount: completedCount,
-            totalCount: totalCount,
-            completedKey: 'today-habits-completed',
-            totalKey: 'today-habits-total',
-            caption: '达到今日目标的习惯',
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '今日打卡 $totalCheckInsToday 次',
-            key: const ValueKey('today-habits-check-ins-total'),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _TodaySignalChips(
-            labels: [
-              '连续 $bestStreakDays 天',
-              '今日提醒 $todayReminderCount 个',
-              '近 7 天 $recentActivityCount 次',
-            ],
-          ),
-          const SizedBox(height: 16),
-          _TodaySummaryCallout(
-            backgroundColor: allCompleted
-                ? AppThemeTokens.selectedStateTone(colorScheme)
-                : AppThemeTokens.softSurfaceTone(colorScheme),
-            borderColor: allCompleted
-                ? colorScheme.primary.withValues(alpha: 0.18)
-                : AppThemeTokens.borderTone(colorScheme),
-            icon: allCompleted
-                ? Icons.check_circle_rounded
-                : Icons.schedule_rounded,
-            iconColor: allCompleted
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-            text: totalCount == 0
-                ? '还没有习惯，去习惯页创建第一项。'
-                : allCompleted
-                ? '今天的习惯目标都已达成。'
-                : '还有 $remainingCount 项习惯未达到今日目标。',
-          ),
-          const SizedBox(height: 18),
-          if (totalCount == 0)
-            const _TodayEmptyState(
-              emptyKey: ValueKey('today-habits-empty-state'),
-              title: '还没有习惯',
-              description: '去习惯页添加后，这里会自动同步摘要。',
-            )
-          else if (pendingPreviewHabits.isEmpty)
-            const _TodayEmptyState(
-              emptyKey: ValueKey('today-habits-all-complete-state'),
-              title: '今天都已达标',
-              description: '保持轻一点，明天继续。',
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '还可继续',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ...pendingPreviewHabits.map(
-                  (habit) => _TodayPreviewRow(
-                    title: '${habit.emoji} ${habit.name}',
-                    detailLabel:
-                        '今日 ${habitsStore.todayCheckInCount(habit)} / ${habit.targetCountPerDay}',
-                    completed: habitsStore.isCompletedToday(habit),
-                    completedLabel: '已达标',
-                    pendingLabel: '继续',
-                    supportingLabel: _joinNonEmpty([
-                      _habitReminderSummary(habit),
-                      _habitTodayRecordSignal(habit),
-                    ]),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  String? _habitReminderSummary(HabitItem habit) {
-    final enabledRules = habit.enabledReminderRules;
-    if (enabledRules.isEmpty) {
-      return habit.reminderTime == null ? null : '提醒 ${habit.reminderTime}';
-    }
-
-    final times = enabledRules
-        .map((rule) => rule.time)
-        .toSet()
-        .take(2)
-        .join('、');
-    return enabledRules.length > 2
-        ? '提醒 $times 等 ${enabledRules.length} 个'
-        : '提醒 $times';
-  }
-
-  String? _habitTodayRecordSignal(HabitItem habit) {
-    final records = habitsStore.recordsForHabitDate(
-      habit,
-      habitsStore.currentDayKey,
-    );
-    final noteCount = records
-        .where((record) => record.note?.trim().isNotEmpty ?? false)
-        .length;
-    final imageCount = records.fold<int>(
-      0,
-      (sum, record) => sum + habitsStore.attachmentsForRecord(record.id).length,
-    );
-
-    return _joinNonEmpty([
-      noteCount == 0 ? null : '备注 $noteCount',
-      imageCount == 0 ? null : '图片 $imageCount',
-    ]);
-  }
-}
-
-class _TodayGoalsSummaryCard extends StatelessWidget {
-  const _TodayGoalsSummaryCard({
-    required this.previewGoals,
-    required this.previewActions,
-    required this.goalsStore,
-    required this.todayPlanRecordCount,
-    required this.habitLinkedPlanRecordCount,
-    required this.onViewAll,
-  });
-
-  final List<GoalItem> previewGoals;
-  final List<GoalTaskItem> previewActions;
-  final GoalsStore goalsStore;
-  final int todayPlanRecordCount;
-  final int habitLinkedPlanRecordCount;
-  final VoidCallback onViewAll;
+  final VoidCallback onViewPlan;
+  final VoidCallback onViewFocus;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final goalCount = goalsStore.totalCount;
-    final projectCount = goalsStore.projects.length;
-    final subprojectCount = goalsStore.subprojects.length;
-    final actionCount = goalsStore.tasks.length;
-    final completedActionCount = goalsStore.tasks
-        .where((task) => task.isCompleted)
-        .length;
 
-    return _TodayModuleCard(
-      title: '目标规划',
-      subtitle: '把目标拆成今天能走的一步。',
-      viewAllKey: const ValueKey('today-goals-view-all'),
-      onViewAll: onViewAll,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MetricStrip(
-            metrics: [
-              MetricTileData(
-                label: '当前推进目标',
-                value: '$goalCount',
-                valueKey: 'today-goals-active-count',
-              ),
-              MetricTileData(
-                label: '项目',
-                value: '$projectCount',
-                valueKey: 'today-goals-project-count',
-              ),
-              MetricTileData(
-                label: '子项目',
-                value: '$subprojectCount',
-                valueKey: 'today-goals-subproject-count',
-              ),
-              MetricTileData(
-                label: '已完成行动',
-                value: '$completedActionCount / $actionCount',
-                valueKey: 'today-goals-action-progress',
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RailHeader(title: '今日行动', subtitle: '三条线，轻轻推进。'),
+        const SizedBox(height: 12),
+        _TodayActionTile(
+          title: '今日习惯',
+          subtitle: totalHabits == 0 ? '先建立一个可重复动作' : '轻轻推进日常动作',
+          marker: 'H',
+          onTap: onViewHabits,
+          trailing: TextButton(
+            key: const ValueKey('today-habits-view-all'),
+            onPressed: onViewHabits,
+            child: const Text('进入习惯'),
           ),
-          const SizedBox(height: 10),
-          _TodaySignalChips(
-            labels: [
-              '今日计划记录 $todayPlanRecordCount 条',
-              '来自习惯 $habitLinkedPlanRecordCount 条',
-            ],
-          ),
-          const SizedBox(height: 16),
-          _TodaySummaryCallout(
-            backgroundColor:
-                actionCount > 0 && completedActionCount == actionCount
-                ? AppThemeTokens.selectedStateTone(colorScheme)
-                : AppThemeTokens.softSurfaceTone(colorScheme),
-            borderColor: actionCount > 0 && completedActionCount == actionCount
-                ? colorScheme.primary.withValues(alpha: 0.16)
-                : AppThemeTokens.borderTone(colorScheme),
-            icon: actionCount > 0 && completedActionCount == actionCount
-                ? Icons.flag_circle_rounded
-                : Icons.flag_outlined,
-            iconColor: actionCount > 0 && completedActionCount == actionCount
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-            text: goalCount == 0
-                ? '还没有计划，先去计划页写下长期结果。'
-                : actionCount == 0
-                ? '先把目标拆成项目和行动。'
-                : '已完成 $completedActionCount / $actionCount 个行动。',
-          ),
-          const SizedBox(height: 18),
-          if (previewGoals.isEmpty)
-            const _TodayEmptyState(
-              emptyKey: ValueKey('today-goals-empty-state'),
-              title: '还没有计划',
-              description: '去计划页创建长期目标后，这里会显示规划摘要。',
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (previewActions.isNotEmpty) ...[
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
                   Text(
-                    '今日可推进',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
+                    '$completedHabits',
+                    key: const ValueKey('today-habits-completed'),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: colorScheme.onSurface,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  ...previewActions.map(
-                    (task) => _TodayPreviewRow(
-                      title: task.title,
-                      detailLabel: _taskContextLabel(task),
-                      completed: task.isCompleted,
-                      completedLabel: '已完成',
-                      pendingLabel: '行动',
+                  const SizedBox(width: 5),
+                  Text(
+                    '/ $totalHabits',
+                    key: const ValueKey('today-habits-total'),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppThemeTokens.secondaryTextTone(colorScheme),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(width: 12),
+                  Text(
+                    '今日打卡 $totalCheckInsToday 次',
+                    key: const ValueKey('today-habits-check-ins-total'),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colorScheme.primary.withValues(alpha: 0.82),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              if (pendingHabits.isEmpty)
                 Text(
-                  '目标概览',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  totalHabits == 0 ? '还没有习惯' : '今天都已达标',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppThemeTokens.secondaryTextTone(colorScheme),
                     fontWeight: FontWeight.w700,
                   ),
+                )
+              else ...[
+                Text(
+                  '还可继续',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AppThemeTokens.secondaryTextTone(colorScheme),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final habit in pendingHabits)
+                  _HabitMiniRow(habit: habit, habitsStore: habitsStore),
+              ],
+            ],
+          ),
+        ),
+        _TodayActionTile(
+          title: '计划推进',
+          subtitle: planCueLabel,
+          marker: 'P',
+          onTap: onViewPlan,
+          trailing: IconButton(
+            onPressed: onViewPlan,
+            icon: const Icon(Icons.arrow_forward_rounded),
+            tooltip: '进入计划',
+          ),
+          child: Text(
+            '下一步行动已在下方整理。',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        _TodayActionTile(
+          title: '专注准备',
+          subtitle: focusCueLabel,
+          marker: 'F',
+          onTap: onViewFocus,
+          trailing: IconButton(
+            onPressed: onViewFocus,
+            icon: const Icon(Icons.arrow_forward_rounded),
+            tooltip: '开始专注',
+          ),
+          child: Text(
+            todayFocusMinutes == 0
+                ? '今天还没有完成专注，准备一轮安静推进。'
+                : '今日已专注 $todayFocusMinutes 分钟。',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RailHeader extends StatelessWidget {
+  const _RailHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppThemeTokens.secondaryTextTone(colorScheme),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TodayActionTile extends StatelessWidget {
+  const _TodayActionTile({
+    required this.title,
+    required this.subtitle,
+    required this.marker,
+    required this.onTap,
+    required this.trailing,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final String marker;
+  final VoidCallback onTap;
+  final Widget trailing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            decoration: BoxDecoration(
+              color: Color.lerp(
+                colorScheme.surface,
+                colorScheme.surfaceContainerLowest,
+                0.20,
+              )!.withValues(alpha: 0.48),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colorScheme.primary.withValues(alpha: 0.08),
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          marker,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppThemeTokens.secondaryTextTone(
+                                colorScheme,
+                              ),
+                              fontWeight: FontWeight.w500,
+                              height: 1.32,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    trailing,
+                  ],
                 ),
                 const SizedBox(height: 10),
-                ...previewGoals.map((goal) {
-                  final progress = goalsStore.computeGoalProgress(goal.id);
-
-                  return _TodayPreviewRow(
-                    title: goal.title,
-                    detailLabel:
-                        '项目 ${goalsStore.projectCountForGoal(goal.id)} · 行动 ${goalsStore.taskCountForGoal(goal.id)} · ${progress.label}',
-                    completed: progress.isComplete,
-                    completedLabel: '已达成',
-                    pendingLabel: progress.hasTasks ? '推进中' : '待拆解',
-                  );
-                }),
+                child,
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitMiniRow extends StatelessWidget {
+  const _HabitMiniRow({required this.habit, required this.habitsStore});
+
+  final HabitItem habit;
+  final HabitsStore habitsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${habit.emoji} ${habit.name}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '今日 ${habitsStore.todayCheckInCount(habit)} / ${habit.targetCountPerDay}',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (habit.reminderTime != null) ...[
+            const SizedBox(width: 10),
+            Text(
+              '提醒 ${habit.reminderTime}',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
 
-  String? _taskContextLabel(GoalTaskItem task) {
-    ProjectItem? project;
-    for (final candidate in goalsStore.projects) {
-      if (candidate.id == task.projectId) {
-        project = candidate;
-        break;
-      }
-    }
+class _TodayPlanSection extends StatelessWidget {
+  const _TodayPlanSection({
+    required this.goalsStore,
+    required this.previewGoals,
+    required this.previewActions,
+    required this.todayPlanRecordCount,
+    required this.habitLinkedPlanRecordCount,
+    required this.completedActionCount,
+    required this.totalActionCount,
+    required this.onViewAll,
+  });
 
-    SubprojectItem? subproject;
-    if (task.subprojectId != null) {
-      for (final candidate in goalsStore.subprojects) {
-        if (candidate.id == task.subprojectId) {
-          subproject = candidate;
-          break;
-        }
-      }
-    }
+  final GoalsStore goalsStore;
+  final List<GoalItem> previewGoals;
+  final List<GoalTaskItem> previewActions;
+  final int todayPlanRecordCount;
+  final int habitLinkedPlanRecordCount;
+  final int completedActionCount;
+  final int totalActionCount;
+  final VoidCallback onViewAll;
 
-    return _joinNonEmpty([
-      project == null ? null : '项目 ${project.title}',
-      subproject == null ? null : '分组 ${subproject.title}',
-    ]);
+  @override
+  Widget build(BuildContext context) {
+    return _SectionFrame(
+      title: '目标规划',
+      subtitle: '把目标拆成今天能走的一步。',
+      action: TextButton.icon(
+        key: const ValueKey('today-goals-view-all'),
+        onPressed: onViewAll,
+        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+        label: const Text('查看全部'),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _InlineStat(
+                label: '目标',
+                value: '${goalsStore.totalCount}',
+                valueKey: const ValueKey('today-goals-active-count'),
+              ),
+              _InlineStat(
+                label: '项目',
+                value: '${goalsStore.projects.length}',
+                valueKey: const ValueKey('today-goals-project-count'),
+              ),
+              _InlineStat(
+                label: '子项目',
+                value: '${goalsStore.subprojects.length}',
+                valueKey: const ValueKey('today-goals-subproject-count'),
+              ),
+              _InlineStat(
+                label: '行动',
+                value: '$completedActionCount / $totalActionCount',
+                valueKey: const ValueKey('today-goals-action-progress'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _SoftMetaLine(
+            labels: [
+              '今日计划记录 $todayPlanRecordCount 条',
+              if (habitLinkedPlanRecordCount > 0)
+                '来自习惯 $habitLinkedPlanRecordCount 条',
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (previewGoals.isEmpty)
+            const _EmptyLine(
+              title: '还没有计划',
+              description: '去计划页创建长期目标后，这里会显示规划摘要。',
+            )
+          else
+            for (final goal in previewGoals)
+              _GoalPreviewRow(goal: goal, goalsStore: goalsStore),
+          if (previewActions.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              '今日可推进',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final action in previewActions)
+              _AgendaRow(title: action.title, meta: '未完成行动'),
+          ],
+        ],
+      ),
+    );
   }
 }
 
-class _TodayFocusSummaryCard extends StatelessWidget {
-  const _TodayFocusSummaryCard({
+class _TodayFocusSection extends StatelessWidget {
+  const _TodayFocusSection({
     required this.focusStore,
     required this.todaySessionCount,
     required this.todayFocusMinutes,
@@ -603,160 +1071,105 @@ class _TodayFocusSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final stateStyle = _resolveStateStyle(colorScheme, focusStore.status);
-    final currentTarget = focusStore.currentTarget;
+    final target = focusStore.currentTarget;
 
-    return _TodayModuleCard(
+    return _SectionFrame(
       title: '专注概览',
-      subtitle: '准备好，就进入一轮推进。',
-      viewAllKey: const ValueKey('today-focus-view-all'),
-      onViewAll: onViewAll,
+      subtitle: target == null ? '选一轮时间，让注意力回到现场。' : _focusTargetLabel(target),
+      action: TextButton.icon(
+        key: const ValueKey('today-focus-view-all'),
+        onPressed: onViewAll,
+        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+        label: const Text('进入专注'),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: Text(
-                  focusStore.formattedRemaining,
-                  key: const ValueKey('today-focus-remaining'),
-                  style: theme.textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface,
-                  ),
+                child: _InlineStat(
+                  label: '剩余',
+                  value: focusStore.formattedRemaining,
+                  valueKey: const ValueKey('today-focus-remaining'),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppThemeTokens.softSurfaceTone(colorScheme),
-                  borderRadius: BorderRadius.circular(
-                    AppThemeTokens.radiusPill,
-                  ),
-                  border: Border.all(color: stateStyle.borderColor),
-                ),
-                child: Text(
-                  _statusLabel(focusStore.status),
-                  key: const ValueKey('today-focus-status'),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: stateStyle.accentColor,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InlineStat(
+                  label: '状态',
+                  value: _focusStatusLabel(focusStore.status),
+                  valueKey: const ValueKey('today-focus-status'),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            currentTarget == null
-                ? '本轮 ${focusStore.selectedDurationSeconds ~/ 60} 分钟 · 未绑定行动'
-                : '绑定：${_focusTargetLabel(currentTarget)}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _TodaySignalChips(
+          const SizedBox(height: 12),
+          _SoftMetaLine(
             labels: [
               '今日专注 $todaySessionCount 轮',
               '今日 $todayFocusMinutes 分钟',
-              '本轮 ${focusStore.selectedDurationSeconds ~/ 60} 分钟',
             ],
           ),
-          const SizedBox(height: 16),
-          _TodaySummaryCallout(
-            backgroundColor: stateStyle.backgroundColor,
-            borderColor: stateStyle.borderColor,
-            icon: stateStyle.icon,
-            iconColor: stateStyle.accentColor,
-            text: _statusDescription(focusStore),
+          const SizedBox(height: 12),
+          _AgendaRow(
+            title: _focusCueLabel(focusStore, todayFocusMinutes),
+            meta: _focusStatusDescription(focusStore),
           ),
         ],
       ),
     );
   }
+}
 
-  _FocusStateStyle _resolveStateStyle(
-    ColorScheme colorScheme,
-    FocusStatus status,
-  ) {
-    switch (status) {
-      case FocusStatus.running:
-        return _FocusStateStyle(
-          backgroundColor: AppThemeTokens.selectedStateTone(colorScheme),
-          borderColor: colorScheme.primary.withValues(alpha: 0.16),
-          accentColor: colorScheme.primary,
-          icon: Icons.play_circle_rounded,
-        );
-      case FocusStatus.paused:
-        return _FocusStateStyle(
-          backgroundColor: colorScheme.secondaryContainer.withValues(
-            alpha: 0.4,
-          ),
-          borderColor: colorScheme.secondary.withValues(alpha: 0.16),
-          accentColor: colorScheme.secondary,
-          icon: Icons.pause_circle_rounded,
-        );
-      case FocusStatus.idle:
-        return _FocusStateStyle(
-          backgroundColor: AppThemeTokens.softSurfaceTone(colorScheme),
-          borderColor: AppThemeTokens.borderTone(colorScheme),
-          accentColor: colorScheme.onSurfaceVariant,
-          icon: Icons.hourglass_bottom_rounded,
-        );
-    }
-  }
+class _TodayReviewStrip extends StatelessWidget {
+  const _TodayReviewStrip({
+    required this.totalCheckInsToday,
+    required this.completedActions,
+    required this.todayPlanRecordCount,
+    required this.todayFocusSessionCount,
+  });
 
-  String _statusLabel(FocusStatus status) {
-    return _focusStatusLabel(status);
-  }
+  final int totalCheckInsToday;
+  final int completedActions;
+  final int todayPlanRecordCount;
+  final int todayFocusSessionCount;
 
-  String _statusDescription(FocusStore focusStore) {
-    final target = focusStore.currentTarget;
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    if (focusStore.isRunning) {
-      return target == null
-          ? '专注正在进行，保持当下节奏。'
-          : '正在推进「${target.title}」，保持当下节奏。';
-    }
-
-    if (focusStore.isPaused) {
-      return target == null
-          ? '这一轮已暂停，可去专注页继续。'
-          : '「${target.title}」这一轮已暂停，可去专注页继续。';
-    }
-
-    if (focusStore.remainingSeconds == 0) {
-      return '这一轮已完成，可去专注页开始下一轮。';
-    }
-
-    return target == null
-        ? '准备好后去专注页开始一轮安静推进。'
-        : '准备好后去专注页推进「${target.title}」。';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: colorScheme.primary.withValues(alpha: 0.18)),
+          bottom: BorderSide(color: colorScheme.primary.withValues(alpha: 0.10)),
+        ),
+      ),
+      child: _SoftMetaLine(
+        labels: [
+          '打卡 $totalCheckInsToday 次',
+          '计划记录 $todayPlanRecordCount 条',
+          '完成行动 $completedActions 个',
+          '专注 $todayFocusSessionCount 轮',
+        ],
+      ),
+    );
   }
 }
 
-class _TodayModuleCard extends StatelessWidget {
-  const _TodayModuleCard({
+class _SectionFrame extends StatelessWidget {
+  const _SectionFrame({
     required this.title,
     required this.subtitle,
-    required this.viewAllKey,
-    required this.onViewAll,
+    required this.action,
     required this.child,
   });
 
   final String title;
   final String subtitle;
-  final Key viewAllKey;
-  final VoidCallback onViewAll;
+  final Widget action;
   final Widget child;
 
   @override
@@ -764,55 +1177,47 @@ class _TodayModuleCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return SoftSurface(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.12)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final titleBlock = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              );
-              final action = TextButton.icon(
-                key: viewAllKey,
-                onPressed: onViewAll,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: const Text('查看全部'),
-              );
-
-              if (constraints.maxWidth < 340) {
-                return Column(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    titleBlock,
-                    const SizedBox(height: 10),
-                    Align(alignment: Alignment.centerLeft, child: action),
+                    Text(
+                      title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppThemeTokens.secondaryTextTone(colorScheme),
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                    ),
                   ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: titleBlock),
-                  const SizedBox(width: 12),
-                  action,
-                ],
-              );
-            },
+                ),
+              ),
+              const SizedBox(width: 10),
+              action,
+            ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           child,
         ],
       ),
@@ -820,96 +1225,48 @@ class _TodayModuleCard extends StatelessWidget {
   }
 }
 
-class _TodayMetricRow extends StatelessWidget {
-  const _TodayMetricRow({
-    required this.completedCount,
-    required this.totalCount,
-    required this.completedKey,
-    required this.totalKey,
-    required this.caption,
+class _InlineStat extends StatelessWidget {
+  const _InlineStat({
+    required this.label,
+    required this.value,
+    required this.valueKey,
   });
 
-  final int completedCount;
-  final int totalCount;
-  final String completedKey;
-  final String totalKey;
-  final String caption;
+  final String label;
+  final String value;
+  final Key valueKey;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '$completedCount',
-              key: ValueKey<String>(completedKey),
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                '/ $totalCount',
-                key: ValueKey<String>(totalKey),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: AppThemeTokens.secondaryTextTone(colorScheme),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          caption,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(colorScheme),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TodaySummaryCallout extends StatelessWidget {
-  const _TodaySummaryCallout({
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.icon,
-    required this.iconColor,
-    required this.text,
-  });
-
-  final Color backgroundColor;
-  final Color borderColor;
-  final IconData icon;
-  final Color iconColor;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-        border: Border.all(color: borderColor),
+        color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: iconColor),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            value,
+            key: valueKey,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -917,22 +1274,30 @@ class _TodaySummaryCallout extends StatelessWidget {
   }
 }
 
-class _TodayPreviewRow extends StatelessWidget {
-  const _TodayPreviewRow({
-    required this.title,
-    required this.completed,
-    required this.completedLabel,
-    required this.pendingLabel,
-    this.detailLabel,
-    this.supportingLabel,
-  });
+class _GoalPreviewRow extends StatelessWidget {
+  const _GoalPreviewRow({required this.goal, required this.goalsStore});
+
+  final GoalItem goal;
+  final GoalsStore goalsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final projectCount = goalsStore.projectCountForGoal(goal.id);
+    final taskCount = goalsStore.taskCountForGoal(goal.id);
+    final progress = goalsStore.computeGoalProgress(goal.id);
+
+    return _AgendaRow(
+      title: goal.title,
+      meta: '项目 $projectCount · 行动 $taskCount · 进度 ${progress.percentage}%',
+    );
+  }
+}
+
+class _AgendaRow extends StatelessWidget {
+  const _AgendaRow({required this.title, required this.meta});
 
   final String title;
-  final bool completed;
-  final String completedLabel;
-  final String pendingLabel;
-  final String? detailLabel;
-  final String? supportingLabel;
+  final String meta;
 
   @override
   Widget build(BuildContext context) {
@@ -941,127 +1306,51 @@ class _TodayPreviewRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: completed
-              ? AppThemeTokens.selectedStateTone(
-                  colorScheme,
-                ).withValues(alpha: 0.62)
-              : AppThemeTokens.softSurfaceTone(colorScheme),
-          borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-          border: Border.all(
-            color: completed
-                ? colorScheme.primary.withValues(alpha: 0.10)
-                : AppThemeTokens.borderTone(
-                    colorScheme,
-                  ).withValues(alpha: 0.74),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 42,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 3,
-              height: 38,
-              decoration: BoxDecoration(
-                color: completed
-                    ? colorScheme.primary.withValues(alpha: 0.46)
-                    : colorScheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: completed
-                    ? colorScheme.primary.withValues(alpha: 0.92)
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: completed
-                      ? colorScheme.primary.withValues(alpha: 0.28)
-                      : AppThemeTokens.borderTone(colorScheme),
-                ),
-              ),
-              child: Icon(
-                completed
-                    ? Icons.check_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                size: 16,
-                color: completed
-                    ? colorScheme.onPrimary
-                    : AppThemeTokens.secondaryTextTone(colorScheme),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: completed
-                          ? AppThemeTokens.secondaryTextTone(colorScheme)
-                          : colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
                   ),
-                  if (detailLabel != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      detailLabel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppThemeTokens.secondaryTextTone(colorScheme),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                  if (supportingLabel != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      supportingLabel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              flex: 0,
-              child: Text(
-                completed ? completedLabel : pendingLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: completed
-                      ? colorScheme.primary
-                      : AppThemeTokens.secondaryTextTone(colorScheme),
-                  fontWeight: FontWeight.w600,
                 ),
-              ),
+                const SizedBox(height: 3),
+                Text(
+                  meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppThemeTokens.secondaryTextTone(colorScheme),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TodaySignalChips extends StatelessWidget {
-  const _TodaySignalChips({required this.labels});
+class _SoftMetaLine extends StatelessWidget {
+  const _SoftMetaLine({required this.labels});
 
   final List<String> labels;
 
@@ -1069,7 +1358,6 @@ class _TodaySignalChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
     final visibleLabels = labels
         .where((label) => label.trim().isNotEmpty)
         .toList(growable: false);
@@ -1089,9 +1377,7 @@ class _TodaySignalChips extends StatelessWidget {
                     width: 3,
                     height: 3,
                     decoration: BoxDecoration(
-                      color: AppThemeTokens.secondaryTextTone(
-                        colorScheme,
-                      ).withValues(alpha: 0.58),
+                      color: colorScheme.primary.withValues(alpha: 0.62),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -1102,7 +1388,7 @@ class _TodaySignalChips extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -1112,38 +1398,58 @@ class _TodaySignalChips extends StatelessWidget {
   }
 }
 
-int _bestHabitStreak(HabitsStore habitsStore) {
-  var best = 0;
-  for (final habit in habitsStore.habits) {
-    final streak = habitsStore.statisticsForHabit(habit).currentStreakDays;
-    if (streak > best) {
-      best = streak;
-    }
+class _EmptyLine extends StatelessWidget {
+  const _EmptyLine({required this.title, required this.description});
+
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          description,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: AppThemeTokens.secondaryTextTone(colorScheme),
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+double _todayProgress({
+  required int completedHabits,
+  required int totalHabits,
+  required int completedActions,
+  required int totalActions,
+  required int focusMinutes,
+  required int selectedFocusMinutes,
+}) {
+  final focusUnit = selectedFocusMinutes <= 0 ? 25 : selectedFocusMinutes;
+  final total = totalHabits + totalActions + 1;
+  if (total <= 0) {
+    return 0;
   }
 
-  return best;
-}
-
-int _todayReminderCount(HabitsStore habitsStore) {
-  return habitsStore.habits.fold<int>(
-    0,
-    (sum, habit) =>
-        sum +
-        (habit.enabledReminderRules.isNotEmpty
-            ? habit.enabledReminderRules.length
-            : (habit.reminderTime == null ? 0 : 1)),
-  );
-}
-
-int _recentHabitActivityCount(HabitsStore habitsStore) {
-  return habitsStore.habits.fold<int>(
-    0,
-    (sum, habit) =>
-        sum +
-        habitsStore
-            .recentActivityDays(habit)
-            .fold<int>(0, (daySum, day) => daySum + day.count),
-  );
+  final focusProgress = math.min(focusMinutes / focusUnit, 1.0);
+  return ((completedHabits + completedActions + focusProgress) / total)
+      .clamp(0.0, 1.0)
+      .toDouble();
 }
 
 String _planCueLabel(GoalsStore goalsStore, List<GoalTaskItem> previewActions) {
@@ -1190,6 +1496,30 @@ String _focusStatusLabel(FocusStatus status) {
   }
 }
 
+String _focusStatusDescription(FocusStore focusStore) {
+  final target = focusStore.currentTarget;
+
+  if (focusStore.isRunning) {
+    return target == null
+        ? '专注正在进行，保持当下节奏。'
+        : '正在推进「${target.title}」，保持当下节奏。';
+  }
+
+  if (focusStore.isPaused) {
+    return target == null
+        ? '这一轮已暂停，可去专注页继续。'
+        : '「${target.title}」这一轮已暂停，可去专注页继续。';
+  }
+
+  if (focusStore.remainingSeconds == 0) {
+    return '这一轮已完成，可去专注页开始下一轮。';
+  }
+
+  return target == null
+      ? '准备好后去专注页开始一轮安静推进。'
+      : '准备好后去专注页推进「${target.title}」。';
+}
+
 String _localDateKey(DateTime value) {
   final local = value.toLocal();
   return '${local.year.toString().padLeft(4, '0')}-'
@@ -1207,111 +1537,4 @@ String? _joinNonEmpty(List<String?> values) {
       .map((value) => value!.trim())
       .join(' · ');
   return joined.isEmpty ? null : joined;
-}
-
-class _TodayEmptyState extends StatelessWidget {
-  const _TodayEmptyState({
-    required this.emptyKey,
-    required this.title,
-    required this.description,
-  });
-
-  final Key emptyKey;
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      key: emptyKey,
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 20,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 10),
-          Text(title, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            description,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodayReviewPreviewCard extends StatelessWidget {
-  const _TodayReviewPreviewCard({
-    required this.totalCheckInsToday,
-    required this.completedActions,
-    required this.todayPlanRecordCount,
-    required this.todayFocusSessionCount,
-  });
-
-  final int totalCheckInsToday;
-  final int completedActions;
-  final int todayPlanRecordCount;
-  final int todayFocusSessionCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return SoftSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('今日回看', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            '复盘保持只读，只收束今天已经发生的真实记录。',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _TodaySignalChips(
-            labels: [
-              '打卡 $totalCheckInsToday 次',
-              '计划记录 $todayPlanRecordCount 条',
-              '完成行动 $completedActions 个',
-              '专注 $todayFocusSessionCount 轮',
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FocusStateStyle {
-  const _FocusStateStyle({
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.accentColor,
-    required this.icon,
-  });
-
-  final Color backgroundColor;
-  final Color borderColor;
-  final Color accentColor;
-  final IconData icon;
 }

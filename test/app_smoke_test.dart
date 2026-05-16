@@ -17,13 +17,14 @@ void main() {
     );
 
     expect(find.text('今日'), findsWidgets);
+    expect(find.text('习惯'), findsOneWidget);
     expect(find.text('计划'), findsOneWidget);
     expect(find.text('专注'), findsWidgets);
     expect(find.text('复盘'), findsOneWidget);
-    expect(find.text('我的'), findsOneWidget);
+    expect(find.text('我的'), findsNothing);
     expect(find.byIcon(Icons.track_changes_outlined), findsOneWidget);
     expect(find.byIcon(Icons.timer_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
     expect(find.byKey(const ValueKey('today-habits-view-all')), findsOneWidget);
     expect(find.text('今日习惯'), findsOneWidget);
     expect(_findKeyedText('today-habits-completed', '0'), findsOneWidget);

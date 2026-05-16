@@ -27,28 +27,36 @@ abstract final class AppRouter {
           const AppShell(title: '今日', currentIndex: 0, child: TodayPage()),
         );
       case AppRoute.habits:
-        return _buildRoute(settings, const HabitsPage());
+        return _buildRoute(
+          settings,
+          const AppShell(
+            title: 'Habits',
+            currentIndex: 1,
+            child: HabitsPage(showScaffold: false),
+          ),
+        );
       case AppRoute.goals:
         return _buildRoute(
           settings,
-          const AppShell(title: '计划', currentIndex: 1, child: GoalsPage()),
+          const AppShell(title: '计划', currentIndex: 2, child: GoalsPage()),
         );
       case AppRoute.focus:
         return _buildRoute(
           settings,
-          const AppShell(title: '专注', currentIndex: 2, child: FocusPage()),
+          const AppShell(title: '专注', currentIndex: 3, child: FocusPage()),
         );
       case AppRoute.review:
         return _buildRoute(
           settings,
-          const AppShell(title: '复盘', currentIndex: 3, child: ReviewPage()),
+          const AppShell(title: '复盘', currentIndex: 4, child: ReviewPage()),
         );
       case AppRoute.settings:
         return _buildRoute(
           settings,
           const AppShell(
             title: '我的',
-            currentIndex: 4,
+            currentIndex: 0,
+            showBottomNavigation: false,
             child: SettingsPage(showScaffold: false),
           ),
         );

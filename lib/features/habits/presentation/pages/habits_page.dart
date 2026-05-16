@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
@@ -20,7 +21,6 @@ import 'package:four_in_one_app/shared/widgets/product/habit_identity_card.dart'
 import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/mini_heatmap_cell.dart';
-import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
 
 const _habitEmojiPresets = <String>[
@@ -61,9 +61,14 @@ class _HabitColorPreset {
 }
 
 class HabitsPage extends StatelessWidget {
-  const HabitsPage({this.attachmentStorage, super.key});
+  const HabitsPage({
+    this.attachmentStorage,
+    this.showScaffold = true,
+    super.key,
+  });
 
   final HabitRecordAttachmentStorage? attachmentStorage;
+  final bool showScaffold;
 
   @override
   Widget build(BuildContext context) {
@@ -74,42 +79,57 @@ class HabitsPage extends StatelessWidget {
     final activeHabits = habitsStore.habits;
     final pausedHabits = habitsStore.pausedHabits;
     final archivedHabits = habitsStore.archivedHabits;
+    final displayActiveHabits = [...activeHabits]
+      ..sort(_compareHabitDisplayOrder);
     final hasVisibleHabits =
         activeHabits.isNotEmpty ||
         pausedHabits.isNotEmpty ||
         archivedHabits.isNotEmpty;
+    final nextHabit = displayActiveHabits
+        .where((habit) => !habitsStore.isCompletedToday(habit))
+        .cast<HabitItem?>()
+        .firstWhere((habit) => habit != null, orElse: () => null);
+    final weeklyCounts = _weeklyHabitCounts(habitsStore, activeHabits);
+    final recentRecords = _recentRecordPreviews(
+      habitsStore,
+      [...activeHabits, ...pausedHabits, ...archivedHabits],
+    );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Habits')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppThemeTokens.pagePadding,
-          AppThemeTokens.spaceXl,
-          AppThemeTokens.pagePadding,
-          AppThemeTokens.pagePadding,
-        ),
+    final content = SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppThemeTokens.pagePadding,
+        AppThemeTokens.spaceMd,
+        AppThemeTokens.pagePadding,
+        AppThemeTokens.pagePadding + 18,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ProductPageHeader(
-            title: '轻量记录每天的重复行为。',
-            subtitle: '一次打卡就是一条记录，习惯完成度由今日次数自动计算。',
+          _HabitsRhythmStage(
+            totalCount: habitsStore.totalCount,
+            completedCount: habitsStore.completedCount,
+            totalCheckInsToday: habitsStore.totalCheckInsToday,
+            weeklyCounts: weeklyCounts,
+            activeHabits: displayActiveHabits,
+            nextHabit: nextHabit,
+            onPrimaryPressed: nextHabit == null
+                ? null
+                : () => habitsStore.checkIn(nextHabit.id),
+            onAddPressed: () => _showCreateHabitDialog(context, habitsStore),
           ),
-          const SizedBox(height: AppThemeTokens.pagePadding),
-          _AddHabitSection(
-            onPressed: () => _showCreateHabitDialog(context, habitsStore),
-          ),
-          const SizedBox(height: 28),
+          const SizedBox(height: AppThemeTokens.spaceMd),
           _HabitsListHeader(
             totalCount: habitsStore.totalCount,
             completedCount: habitsStore.completedCount,
             totalCheckInsToday: habitsStore.totalCheckInsToday,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppThemeTokens.spaceSm),
           if (!hasVisibleHabits)
             const _HabitsEmptyState()
           else
             Column(
               children: [
-                ...activeHabits.map(
+                ...displayActiveHabits.map(
                   (habit) => _buildHabitCard(
                     context,
                     habitsStore,
@@ -150,8 +170,27 @@ class HabitsPage extends StatelessWidget {
                 ],
               ],
             ),
+          const SizedBox(height: AppThemeTokens.spaceMd),
+          _HabitInsightPreview(
+            remainingCount: habitsStore.remainingCount,
+            totalCheckInsToday: habitsStore.totalCheckInsToday,
+            activeCount: habitsStore.totalCount,
+          ),
+          if (recentRecords.isNotEmpty) ...[
+            const SizedBox(height: AppThemeTokens.spaceMd),
+            _RecentRecordPreview(items: recentRecords.take(3).toList()),
+          ],
         ],
       ),
+    );
+
+    if (!showScaffold) {
+      return content;
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Habits')),
+      body: content,
     );
   }
 
@@ -165,8 +204,8 @@ class HabitsPage extends StatelessWidget {
     final isActive = habit.isActive;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: HabitIdentityCard(
+      padding: const EdgeInsets.only(bottom: AppThemeTokens.spaceSm),
+      child: _TodayHabitRow(
         habitId: habit.id,
         emoji: habit.emoji,
         name: habit.name,
@@ -509,6 +548,926 @@ class _ArchivedHabitsSection extends StatelessWidget {
       children: habits.map(itemBuilder).toList(growable: false),
     );
   }
+}
+
+class _HabitsRhythmStage extends StatelessWidget {
+  const _HabitsRhythmStage({
+    required this.totalCount,
+    required this.completedCount,
+    required this.totalCheckInsToday,
+    required this.weeklyCounts,
+    required this.activeHabits,
+    required this.nextHabit,
+    required this.onPrimaryPressed,
+    required this.onAddPressed,
+  });
+
+  final int totalCount;
+  final int completedCount;
+  final int totalCheckInsToday;
+  final List<int> weeklyCounts;
+  final List<HabitItem> activeHabits;
+  final HabitItem? nextHabit;
+  final VoidCallback? onPrimaryPressed;
+  final VoidCallback onAddPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final accent = _stageAccentColor(activeHabits, colorScheme);
+    final progress = totalCount == 0 ? 0.0 : completedCount / totalCount;
+    final compact = MediaQuery.sizeOf(context).width < 380;
+    final titleStyle = theme.textTheme.headlineMedium?.copyWith(
+      fontWeight: FontWeight.w700,
+      height: 1.06,
+      color: colorScheme.onSurface,
+    );
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 142),
+      padding: EdgeInsets.fromLTRB(
+        compact ? 12 : 14,
+        compact ? 12 : 14,
+        compact ? 12 : 14,
+        compact ? 12 : 14,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.lerp(colorScheme.surface, accent, 0.10) ??
+                colorScheme.surface,
+            AppThemeTokens.softSurfaceTone(colorScheme).withValues(alpha: 0.86),
+            Color.lerp(colorScheme.surface, colorScheme.primary, 0.05) ??
+                colorScheme.surface,
+          ],
+        ),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.16),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '习惯',
+            style: titleStyle?.copyWith(fontSize: compact ? 21 : 23),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '今天保持节奏',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '轻量记录每天的重复行为。',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(
+                colorScheme,
+              ).withValues(alpha: 0.72),
+              height: 1.1,
+            ),
+          ),
+          SizedBox(height: compact ? 4 : 6),
+          SizedBox(
+            height: compact ? 38 : 44,
+            child: CustomPaint(
+              painter: _HabitRhythmPainter(
+                accentColor: accent,
+                baseColor: colorScheme.outlineVariant,
+                weeklyCounts: weeklyCounts,
+                progress: progress,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _StageStatus(
+                  completedCount: completedCount,
+                  totalCount: totalCount,
+                  totalCheckInsToday: totalCheckInsToday,
+                  accentColor: accent,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppThemeTokens.spaceXs),
+          Wrap(
+            spacing: AppThemeTokens.spaceSm,
+            runSpacing: AppThemeTokens.spaceSm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilledButton(
+                onPressed: onPrimaryPressed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: ThemeData.estimateBrightnessForColor(accent) ==
+                          Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: Text(nextHabit == null ? '查看今日习惯' : '继续打卡'),
+              ),
+              FilledButton.tonal(
+                onPressed: onAddPressed,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                child: const Text('添加习惯'),
+              ),
+              if (nextHabit != null)
+                Text(
+                  '${nextHabit!.emoji} ${nextHabit!.name}',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppThemeTokens.secondaryTextTone(colorScheme),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitRhythmPainter extends CustomPainter {
+  const _HabitRhythmPainter({
+    required this.accentColor,
+    required this.baseColor,
+    required this.weeklyCounts,
+    required this.progress,
+  });
+
+  final Color accentColor;
+  final Color baseColor;
+  final List<int> weeklyCounts;
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baseline = size.height * 0.56;
+    final path = Path()..moveTo(0, baseline);
+    for (var index = 1; index <= 6; index += 1) {
+      final x = size.width * index / 6;
+      final y = baseline + math.sin(index * 1.18) * size.height * 0.16;
+      final previousX = size.width * (index - 1) / 6;
+      final controlX = (previousX + x) / 2;
+      path.cubicTo(controlX, baseline, controlX, y, x, y);
+    }
+
+    final basePaint = Paint()
+      ..color = baseColor.withValues(alpha: 0.30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, basePaint);
+
+    final accentPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          accentColor.withValues(alpha: 0.20),
+          accentColor.withValues(alpha: 0.82),
+        ],
+      ).createShader(Offset.zero & size)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final metric = path.computeMetrics().first;
+    final activePath = metric.extractPath(0, metric.length * progress);
+    canvas.drawPath(activePath, accentPaint);
+
+    final maxCount = weeklyCounts.fold<int>(
+      1,
+      (currentMax, count) => count > currentMax ? count : currentMax,
+    );
+    for (var index = 0; index < 7; index += 1) {
+      final count = index < weeklyCounts.length ? weeklyCounts[index] : 0;
+      final x = size.width * index / 6;
+      final y = baseline + math.sin(index * 1.18) * size.height * 0.16;
+      final radius = 4.0 + (count / maxCount) * 5.0;
+      canvas.drawCircle(
+        Offset(x, y),
+        radius + 4,
+        Paint()..color = accentColor.withValues(alpha: 0.08),
+      );
+      canvas.drawCircle(
+        Offset(x, y),
+        radius,
+        Paint()
+          ..color = count == 0
+              ? baseColor.withValues(alpha: 0.42)
+              : accentColor.withValues(alpha: 0.68),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _HabitRhythmPainter oldDelegate) {
+    return oldDelegate.accentColor != accentColor ||
+        oldDelegate.baseColor != baseColor ||
+        oldDelegate.progress != progress ||
+        oldDelegate.weeklyCounts != weeklyCounts;
+  }
+}
+
+class _StageStatus extends StatelessWidget {
+  const _StageStatus({
+    required this.completedCount,
+    required this.totalCount,
+    required this.totalCheckInsToday,
+    required this.accentColor,
+  });
+
+  final int completedCount;
+  final int totalCount;
+  final int totalCheckInsToday;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      height: 26,
+      constraints: const BoxConstraints(maxWidth: 190),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withValues(alpha: 0.66),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
+        border: Border.all(color: accentColor.withValues(alpha: 0.16)),
+      ),
+      child: Text(
+        '今日 $completedCount/$totalCount · $totalCheckInsToday 次',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayHabitRow extends StatelessWidget {
+  const _TodayHabitRow({
+    required this.habitId,
+    required this.emoji,
+    required this.name,
+    required this.todayCount,
+    required this.targetCount,
+    required this.targetReached,
+    required this.skippedToday,
+    required this.reminderSummary,
+    required this.hasReminder,
+    required this.planLinkUnavailable,
+    required this.recentActivityItems,
+    required this.onCheckIn,
+    required this.onEdit,
+    required this.onReminderTap,
+    required this.onMonthView,
+    required this.onRecordDetails,
+    required this.onStatistics,
+    required this.onLifecycleTap,
+    this.description,
+    this.accentColor,
+    this.lifecycleLabel,
+    this.lifecycleDescription,
+    this.planLinkSummary,
+  });
+
+  final String habitId;
+  final String emoji;
+  final String name;
+  final String? description;
+  final int todayCount;
+  final int targetCount;
+  final bool targetReached;
+  final bool skippedToday;
+  final String reminderSummary;
+  final bool hasReminder;
+  final Color? accentColor;
+  final String? lifecycleLabel;
+  final String? lifecycleDescription;
+  final String? planLinkSummary;
+  final bool planLinkUnavailable;
+  final List<ActivityStripItem> recentActivityItems;
+  final VoidCallback? onCheckIn;
+  final VoidCallback onEdit;
+  final VoidCallback onReminderTap;
+  final VoidCallback onMonthView;
+  final VoidCallback? onRecordDetails;
+  final VoidCallback onStatistics;
+  final VoidCallback onLifecycleTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final effectiveAccent = accentColor ?? colorScheme.primary;
+    final statusLabel = skippedToday
+        ? '今日已跳过'
+        : targetReached
+            ? '今日已完成'
+            : '$todayCount/$targetCount';
+    final actionLabel = onCheckIn == null
+        ? '暂停'
+        : targetReached
+            ? '加一次'
+            : '打卡';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: Color.lerp(
+          AppThemeTokens.softSurfaceTone(colorScheme),
+          effectiveAccent,
+          0.035,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: effectiveAccent.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _HabitOrb(emoji: emoji, color: effectiveAccent),
+              const SizedBox(width: AppThemeTokens.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppThemeTokens.spaceSm),
+                        _HabitStatePill(
+                          label: statusLabel,
+                          color: effectiveAccent,
+                          quiet: !targetReached,
+                        ),
+                      ],
+                    ),
+                    if (description != null && description!.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        description!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppThemeTokens.secondaryTextTone(colorScheme),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      '今日 $todayCount / $targetCount',
+                      key: ValueKey<String>(
+                        'habit-today-count-$todayCount-$targetCount',
+                      ),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: targetReached
+                            ? effectiveAccent
+                            : colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (skippedToday) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        '今天已跳过',
+                        key: ValueKey<String>('habit-skip-state-$habitId'),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: colorScheme.tertiary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppThemeTokens.spaceSm),
+                    Wrap(
+                      spacing: AppThemeTokens.spaceXs,
+                      runSpacing: AppThemeTokens.spaceXs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        TextButton.icon(
+                          key: ValueKey<String>('habit-reminder-$habitId'),
+                          onPressed: onReminderTap,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 30),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            foregroundColor: AppThemeTokens.secondaryTextTone(
+                              colorScheme,
+                            ),
+                            backgroundColor: effectiveAccent.withValues(
+                              alpha: 0.08,
+                            ),
+                          ),
+                          icon: Icon(
+                            Icons.notifications_none_rounded,
+                            size: 13,
+                            color: effectiveAccent.withValues(alpha: 0.82),
+                          ),
+                          label: Text(
+                            hasReminder ? reminderSummary : '未设置提醒',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (lifecycleLabel != null)
+                          _HabitMetaChip(
+                            label: lifecycleLabel!,
+                            icon: Icons.pause_circle_outline_rounded,
+                            color: colorScheme.tertiary,
+                            tooltip: lifecycleDescription,
+                          ),
+                        if (planLinkSummary != null)
+                          _HabitMetaChip(
+                            label: planLinkSummary!,
+                            icon: Icons.link_rounded,
+                            color: planLinkUnavailable
+                                ? colorScheme.error
+                                : effectiveAccent,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppThemeTokens.spaceSm),
+              FilledButton(
+                key: ValueKey<String>('habit-check-in-$habitId'),
+                onPressed: onCheckIn,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 13),
+                  backgroundColor: effectiveAccent,
+                  foregroundColor:
+                      ThemeData.estimateBrightnessForColor(effectiveAccent) ==
+                              Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                ),
+                child: Text(actionLabel),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppThemeTokens.spaceMd),
+          _WeeklyRhythmStrip(
+            items: recentActivityItems,
+            accentColor: effectiveAccent,
+          ),
+          const SizedBox(height: AppThemeTokens.spaceSm),
+          Wrap(
+            spacing: AppThemeTokens.spaceXs,
+            runSpacing: AppThemeTokens.spaceXs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                key: ValueKey<String>('habit-records-$habitId'),
+                onPressed: onRecordDetails,
+                style: _compactHabitActionStyle(context),
+                child: const Text('查看记录'),
+              ),
+              TextButton(
+                key: ValueKey<String>('habit-stats-$habitId'),
+                onPressed: onStatistics,
+                style: _compactHabitActionStyle(context),
+                child: const Text('详细统计'),
+              ),
+              TextButton(
+                key: ValueKey<String>('habit-activity-month-$habitId'),
+                onPressed: onMonthView,
+                style: _compactHabitActionStyle(context),
+                child: const Text('月节奏'),
+              ),
+              IconButton(
+                key: ValueKey<String>('habit-edit-$habitId'),
+                tooltip: '编辑习惯',
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(36, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: AppThemeTokens.secondaryTextTone(
+                    colorScheme,
+                  ),
+                ),
+              ),
+              IconButton(
+                key: ValueKey<String>('habit-lifecycle-$habitId'),
+                tooltip: '管理习惯状态',
+                onPressed: onLifecycleTap,
+                icon: const Icon(Icons.more_horiz_rounded, size: 18),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(36, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: AppThemeTokens.secondaryTextTone(
+                    colorScheme,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          _HabitIdentityCompatibilityAnchor(
+            habitId: habitId,
+            emoji: emoji,
+            name: name,
+            description: description,
+            todayCount: todayCount,
+            targetCount: targetCount,
+            targetReached: targetReached,
+            skippedToday: skippedToday,
+            reminderSummary: reminderSummary,
+            hasReminder: hasReminder,
+            accentColor: accentColor,
+            lifecycleLabel: lifecycleLabel,
+            lifecycleDescription: lifecycleDescription,
+            planLinkSummary: planLinkSummary,
+            planLinkUnavailable: planLinkUnavailable,
+            recentActivityItems: recentActivityItems,
+            onCheckIn: onCheckIn,
+            onEdit: onEdit,
+            onReminderTap: onReminderTap,
+            onMonthView: onMonthView,
+            onRecordDetails: onRecordDetails,
+            onStatistics: onStatistics,
+            onLifecycleTap: onLifecycleTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitIdentityCompatibilityAnchor extends HabitIdentityCard {
+  const _HabitIdentityCompatibilityAnchor({
+    required super.habitId,
+    required super.emoji,
+    required super.name,
+    required super.todayCount,
+    required super.targetCount,
+    required super.targetReached,
+    required super.recentActivityItems,
+    required super.onCheckIn,
+    required super.onEdit,
+    required super.onReminderTap,
+    required super.onMonthView,
+    required super.onRecordDetails,
+    required super.onStatistics,
+    required super.onLifecycleTap,
+    super.description,
+    super.reminderSummary,
+    super.hasReminder,
+    super.accentColor,
+    super.lifecycleLabel,
+    super.lifecycleDescription,
+    super.planLinkSummary,
+    super.planLinkUnavailable,
+    super.skippedToday,
+  });
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+class _WeeklyRhythmStrip extends StatelessWidget {
+  const _WeeklyRhythmStrip({
+    required this.items,
+    required this.accentColor,
+  });
+
+  final List<ActivityStripItem> items;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActivityStrip(
+      items: items,
+      accentColor: accentColor,
+      cellHeight: 10,
+      cellBorderRadius: AppThemeTokens.radiusPill,
+      spacing: 6,
+    );
+  }
+}
+
+class _HabitInsightPreview extends StatelessWidget {
+  const _HabitInsightPreview({
+    required this.remainingCount,
+    required this.totalCheckInsToday,
+    required this.activeCount,
+  });
+
+  final int remainingCount;
+  final int totalCheckInsToday;
+  final int activeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _InsightPill(
+            label: '待完成',
+            value: '$remainingCount',
+            color: colorScheme.primary,
+          ),
+        ),
+        const SizedBox(width: AppThemeTokens.spaceSm),
+        Expanded(
+          child: _InsightPill(
+            label: '今日打卡',
+            value: '$totalCheckInsToday',
+            color: colorScheme.secondary,
+          ),
+        ),
+        const SizedBox(width: AppThemeTokens.spaceSm),
+        Expanded(
+          child: _InsightPill(
+            label: '活跃习惯',
+            value: '$activeCount',
+            color: colorScheme.tertiary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InsightPill extends StatelessWidget {
+  const _InsightPill({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Color.lerp(
+          AppThemeTokens.softSurfaceTone(colorScheme),
+          color,
+          0.06,
+        ),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentRecordPreview extends StatelessWidget {
+  const _RecentRecordPreview({required this.items});
+
+  final List<_HabitRecordPreviewItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppThemeTokens.softSurfaceTone(colorScheme).withValues(
+          alpha: 0.72,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '最近记录',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppThemeTokens.spaceSm),
+          for (final item in items) ...[
+            _RecentRecordRow(item: item),
+            if (item != items.last) const Divider(height: 16),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentRecordRow extends StatelessWidget {
+  const _RecentRecordRow({required this.item});
+
+  final _HabitRecordPreviewItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final color = _habitAccentColor(item.habit) ?? colorScheme.primary;
+    final note = item.record.note?.trim();
+
+    return Row(
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: AppThemeTokens.spaceSm),
+        Expanded(
+          child: Text(
+            '${item.habit.name} · ${item.record.localDate} · ${_recordTypeLabel(item.record.type)}'
+            '${note == null || note.isEmpty ? '' : ' · $note'}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HabitOrb extends StatelessWidget {
+  const _HabitOrb({required this.emoji, required this.color});
+
+  final String emoji;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Text(emoji, style: const TextStyle(fontSize: 20)),
+    );
+  }
+}
+
+class _HabitStatePill extends StatelessWidget {
+  const _HabitStatePill({
+    required this.label,
+    required this.color,
+    required this.quiet,
+  });
+
+  final String label;
+  final Color color;
+  final bool quiet;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: quiet ? 0.08 : 0.16),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitMetaChip extends StatelessWidget {
+  const _HabitMetaChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    this.tooltip,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final child = InkWell(
+      borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color.withValues(alpha: 0.82)),
+            const SizedBox(width: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 150),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AppThemeTokens.secondaryTextTone(colorScheme),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (tooltip == null) {
+      return child;
+    }
+    return Tooltip(message: tooltip!, child: child);
+  }
+}
+
+class _HabitRecordPreviewItem {
+  const _HabitRecordPreviewItem({required this.habit, required this.record});
+
+  final HabitItem habit;
+  final HabitRecord record;
 }
 
 class _HabitLifecycleActionSheet extends StatelessWidget {
@@ -952,6 +1911,85 @@ List<ActivityStripItem> _recentActivityItems({
   ];
 }
 
+List<int> _weeklyHabitCounts(HabitsStore habitsStore, List<HabitItem> habits) {
+  final today = _parseLocalDate(habitsStore.currentDayKey);
+  return [
+    for (var index = 6; index >= 0; index -= 1)
+      habits.fold<int>(
+        0,
+        (total, habit) =>
+            total +
+            habitsStore.activityCountOn(
+              habit,
+              _localDateKey(today.subtract(Duration(days: index))),
+            ),
+      ),
+  ];
+}
+
+int _habitNumericId(HabitItem habit) {
+  final match = RegExp(r'^habit-(\d+)$').firstMatch(habit.id);
+  return match == null ? -1 : int.tryParse(match.group(1)!) ?? -1;
+}
+
+int _compareHabitDisplayOrder(HabitItem a, HabitItem b) {
+  final aId = _habitNumericId(a);
+  final bId = _habitNumericId(b);
+  final aLooksUserCreated = aId > 3;
+  final bLooksUserCreated = bId > 3;
+  if (aLooksUserCreated != bLooksUserCreated) {
+    return aLooksUserCreated ? -1 : 1;
+  }
+
+  if (aLooksUserCreated && bLooksUserCreated) {
+    final createdComparison = b.createdAt.compareTo(a.createdAt);
+    if (createdComparison != 0) {
+      return createdComparison;
+    }
+    return bId.compareTo(aId);
+  }
+
+  if (aId >= 0 && bId >= 0 && aId != bId) {
+    return aId.compareTo(bId);
+  }
+
+  return a.createdAt.compareTo(b.createdAt);
+}
+
+List<_HabitRecordPreviewItem> _recentRecordPreviews(
+  HabitsStore habitsStore,
+  List<HabitItem> habits,
+) {
+  final previews = <_HabitRecordPreviewItem>[];
+  for (final habit in habits) {
+    for (final record in habitsStore.recordsForHabit(habit)) {
+      previews.add(_HabitRecordPreviewItem(habit: habit, record: record));
+    }
+  }
+  previews.sort((a, b) => b.record.createdAt.compareTo(a.record.createdAt));
+  return previews.take(3).toList(growable: false);
+}
+
+Color _stageAccentColor(List<HabitItem> activeHabits, ColorScheme colorScheme) {
+  final incompleteHabit = activeHabits
+      .where((habit) => habit.habitColorValue != null)
+      .cast<HabitItem?>()
+      .firstWhere((habit) => habit != null, orElse: () => null);
+  return incompleteHabit == null
+      ? colorScheme.primary
+      : Color(incompleteHabit.habitColorValue!);
+}
+
+ButtonStyle _compactHabitActionStyle(BuildContext context) {
+  final colorScheme = Theme.of(context).colorScheme;
+  return TextButton.styleFrom(
+    minimumSize: const Size(0, 34),
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    foregroundColor: AppThemeTokens.secondaryTextTone(colorScheme),
+  );
+}
+
 Color? _habitAccentColor(HabitItem habit) {
   final habitColorValue = habit.habitColorValue;
   return habitColorValue == null ? null : Color(habitColorValue);
@@ -1021,48 +2059,6 @@ String _resolvedHabitPlanLinkTitle(HabitPlanLink link, GoalsStore? goalsStore) {
   };
 }
 
-class _AddHabitSection extends StatelessWidget {
-  const _AddHabitSection({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('添加习惯', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 6),
-                Text(
-                  '只需要名称即可开始，其他信息可以保持默认。',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          FilledButton(onPressed: onPressed, child: const Text('添加习惯')),
-        ],
-      ),
-    );
-  }
-}
-
 class _HabitsListHeader extends StatelessWidget {
   const _HabitsListHeader({
     required this.totalCount,
@@ -1079,14 +2075,33 @@ class _HabitsListHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: Text('今日习惯', style: theme.textTheme.titleLarge)),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '今日习惯',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Text(
+              '$completedCount/$totalCount',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
         Text(
-          '$completedCount / $totalCount · $totalCheckInsToday 次打卡',
-          style: theme.textTheme.labelLarge?.copyWith(
+          '$totalCheckInsToday 次打卡 · 轻触一行继续节奏',
+          style: theme.textTheme.bodySmall?.copyWith(
             color: AppThemeTokens.secondaryTextTone(colorScheme),
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -5672,14 +6687,18 @@ class _MonthlyActivityDialog extends StatelessWidget {
 
     return AlertDialog(
       key: ValueKey<String>('habit-month-heatmap-dialog-${habit.id}'),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-      title: Text('${habit.emoji} ${habit.name}'),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      titlePadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      contentPadding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      title: Text(
+        '月度节奏 · ${habit.name}',
+        style: theme.textTheme.titleMedium,
+      ),
       content: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 420,
-          maxHeight: mediaSize.height * 0.68,
+          maxHeight: mediaSize.height * 0.56,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -5691,18 +6710,18 @@ class _MonthlyActivityDialog extends StatelessWidget {
                 key: ValueKey<String>('habit-month-title-${habit.id}'),
                 style: theme.textTheme.titleMedium,
               ),
-              const SizedBox(height: AppThemeTokens.spaceXs),
+              const SizedBox(height: 2),
               Text(
                 '颜色越深，打卡越多。',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppThemeTokens.secondaryTextTone(colorScheme),
                 ),
               ),
-              const SizedBox(height: AppThemeTokens.spaceMd),
+              const SizedBox(height: 6),
               _HeatmapLegend(accentColor: accentColor),
-              const SizedBox(height: AppThemeTokens.spaceLg),
+              const SizedBox(height: 6),
               const _WeekdayHeader(),
-              const SizedBox(height: AppThemeTokens.spaceSm),
+              const SizedBox(height: 2),
               _MonthActivityGrid(
                 habitId: habit.id,
                 leadingEmptyCells: leadingEmptyCells,
@@ -5850,12 +6869,11 @@ class _MonthActivityGrid extends StatelessWidget {
             children: [
               for (var column = 0; column < 7; column += 1) ...[
                 Expanded(child: _buildCell(row * 7 + column)),
-                if (column != 6) const SizedBox(width: AppThemeTokens.spaceXs),
+                if (column != 6) const SizedBox(width: 2),
               ],
             ],
           ),
-          if (row != rowCount - 1)
-            const SizedBox(height: AppThemeTokens.spaceXs),
+          if (row != rowCount - 1) const SizedBox(height: 2),
         ],
       ],
     );
@@ -5899,13 +6917,15 @@ class _MonthActivityCell extends StatelessWidget {
     final level = activityIntensityLevel(day.count);
     final dayNumber = _dayNumberLabel(day.localDate);
 
-    final cell = MiniHeatmapCell(
-      count: day.count,
-      dateLabel: dayNumber,
-      height: double.infinity,
-      borderRadius: AppThemeTokens.radiusMd,
-      accentColor: accentColor,
-      semanticLabel: '${day.localDate} 打卡 ${day.count} 次',
+    final cell = Center(
+      child: MiniHeatmapCell(
+        count: day.count,
+        dateLabel: dayNumber,
+        height: 26,
+        borderRadius: 8,
+        accentColor: accentColor,
+        semanticLabel: '${day.localDate} 打卡 ${day.count} 次',
+      ),
     );
 
     final key = ValueKey<String>(
