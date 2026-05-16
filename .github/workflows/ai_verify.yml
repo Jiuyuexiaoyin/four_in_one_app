@@ -1,0 +1,46 @@
+name: AI Verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Verification mode
+        required: true
+        default: targeted
+        type: choice
+        options:
+          - targeted
+          - full
+
+jobs:
+  verify:
+    runs-on: [self-hosted, windows, x64, four-in-one]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        shell: powershell
+        run: |
+          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+          Write-Host "RUNNER_OS=$env:RUNNER_OS"
+          Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
+          Write-Host "GITHUB_WORKSPACE=$env:GITHUB_WORKSPACE"
+
+      - name: Show status
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\show_status.ps1"
+
+      - name: Run targeted verification
+        if: ${{ github.event.inputs.mode == 'targeted' }}
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_targeted_tests.ps1"
+
+      - name: Run full verification
+        if: ${{ github.event.inputs.mode == 'full' }}
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_verify.ps1"
