@@ -15,6 +15,11 @@ on:
         options:
           - "false"
           - "true"
+      probe_codex:
+        description: Probe Codex CLI availability on the runner
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   ai-task:
@@ -36,6 +41,12 @@ jobs:
         shell: powershell
         run: |
           & "D:\AI\Projects\four_in_one_app\ai\scripts\show_status.ps1"
+
+      - name: Probe Codex CLI
+        if: ${{ inputs.probe_codex == true }}
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File "D:\AI\Projects\four_in_one_app\ai\scripts\check_codex_env.ps1"
 
       - name: Run AI pipeline
         shell: powershell
