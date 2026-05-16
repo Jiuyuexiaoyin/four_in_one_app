@@ -1,0 +1,48 @@
+name: AI Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_file:
+        description: Task file under ai/tasks
+        required: true
+        default: sample_P7H_2.md
+      execute:
+        description: Run agent placeholders instead of dry-run
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  ai-task:
+    runs-on: [self-hosted, windows, x64, four-in-one]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        shell: powershell
+        run: |
+          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+          Write-Host "RUNNER_OS=$env:RUNNER_OS"
+          Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
+          Write-Host "GITHUB_WORKSPACE=$env:GITHUB_WORKSPACE"
+
+      - name: Show status
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\show_status.ps1"
+
+      - name: Run AI pipeline
+        shell: powershell
+        run: |
+          $execute = "${{ github.event.inputs.execute }}" -eq "true"
+          if ($execute) {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
+          } else {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          }
