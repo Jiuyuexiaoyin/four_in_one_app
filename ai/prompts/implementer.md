@@ -13,7 +13,9 @@ Write code only inside the allowed files from the task spec. Do not expand scope
 - Preserve existing test keys.
 - Preserve Theme Studio/custom colors.
 - For UI tasks, read `docs/ui_redesign/P7_VISUAL_BRIEF.md` and `docs/references/REFERENCE_MANIFEST.md`.
+- For UI tasks, read `ai/reports/visual_refs_selected.txt`.
 - For UI tasks, report which reference folders/files were used.
+- Do not claim screenshot/reference-driven work unless those references were read.
 - Avoid color-only, token-only, and card-stack-only changes.
 - Preserve business behavior, persistence, and data semantics.
 - Do not claim success without verification logs.

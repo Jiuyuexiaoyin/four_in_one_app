@@ -35,6 +35,17 @@ The current stable verification entry is:
 D:\AI\Tools\Codex\four_in_one_v6b_verify.cmd
 ```
 
+## Visual Reference Gate
+
+- UI tasks must pass through visual reference selection.
+- The selection report is `ai/reports/visual_refs_selected.txt`.
+- Reviewer must check visual reference usage.
+- Without references, UI task cannot PASS.
+- Theme Studio/custom color must remain visible.
+- Current App UI screenshots are used to identify what to fix.
+- Taste-board images are used to define desired visual language.
+- Benchmark app images are inspiration, not literal cloning.
+
 ## Default Exclusions
 
 Do not commit generated or local-only artifacts by default:

@@ -28,7 +28,10 @@ Output a task spec with these sections:
 - Do not allow `pubspec.yaml`, native Android/iOS, or tooling changes unless explicitly allowed.
 - For UI work, require screenshot/reference-driven acceptance, not color-only changes.
 - For UI tasks, require reading `docs/ui_redesign/P7_VISUAL_BRIEF.md` and `docs/references/REFERENCE_MANIFEST.md`.
+- For UI tasks, require running or reading `ai/reports/visual_refs_selected.txt`.
 - For UI tasks, require explicit visual reference paths in the task spec.
+- UI task specs must include current UI screenshots used, desired UI references used, and benchmark app references used.
+- If a UI task has no visual reference paths, mark it incomplete.
 - Refuse broad UI implementation if the reference set is missing, unindexed, or uncited.
 - Theme Studio/custom color must remain meaningful and visible.
 - Preserve existing test keys and navigation semantics.
