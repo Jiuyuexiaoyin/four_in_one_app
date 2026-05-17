@@ -22,7 +22,7 @@ on:
         type: boolean
 
 jobs:
-  ai-task:
+  planner:
     runs-on: [self-hosted, windows, x64, four-in-one]
 
     steps:
@@ -36,6 +36,7 @@ jobs:
           Write-Host "RUNNER_OS=$env:RUNNER_OS"
           Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
           Write-Host "GITHUB_WORKSPACE=$env:GITHUB_WORKSPACE"
+          Write-Host "AGENT_ROLE=Planner"
 
       - name: Show status
         shell: powershell
@@ -48,12 +49,99 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File "D:\AI\Projects\four_in_one_app\ai\scripts\check_codex_env.ps1"
 
-      - name: Run AI pipeline
+      - name: Planner dry-run
         shell: powershell
         run: |
-          $execute = "${{ github.event.inputs.execute }}" -eq "true"
-          if ($execute) {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
-          } else {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
-          }
+          Write-Host "Planner turns the task into scope, constraints, tests, risks, and acceptance criteria."
+          Write-Host "AI Task v0.3 is DRY_RUN/report-only. No codex exec is run."
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_planner.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+
+  implementer:
+    needs: planner
+    runs-on: [self-hosted, windows, x64, four-in-one]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Implementer role
+        shell: powershell
+        run: |
+          Write-Host "AGENT_ROLE=Implementer"
+          Write-Host "Implementer would edit only allowed files in a future execute mode."
+          Write-Host "AI Task v0.3 remains DRY_RUN/report-only. No app source edits and no codex exec."
+
+      - name: Show status
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\show_status.ps1"
+
+      - name: Implementer dry-run
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+
+  verifier:
+    needs: implementer
+    runs-on: [self-hosted, windows, x64, four-in-one]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verifier role
+        shell: powershell
+        run: |
+          Write-Host "AGENT_ROLE=Verifier"
+          Write-Host "Verifier is script/CI output, not model opinion."
+          Write-Host "AI Task v0.3 verifier is DRY_RUN/status-only and does not run Flutter."
+
+      - name: Verifier dry-run status
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\show_status.ps1"
+          Write-Host "Would run targeted verification in a later enabled mode."
+
+  reviewer:
+    needs: verifier
+    runs-on: [self-hosted, windows, x64, four-in-one]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reviewer role
+        shell: powershell
+        run: |
+          Write-Host "AGENT_ROLE=Reviewer"
+          Write-Host "Reviewer is read-only and must output PASS or FAIL in future enabled mode."
+          Write-Host "AI Task v0.3 remains DRY_RUN/report-only."
+
+      - name: Reviewer dry-run
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+
+  reporter:
+    needs: reviewer
+    runs-on: [self-hosted, windows, x64, four-in-one]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reporter role
+        shell: powershell
+        run: |
+          Write-Host "AGENT_ROLE=Reporter"
+          Write-Host "Reporter summarizes reports and next action. No auto-commit, no auto-merge, no APK."
+
+      - name: Pipeline plan summary
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+
+      - name: Reporter dry-run
+        shell: powershell
+        run: |
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
