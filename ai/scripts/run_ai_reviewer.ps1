@@ -10,6 +10,7 @@ $repoPath = "D:\AI\Projects\four_in_one_app"
 $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 $tasksDir = "D:\AI\Projects\four_in_one_app\ai\tasks"
 $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
+$probeTaskFile = "probe_agent_report.md"
 
 Set-Location -Path $repoPath
 New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
@@ -25,9 +26,33 @@ if (-not (Test-Path -Path $promptPath)) {
   throw "Reviewer prompt not found: $promptPath"
 }
 
+function Test-IsAllowedProbeReport {
+  param([string]$Path)
+  return $Path -match '^ai/reports/[^/]+\.md$'
+}
+
+function Assert-NoForbiddenChanges {
+  param([string[]]$ChangedFiles)
+
+  foreach ($file in $ChangedFiles) {
+    if (
+      $file.StartsWith("lib/") -or
+      $file.StartsWith("test/") -or
+      $file.StartsWith("android/") -or
+      $file.StartsWith("ios/") -or
+      $file.StartsWith("docs/references/") -or
+      $file -eq "pubspec.yaml"
+    ) {
+      Write-Host "FORBIDDEN_CHANGE_DETECTED"
+      Write-Host $file
+      throw "Forbidden change detected: $file"
+    }
+  }
+}
+
 $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
-$nameOnly = git diff --name-only
-$stat = git diff --stat
+$nameOnly = @(git diff --name-only)
+$stat = @(git diff --stat)
 $codexExecCommand = "codex exec --sandbox read-only -- `"$promptPath`" `"$taskPath`""
 
 Write-Host "AI_REVIEWER_START"
@@ -72,10 +97,43 @@ Would run: $codexExecCommand
   return
 }
 
-if ($null -eq $codexCommand) {
-  throw "Cannot execute reviewer because codex command was not found."
+if ($TaskFile -ne $probeTaskFile) {
+  throw "Real execute mode is only allowed for $probeTaskFile. Requested: $TaskFile"
 }
 
-Write-Host "AI_REVIEWER_EXECUTE_PLACEHOLDER"
-Write-Host "Execution is intentionally not wired in v0.2 beyond command preview."
-Set-Content -Path $reportPath -Value "# Reviewer Report`n`nStatus: EXECUTE_PLACEHOLDER`n`nCommand preview: $codexExecCommand`n" -Encoding UTF8
+Assert-NoForbiddenChanges -ChangedFiles $nameOnly
+
+$nonReportChanges = @($nameOnly | Where-Object { -not (Test-IsAllowedProbeReport -Path $_) })
+$status = if ($nonReportChanges.Count -eq 0) { "PASS" } else { "FAIL" }
+
+$report = @"
+# Reviewer Report
+
+REVIEW STATUS: $status
+
+Task file: $TaskFile
+
+## Changed Files
+
+$($nameOnly | ForEach-Object { "- $_" } | Out-String)
+
+## Blocking Issues
+
+$(if ($status -eq "PASS") { "None." } else { "Non-report changes detected:`n$($nonReportChanges | ForEach-Object { "- $_" } | Out-String)" })
+
+## Non-Blocking Issues
+
+None.
+
+## Exact Fix Prompt For Fixer
+
+$(if ($status -eq "PASS") { "No fixer needed." } else { "Revert or remove all non-ai/reports/*.md changes and rerun reviewer." })
+"@
+
+Set-Content -Path $reportPath -Value $report -Encoding UTF8
+
+if ($status -ne "PASS") {
+  throw "Reviewer failed because changed files are not limited to ai/reports/*.md."
+}
+
+Write-Host "AI_REVIEWER_EXECUTE_PROBE_PASS"

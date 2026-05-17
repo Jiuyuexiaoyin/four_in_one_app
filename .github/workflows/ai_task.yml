@@ -79,7 +79,12 @@ jobs:
       - name: Implementer dry-run
         shell: powershell
         run: |
-          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          $execute = "${{ github.event.inputs.execute }}" -eq "true"
+          if ($execute) {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
+          } else {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          }
 
   verifier:
     needs: implementer
@@ -120,7 +125,12 @@ jobs:
       - name: Reviewer dry-run
         shell: powershell
         run: |
-          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          $execute = "${{ github.event.inputs.execute }}" -eq "true"
+          if ($execute) {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
+          } else {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          }
 
   reporter:
     needs: reviewer
@@ -144,4 +154,9 @@ jobs:
       - name: Reporter dry-run
         shell: powershell
         run: |
-          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          $execute = "${{ github.event.inputs.execute }}" -eq "true"
+          if ($execute) {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
+          } else {
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          }

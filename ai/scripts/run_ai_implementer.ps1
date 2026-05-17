@@ -10,6 +10,14 @@ $repoPath = "D:\AI\Projects\four_in_one_app"
 $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 $tasksDir = "D:\AI\Projects\four_in_one_app\ai\tasks"
 $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
+$probeTaskFile = "probe_agent_report.md"
+$allowedProbeReports = @(
+  "ai/reports/probe_agent_report.md",
+  "ai/reports/planner_report.md",
+  "ai/reports/implementer_report.md",
+  "ai/reports/reviewer_report.md",
+  "ai/reports/final_report.md"
+)
 
 Set-Location -Path $repoPath
 New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
@@ -25,8 +33,35 @@ if (-not (Test-Path -Path $promptPath)) {
   throw "Implementer prompt not found: $promptPath"
 }
 
+function Assert-NoForbiddenChanges {
+  param([string]$Label)
+
+  Write-Host $Label
+  $changedFiles = @(git diff --name-only)
+  if ($changedFiles.Count -eq 0) {
+    Write-Host "(no tracked diff)"
+  } else {
+    $changedFiles
+  }
+
+  foreach ($file in $changedFiles) {
+    if (
+      $file.StartsWith("lib/") -or
+      $file.StartsWith("test/") -or
+      $file.StartsWith("android/") -or
+      $file.StartsWith("ios/") -or
+      $file.StartsWith("docs/references/") -or
+      $file -eq "pubspec.yaml"
+    ) {
+      Write-Host "FORBIDDEN_CHANGE_DETECTED"
+      Write-Host $file
+      throw "Forbidden change detected: $file"
+    }
+  }
+}
+
 $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
-$codexExecCommand = "codex exec --sandbox workspace-write -- `"$promptPath`" `"$taskPath`""
+$codexExecCommand = "codex exec --sandbox workspace-write <safe probe prompt>"
 
 Write-Host "AI_IMPLEMENTER_START"
 Write-Host "Mode: $(if ($Execute) { 'EXECUTE' } else { 'DRY_RUN' })"
@@ -48,10 +83,65 @@ if (-not $Execute) {
   return
 }
 
+if ($TaskFile -ne $probeTaskFile) {
+  throw "Real execute mode is only allowed for $probeTaskFile. Requested: $TaskFile"
+}
+
 if ($null -eq $codexCommand) {
   throw "Cannot execute implementer because codex command was not found."
 }
 
-Write-Host "AI_IMPLEMENTER_EXECUTE_PLACEHOLDER"
-Write-Host "Execution is intentionally not wired in v0.2 beyond command preview."
-Set-Content -Path $reportPath -Value "# Implementer Report`n`nStatus: EXECUTE_PLACEHOLDER`n`nCommand preview: $codexExecCommand`n" -Encoding UTF8
+Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_BEFORE_DIFF"
+
+$taskText = Get-Content -Path $taskPath -Raw
+$safePrompt = @"
+You are running the AI-AUTO safe execute probe for four_in_one_app.
+
+Only create ai/reports/probe_agent_report.md.
+Do not modify app source code, tests, pubspec, native files, docs/references, build outputs, APK files, or tooling.
+Do not commit.
+Do not run Flutter.
+Do not build APK.
+
+Write ai/reports/probe_agent_report.md with:
+- task name
+- current timestamp
+- runner user if available
+- statement that no app source code was changed
+- statement that this is a safe pipeline probe
+
+Task file content:
+$taskText
+"@
+
+Write-Host "Running safe probe codex exec."
+& $codexCommand.Source exec --sandbox workspace-write $safePrompt
+$exitCode = $LASTEXITCODE
+
+Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_AFTER_DIFF"
+
+if ($exitCode -ne 0) {
+  throw "codex exec failed with exit code $exitCode."
+}
+
+$changedFiles = @(git diff --name-only)
+$report = @"
+# Implementer Report
+
+Status: EXECUTE_PROBE_COMPLETE
+
+Task file: $TaskFile
+Allowed report files:
+$($allowedProbeReports | ForEach-Object { "- $_" } | Out-String)
+
+Tracked diff after implementer:
+$($changedFiles | ForEach-Object { "- $_" } | Out-String)
+
+Safety:
+- No commit was made.
+- Flutter was not run by this script.
+- APK build was not run by this script.
+"@
+
+Set-Content -Path $reportPath -Value $report -Encoding UTF8
+Write-Host "AI_IMPLEMENTER_EXECUTE_PROBE_OK"

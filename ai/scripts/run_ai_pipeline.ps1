@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $repoPath = "D:\AI\Projects\four_in_one_app"
 $scriptsDir = "D:\AI\Projects\four_in_one_app\ai\scripts"
+$probeTaskFile = "probe_agent_report.md"
 
 Set-Location -Path $repoPath
 
@@ -40,9 +41,14 @@ if (-not $Execute) {
   return
 }
 
+if ($TaskFile -ne $probeTaskFile) {
+  throw "Real execute mode is only allowed for $probeTaskFile. Requested: $TaskFile"
+}
+
 & (Join-Path $scriptsDir "run_ai_planner.ps1") -TaskFile $TaskFile
 & (Join-Path $scriptsDir "run_ai_implementer.ps1") -TaskFile $TaskFile -Execute
 
-Write-Host "Targeted verification would run here through ai/scripts/run_targeted_tests.ps1."
-Write-Host "Reviewer and optional Fixer would run after verification logs are available."
-Write-Host "AI_PIPELINE_EXECUTE_PLACEHOLDER_OK"
+Write-Host "No Flutter verification is required for the safe probe task."
+& (Join-Path $scriptsDir "run_ai_reviewer.ps1") -TaskFile $TaskFile -Execute
+& (Join-Path $scriptsDir "run_ai_reporter.ps1") -TaskFile $TaskFile -Execute
+Write-Host "AI_PIPELINE_EXECUTE_PROBE_OK"
