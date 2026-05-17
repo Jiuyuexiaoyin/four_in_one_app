@@ -2,48 +2,82 @@
 
 ## Goal
 
-Verify that AI Task `execute=true` can call the agent pipeline safely.
+Verify that AI Task execute=true can safely run the multi-agent pipeline without touching app code.
 
-## Allowed Files
+## Allowed files
 
-- `ai/reports/probe_agent_report.md`
-- `ai/reports/implementer_report.md`
-- `ai/reports/reviewer_report.md`
-- `ai/reports/final_report.md`
+Only these files may be created or modified:
 
-## Forbidden Files
+- ai/reports/probe_agent_report.md
+- ai/reports/planner_report.md
+- ai/reports/implementer_report.md
+- ai/reports/reviewer_report.md
+- ai/reports/final_report.md
 
-- `lib/**`
-- `test/**`
-- `pubspec.yaml`
-- `android/**`
-- `ios/**`
-- `docs/references/**`
-- `build/**`
+## Forbidden files
 
-## Expected Implementer Behavior
+Do not modify:
 
-- Create `ai/reports/probe_agent_report.md`.
-- Write timestamp, runner user, task name, and statement that no app code was changed.
+- lib/**
+- test/**
+- pubspec.yaml
+- android/**
+- ios/**
+- docs/references/**
+- build/**
+- *.apk
 
-## Expected Reviewer Behavior
+## Expected Planner behavior
 
-- Verify no app source/test/pubspec files changed.
-- Output PASS if only `ai/reports` files changed.
+- Read this task.
+- Produce a short plan.
+- Do not propose app source changes.
+
+## Expected Implementer behavior
+
+- Create ai/reports/probe_agent_report.md.
+- Write:
+  - task name
+  - current timestamp
+  - runner user if available
+  - statement that no app source code was changed
+  - statement that this is a safe pipeline probe
+- Do not modify app source, tests, pubspec, native files, or build outputs.
+
+## Expected Reviewer behavior
+
+- Inspect git diff --name-only.
+- PASS only if changed files are limited to ai/reports/*.md.
+- FAIL if any app source/test/pubspec/native/build/reference files changed.
 
 ## Verification
 
-- No Flutter required.
-- `git diff --name-only` must not include:
-  - `lib/`
-  - `test/`
-  - `pubspec.yaml`
-  - `android/`
-  - `ios/`
+No Flutter verification is required for this probe.
+
+Required safety check:
+
+```powershell
+git diff --name-only
+```
+
+The output must not include:
+
+- lib/
+- test/
+- pubspec.yaml
+- android/
+- ios/
+- docs/references/
+- build/
 
 ## Acceptance
 
-- `ai/reports/probe_agent_report.md` exists.
-- `ai/reports/implementer_report.md` exists if implementer ran.
-- `ai/reports/reviewer_report.md` exists if reviewer ran.
-- No app source changes.
+The probe is accepted when:
+
+- ai/reports/probe_agent_report.md exists
+- planner / implementer / reviewer / reporter reports may exist
+- no app source code changed
+- no tests changed
+- no pubspec changed
+- no APK/build output was created
+- no commit was made by the agent
