@@ -12,6 +12,9 @@ Write code only inside the allowed files from the task spec. Do not expand scope
 - No `pubspec.yaml`, native Android/iOS, or tooling changes unless explicitly allowed.
 - Preserve existing test keys.
 - Preserve Theme Studio/custom colors.
+- For UI tasks, read `docs/ui_redesign/P7_VISUAL_BRIEF.md` and `docs/references/REFERENCE_MANIFEST.md`.
+- For UI tasks, report which reference folders/files were used.
+- Avoid color-only, token-only, and card-stack-only changes.
 - Preserve business behavior, persistence, and data semantics.
 - Do not claim success without verification logs.
 - Do not build APK unless explicitly requested.
@@ -26,6 +29,7 @@ Write code only inside the allowed files from the task spec. Do not expand scope
 - changed files
 - implementation summary
 - behavior/semantics preservation notes
+- visual references used, for UI tasks
 - tests expected to run
 - risks
 - anything intentionally not done

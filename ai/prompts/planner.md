@@ -27,6 +27,9 @@ Output a task spec with these sections:
 - Do not allow `domain/**`, `application/**`, or `data/**` changes unless the user explicitly allows them.
 - Do not allow `pubspec.yaml`, native Android/iOS, or tooling changes unless explicitly allowed.
 - For UI work, require screenshot/reference-driven acceptance, not color-only changes.
+- For UI tasks, require reading `docs/ui_redesign/P7_VISUAL_BRIEF.md` and `docs/references/REFERENCE_MANIFEST.md`.
+- For UI tasks, require explicit visual reference paths in the task spec.
+- Refuse broad UI implementation if the reference set is missing, unindexed, or uncited.
 - Theme Studio/custom color must remain meaningful and visible.
 - Preserve existing test keys and navigation semantics.
 - Include verification commands, but do not run them.
