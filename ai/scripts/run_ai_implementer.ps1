@@ -102,49 +102,38 @@ function Get-ImageArgumentValue {
   return ""
 }
 
-$codexCommand = Get-Command codex -ErrorAction SilentlyContinue
-$imageValue = if ($UseImages) { Get-ImageArgumentValue -Path $imageArgsPath } else { "" }
-$codexExecCommand = if ($UseImages -and -not [string]::IsNullOrWhiteSpace($imageValue)) {
-  "codex exec --sandbox workspace-write --image `"$imageValue`" <task prompt>"
-} else {
-  "codex exec --sandbox workspace-write <task prompt>"
+function Read-OptionalContext {
+  param(
+    [string]$Path,
+    [string]$Title
+  )
+
+  if (-not (Test-Path -Path $Path)) {
+    return "## $Title`n`nMissing: $Path`n"
+  }
+
+  $content = Get-Content -Path $Path -Raw
+  return "## $Title`n`nPath: $Path`n`n$content`n"
 }
-
-Write-Host "AI_IMPLEMENTER_START"
-Write-Host "Mode: $(if ($Execute) { 'EXECUTE' } else { 'DRY_RUN' })"
-Write-Host "Task file: $taskPath"
-Write-Host "Prompt file: $promptPath"
-Write-Host "Report path: $reportPath"
-Write-Host "Use images: $UseImages"
-Write-Host "Task pack: $TaskPack"
-
-if ($null -eq $codexCommand) {
-  Write-Host "codex command not found. Dry-run only."
-} else {
-  Write-Host "codex command found: $($codexCommand.Source)"
-  Write-Host "Exact codex exec command that would run:"
-  Write-Host $codexExecCommand
-}
-
-if (-not $Execute) {
-  Set-Content -Path $reportPath -Value "# Implementer Report`n`nStatus: DRY_RUN`n`nWould run: $codexExecCommand`n" -Encoding UTF8
-  Write-Host "AI_IMPLEMENTER_DRY_RUN_OK"
-  return
-}
-
-if ($TaskFile -ne $probeTaskFile -and $TaskFile -ne $auditTaskFile) {
-  throw "Real execute mode is only allowed for $probeTaskFile or $auditTaskFile. Requested: $TaskFile"
-}
-
-if ($null -eq $codexCommand) {
-  throw "Cannot execute implementer because codex command was not found."
-}
-
-Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_BEFORE_DIFF"
 
 $taskText = Get-Content -Path $taskPath -Raw
+$implementerPrompt = Get-Content -Path $promptPath -Raw
+$visualBriefPath = Join-Path $repoPath "docs\ui_redesign\P7_VISUAL_BRIEF.md"
+$referenceManifestPath = Join-Path $repoPath "docs\references\REFERENCE_MANIFEST.md"
+$visualLibraryPath = Join-Path $reportsDir "visual_library_full.md"
+$imageManifestPath = Join-Path $reportsDir "codex_image_manifest.md"
+$visualSelectionPath = Join-Path $reportsDir "visual_refs_selected.txt"
+
+$contextText = @(
+  Read-OptionalContext -Path $visualBriefPath -Title "P7 Visual Brief"
+  Read-OptionalContext -Path $referenceManifestPath -Title "Reference Manifest"
+  Read-OptionalContext -Path $visualLibraryPath -Title "Full Visual Library"
+  Read-OptionalContext -Path $imageManifestPath -Title "Codex Image Manifest"
+  Read-OptionalContext -Path $visualSelectionPath -Title "Visual References Selected"
+) -join "`n"
+
 if ($TaskFile -eq $probeTaskFile) {
-  $safePrompt = @"
+  $taskSpecificInstructions = @"
 You are running the AI-AUTO safe execute probe for four_in_one_app.
 
 Only create ai/reports/probe_agent_report.md.
@@ -159,19 +148,11 @@ Write ai/reports/probe_agent_report.md with:
 - runner user if available
 - statement that no app source code was changed
 - statement that this is a safe pipeline probe
-
-Task file content:
-$taskText
 "@
   $allowedOutputs = $allowedProbeReports
   $statusLabel = "EXECUTE_PROBE_COMPLETE"
-} else {
-  $visualBrief = "docs/ui_redesign/P7_VISUAL_BRIEF.md"
-  $referenceManifest = "docs/references/REFERENCE_MANIFEST.md"
-  $visualLibrary = "ai/reports/visual_library_full.md"
-  $imageManifest = "ai/reports/codex_image_manifest.md"
-  $visualSelection = "ai/reports/visual_refs_selected.txt"
-  $safePrompt = @"
+} elseif ($TaskFile -eq $auditTaskFile) {
+  $taskSpecificInstructions = @"
 You are running AI-AUTO P7H-2A Habit Detail Rhythm Audit for four_in_one_app.
 
 This is audit-only. Do not modify app source code, tests, pubspec, native files, docs/references, build outputs, APK files, or tooling.
@@ -180,13 +161,6 @@ Do not run Flutter.
 Do not build APK.
 
 Only create docs/ui_redesign/P7H_2A_habit_detail_audit.md.
-
-Read and use this context if present:
-- $visualBrief
-- $referenceManifest
-- $visualLibrary
-- $imageManifest
-- $visualSelection
 
 The audit must answer:
 1. Why current habit detail/month view feels database-like.
@@ -202,23 +176,107 @@ The audit must answer:
 
 Reject color-only, token-only, giant card-stack, and generic dark dashboard recommendations.
 Preserve Theme Studio/custom colors, habit semantics, existing keys, and test behavior.
-
-Task file content:
-$taskText
 "@
   $allowedOutputs = $allowedAuditFiles
   $statusLabel = "EXECUTE_AUDIT_COMPLETE"
+} else {
+  $taskSpecificInstructions = @"
+This task is not enabled for real execute mode.
+Produce dry-run planning/reporting only. Do not edit files.
+"@
+  $allowedOutputs = @()
+  $statusLabel = "DRY_RUN"
+}
+
+$codexPrompt = @"
+# Implementer System Prompt
+
+$implementerPrompt
+
+# Task-Specific Instructions
+
+$taskSpecificInstructions
+
+# Task File Content
+
+$taskText
+
+# Reference Context
+
+$contextText
+"@
+
+$promptLength = $codexPrompt.Length
+$codexCommand = Get-Command codex -ErrorAction SilentlyContinue
+$imageValue = if ($UseImages) { Get-ImageArgumentValue -Path $imageArgsPath } else { "" }
+$imagesAvailable = $UseImages -and -not [string]::IsNullOrWhiteSpace($imageValue)
+$imagesAttachInExecute = $imagesAvailable -and $TaskFile -eq $auditTaskFile
+$codexExecCommand = if ($imagesAvailable) {
+  "codex exec --sandbox workspace-write --image `"$imageValue`" <task prompt>"
+} else {
+  "codex exec --sandbox workspace-write <task prompt>"
+}
+
+Write-Host "AI_IMPLEMENTER_START"
+Write-Host "Mode: $(if ($Execute) { 'EXECUTE' } else { 'DRY_RUN' })"
+Write-Host "Task file: $taskPath"
+Write-Host "Prompt file: $promptPath"
+Write-Host "Report path: $reportPath"
+Write-Host "Use images: $UseImages"
+Write-Host "Task pack: $TaskPack"
+Write-Host "Prompt length: $promptLength"
+Write-Host "Images attached: $imagesAvailable"
+
+if ($null -eq $codexCommand) {
+  Write-Host "codex command not found. Dry-run only."
+} else {
+  Write-Host "codex command found: $($codexCommand.Source)"
+  Write-Host "Exact codex exec command that would run:"
+  Write-Host $codexExecCommand
+}
+
+if (-not $Execute) {
+  $dryRunReport = @"
+# Implementer Report
+
+Status: DRY_RUN
+
+Would run: $codexExecCommand
+
+Prompt length: $promptLength
+Images requested: $UseImages
+Images attached in preview: $imagesAvailable
+"@
+  Set-Content -Path $reportPath -Value $dryRunReport -Encoding UTF8
+  Write-Host "AI_IMPLEMENTER_DRY_RUN_OK"
+  return
+}
+
+if ($TaskFile -ne $probeTaskFile -and $TaskFile -ne $auditTaskFile) {
+  throw "Real execute mode is only allowed for $probeTaskFile or $auditTaskFile. Requested: $TaskFile"
+}
+
+if ($null -eq $codexCommand) {
+  throw "Cannot execute implementer because codex command was not found."
+}
+
+Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_BEFORE_DIFF"
+
+if ([string]::IsNullOrWhiteSpace($codexPrompt)) {
+  Write-Host "EMPTY_CODEX_PROMPT"
+  throw "Codex prompt is empty; refusing to invoke codex exec."
 }
 
 Write-Host "Running safe codex exec."
-if ($UseImages -and $TaskFile -eq $auditTaskFile -and -not [string]::IsNullOrWhiteSpace($imageValue)) {
-  & $codexCommand.Source exec --sandbox workspace-write --image $imageValue $safePrompt
+$codexArgs = @("exec", "--sandbox", "workspace-write")
+if ($imagesAttachInExecute) {
+  $codexArgs += @("--image", $imageValue)
 } else {
   if ($UseImages -and $TaskFile -eq $probeTaskFile) {
     Write-Host "Image args requested, but safe probe runs without images."
   }
-  & $codexCommand.Source exec --sandbox workspace-write $safePrompt
 }
+$codexPrompt | & $codexCommand.Source @codexArgs
 $exitCode = $LASTEXITCODE
 
 Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_AFTER_DIFF"
