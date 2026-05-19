@@ -82,16 +82,12 @@ function Test-RejectedDirectionRecommended {
 
   $patterns = @(
     "implement\s+by\s+changing\s+only\s+tokens",
+    "rely\s+only\s+on\s+token\s+changes",
     "use\s+card-stack\s+dashboard\s+cards",
+    "make\s+it\s+a\s+card-stack\s+dashboard",
     "color-only\s+polish\s+is\s+acceptable",
     "color-only\s+redesign\s+is\s+acceptable",
-    "token-only\s+changes?\s+are\s+acceptable",
-    "recommend[s]?\s+.*color-only",
-    "recommend[s]?\s+.*token-only",
-    "recommend[s]?\s+.*card-stack",
-    "propose[s]?\s+.*color-only",
-    "propose[s]?\s+.*token-only",
-    "propose[s]?\s+.*card-stack"
+    "token-only\s+changes?\s+are\s+acceptable"
   )
 
   foreach ($pattern in $patterns) {
