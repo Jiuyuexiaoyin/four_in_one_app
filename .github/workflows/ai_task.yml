@@ -20,6 +20,23 @@ on:
         required: true
         default: true
         type: boolean
+      use_images:
+        description: Build and attach a task-specific visual image pack
+        required: true
+        default: false
+        type: boolean
+      task_pack:
+        description: Visual task image pack
+        required: true
+        default: global
+        type: choice
+        options:
+          - global
+          - habits
+          - today
+          - plan
+          - focus
+          - review
 
 jobs:
   planner:
@@ -80,10 +97,11 @@ jobs:
         shell: powershell
         run: |
           $execute = "${{ github.event.inputs.execute }}" -eq "true"
+          $useImages = "${{ inputs.use_images }}" -eq "true"
           if ($execute) {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskPack "${{ inputs.task_pack }}" -Execute -UseImages:$useImages
           } else {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskPack "${{ inputs.task_pack }}" -UseImages:$useImages
           }
 
   verifier:
@@ -126,10 +144,11 @@ jobs:
         shell: powershell
         run: |
           $execute = "${{ github.event.inputs.execute }}" -eq "true"
+          $useImages = "${{ inputs.use_images }}" -eq "true"
           if ($execute) {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute -UseImages:$useImages
           } else {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -UseImages:$useImages
           }
 
   reporter:
@@ -149,7 +168,8 @@ jobs:
       - name: Pipeline plan summary
         shell: powershell
         run: |
-          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+          $useImages = "${{ inputs.use_images }}" -eq "true"
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskPack "${{ inputs.task_pack }}" -UseImages:$useImages
 
       - name: Reporter dry-run
         shell: powershell

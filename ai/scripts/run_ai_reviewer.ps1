@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$TaskFile,
-  [switch]$Execute
+  [switch]$Execute,
+  [switch]$UseImages
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,6 +12,7 @@ $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 $tasksDir = "D:\AI\Projects\four_in_one_app\ai\tasks"
 $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
 $probeTaskFile = "probe_agent_report.md"
+$imageManifestPath = Join-Path $reportsDir "codex_image_manifest.md"
 
 Set-Location -Path $repoPath
 New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
@@ -60,10 +62,22 @@ Write-Host "Mode: $(if ($Execute) { 'EXECUTE' } else { 'DRY_RUN' })"
 Write-Host "Task file: $taskPath"
 Write-Host "Prompt file: $promptPath"
 Write-Host "Report path: $reportPath"
+Write-Host "Use images: $UseImages"
 Write-Host "Changed files:"
 $nameOnly
 Write-Host "Diff stat:"
 $stat
+
+if ($UseImages) {
+  if (Test-Path -Path $imageManifestPath) {
+    $manifestLines = Get-Content -Path $imageManifestPath
+    $selectedCountLine = $manifestLines | Where-Object { $_ -match "Selected image count:" } | Select-Object -First 1
+    Write-Host "Image manifest: $imageManifestPath"
+    Write-Host $selectedCountLine
+  } else {
+    Write-Host "Image manifest requested but missing: $imageManifestPath"
+  }
+}
 
 if ($null -eq $codexCommand) {
   Write-Host "codex command not found. Dry-run only."
@@ -91,6 +105,9 @@ $($nameOnly -join "`n")
 $($stat -join "`n")
 
 Would run: $codexExecCommand
+
+Image manifest:
+$(if ($UseImages -and (Test-Path -Path $imageManifestPath)) { Get-Content -Path $imageManifestPath -Raw } else { "Not used." })
 "@
   Set-Content -Path $reportPath -Value $report -Encoding UTF8
   Write-Host "AI_REVIEWER_DRY_RUN_OK"

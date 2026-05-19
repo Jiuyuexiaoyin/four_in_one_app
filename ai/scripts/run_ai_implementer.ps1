@@ -1,7 +1,10 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$TaskFile,
-  [switch]$Execute
+  [switch]$Execute,
+  [switch]$UseImages,
+  [ValidateSet("global", "habits", "today", "plan", "focus", "review")]
+  [string]$TaskPack = "global"
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,6 +14,7 @@ $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 $tasksDir = "D:\AI\Projects\four_in_one_app\ai\tasks"
 $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
 $probeTaskFile = "probe_agent_report.md"
+$imageArgsPath = Join-Path $reportsDir "codex_image_args.txt"
 $allowedProbeReports = @(
   "ai/reports/probe_agent_report.md",
   "ai/reports/planner_report.md",
@@ -61,13 +65,23 @@ function Assert-NoForbiddenChanges {
 }
 
 $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
-$codexExecCommand = "codex exec --sandbox workspace-write <safe probe prompt>"
+$imageArgs = ""
+if ($UseImages -and (Test-Path -Path $imageArgsPath)) {
+  $imageArgs = (Get-Content -Path $imageArgsPath -Raw).Trim()
+}
+$codexExecCommand = if ($UseImages -and -not [string]::IsNullOrWhiteSpace($imageArgs)) {
+  "codex exec --sandbox workspace-write $imageArgs <safe probe prompt>"
+} else {
+  "codex exec --sandbox workspace-write <safe probe prompt>"
+}
 
 Write-Host "AI_IMPLEMENTER_START"
 Write-Host "Mode: $(if ($Execute) { 'EXECUTE' } else { 'DRY_RUN' })"
 Write-Host "Task file: $taskPath"
 Write-Host "Prompt file: $promptPath"
 Write-Host "Report path: $reportPath"
+Write-Host "Use images: $UseImages"
+Write-Host "Task pack: $TaskPack"
 
 if ($null -eq $codexCommand) {
   Write-Host "codex command not found. Dry-run only."
@@ -115,6 +129,9 @@ $taskText
 "@
 
 Write-Host "Running safe probe codex exec."
+if ($UseImages) {
+  Write-Host "Image args requested, but execute mode only attaches images for UI-related tasks. Safe probe runs without images."
+}
 & $codexCommand.Source exec --sandbox workspace-write $safePrompt
 $exitCode = $LASTEXITCODE
 
