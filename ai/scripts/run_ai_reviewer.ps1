@@ -66,8 +66,44 @@ function Test-IsAllowedAuditFile {
   return $allowedAuditFiles -contains $Path
 }
 
+function Normalize-GitPath {
+  param([string]$Path)
+  return $Path.Replace("\", "/")
+}
+
+function Get-ChangedFilesIncludingUntracked {
+  $tracked = @(git diff --name-only | ForEach-Object { Normalize-GitPath -Path $_ })
+  $untracked = @(git ls-files --others --exclude-standard | ForEach-Object { Normalize-GitPath -Path $_ })
+  return @($tracked + $untracked | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+}
+
+function Test-RejectedDirectionRecommended {
+  param([string]$AuditText)
+
+  $patterns = @(
+    "implement\s+by\s+changing\s+only\s+tokens",
+    "use\s+card-stack\s+dashboard\s+cards",
+    "color-only\s+polish\s+is\s+acceptable",
+    "color-only\s+redesign\s+is\s+acceptable",
+    "token-only\s+changes?\s+are\s+acceptable",
+    "recommend[s]?\s+.*color-only",
+    "recommend[s]?\s+.*token-only",
+    "recommend[s]?\s+.*card-stack",
+    "propose[s]?\s+.*color-only",
+    "propose[s]?\s+.*token-only",
+    "propose[s]?\s+.*card-stack"
+  )
+
+  foreach ($pattern in $patterns) {
+    if ($AuditText -match $pattern) {
+      return $true
+    }
+  }
+  return $false
+}
+
 $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
-$nameOnly = @(git diff --name-only)
+$nameOnly = @(Get-ChangedFilesIncludingUntracked)
 $stat = @(git diff --stat)
 $codexExecCommand = "codex exec --sandbox read-only -- `"$promptPath`" `"$taskPath`""
 
@@ -142,16 +178,28 @@ if ($TaskFile -eq $probeTaskFile) {
     $blockingIssues += "Missing docs/ui_redesign/P7H_2A_habit_detail_audit.md"
   } else {
     $auditText = Get-Content -Path $auditReportPath -Raw
-    if ($auditText -notmatch "docs/references|visual_library_full|codex_image_manifest|current_app_ui|The Outsiders|Equinox") {
-      $blockingIssues += "Audit does not cite visual references."
+    if ($auditText -notmatch "visual_refs_selected\.txt|codex_image_manifest\.md|visual_library_full\.md") {
+      $blockingIssues += "Audit does not cite selected/full visual reference reports."
     }
-    if ($auditText -notmatch "Theme Studio|custom color|habit color") {
-      $blockingIssues += "Audit ignores Theme Studio or habit color."
+    if ($auditText -notmatch "current_app_ui") {
+      $blockingIssues += "Audit does not cite current_app_ui."
+    }
+    if ($auditText -notmatch "The Outsiders|Equinox") {
+      $blockingIssues += "Audit does not cite The Outsiders or Equinox."
+    }
+    if ($auditText -notmatch "Theme Studio") {
+      $blockingIssues += "Audit ignores Theme Studio."
     }
     if ($auditText -notmatch "P7H-2B") {
       $blockingIssues += "Audit does not define P7H-2B next scope."
     }
-    if ($auditText -match "color-only|token-only|card-stack only|generic dark dashboard") {
+    if ($auditText -notmatch "tests? to run|Tests to run|test/|flutter test") {
+      $blockingIssues += "Audit does not mention tests to run."
+    }
+    if ($auditText -notmatch "screenshot acceptance checklist|Screenshot acceptance checklist|acceptance checklist") {
+      $blockingIssues += "Audit does not include a screenshot acceptance checklist."
+    }
+    if (Test-RejectedDirectionRecommended -AuditText $auditText) {
       $blockingIssues += "Audit suggests or permits a rejected color-only/token-only/card-stack direction."
     }
     if ($auditText.Length -lt 1200) {
