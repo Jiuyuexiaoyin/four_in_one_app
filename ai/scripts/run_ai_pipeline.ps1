@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 $repoPath = "D:\AI\Projects\four_in_one_app"
 $scriptsDir = "D:\AI\Projects\four_in_one_app\ai\scripts"
 $probeTaskFile = "probe_agent_report.md"
+$auditTaskFile = "P7H_2A_habit_detail_audit.md"
 
 Set-Location -Path $repoPath
 
@@ -57,14 +58,14 @@ if (-not $Execute) {
   return
 }
 
-if ($TaskFile -ne $probeTaskFile) {
-  throw "Real execute mode is only allowed for $probeTaskFile. Requested: $TaskFile"
+if ($TaskFile -ne $probeTaskFile -and $TaskFile -ne $auditTaskFile) {
+  throw "Real execute mode is only allowed for $probeTaskFile or $auditTaskFile. Requested: $TaskFile"
 }
 
 & (Join-Path $scriptsDir "run_ai_planner.ps1") -TaskFile $TaskFile
 & (Join-Path $scriptsDir "run_ai_implementer.ps1") -TaskFile $TaskFile -Execute -UseImages:$UseImages -TaskPack $TaskPack
 
-Write-Host "No Flutter verification is required for the safe probe task."
+Write-Host "No Flutter verification is required for this safe audit/probe task."
 & (Join-Path $scriptsDir "run_ai_reviewer.ps1") -TaskFile $TaskFile -Execute -UseImages:$UseImages
 & (Join-Path $scriptsDir "run_ai_reporter.ps1") -TaskFile $TaskFile -Execute
 Write-Host "AI_PIPELINE_EXECUTE_PROBE_OK"

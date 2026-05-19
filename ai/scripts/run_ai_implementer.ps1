@@ -14,9 +14,17 @@ $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 $tasksDir = "D:\AI\Projects\four_in_one_app\ai\tasks"
 $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
 $probeTaskFile = "probe_agent_report.md"
+$auditTaskFile = "P7H_2A_habit_detail_audit.md"
 $imageArgsPath = Join-Path $reportsDir "codex_image_args.txt"
 $allowedProbeReports = @(
   "ai/reports/probe_agent_report.md",
+  "ai/reports/planner_report.md",
+  "ai/reports/implementer_report.md",
+  "ai/reports/reviewer_report.md",
+  "ai/reports/final_report.md"
+)
+$allowedAuditFiles = @(
+  "docs/ui_redesign/P7H_2A_habit_detail_audit.md",
   "ai/reports/planner_report.md",
   "ai/reports/implementer_report.md",
   "ai/reports/reviewer_report.md",
@@ -64,15 +72,42 @@ function Assert-NoForbiddenChanges {
   }
 }
 
-$codexCommand = Get-Command codex -ErrorAction SilentlyContinue
-$imageArgs = ""
-if ($UseImages -and (Test-Path -Path $imageArgsPath)) {
-  $imageArgs = (Get-Content -Path $imageArgsPath -Raw).Trim()
+function Assert-OnlyAllowedChanges {
+  param(
+    [string[]]$ChangedFiles,
+    [string[]]$AllowedFiles
+  )
+
+  foreach ($file in $ChangedFiles) {
+    if ($AllowedFiles -notcontains $file) {
+      Write-Host "FORBIDDEN_CHANGE_DETECTED"
+      Write-Host $file
+      throw "Changed file is outside the allowed audit/probe outputs: $file"
+    }
+  }
 }
-$codexExecCommand = if ($UseImages -and -not [string]::IsNullOrWhiteSpace($imageArgs)) {
-  "codex exec --sandbox workspace-write $imageArgs <safe probe prompt>"
+
+function Get-ImageArgumentValue {
+  param([string]$Path)
+
+  if (-not (Test-Path -Path $Path)) {
+    return ""
+  }
+
+  $raw = (Get-Content -Path $Path -Raw).Trim()
+  $match = [regex]::Match($raw, '^--image\s+"(?<value>.*)"$')
+  if ($match.Success) {
+    return $match.Groups["value"].Value
+  }
+  return ""
+}
+
+$codexCommand = Get-Command codex -ErrorAction SilentlyContinue
+$imageValue = if ($UseImages) { Get-ImageArgumentValue -Path $imageArgsPath } else { "" }
+$codexExecCommand = if ($UseImages -and -not [string]::IsNullOrWhiteSpace($imageValue)) {
+  "codex exec --sandbox workspace-write --image `"$imageValue`" <task prompt>"
 } else {
-  "codex exec --sandbox workspace-write <safe probe prompt>"
+  "codex exec --sandbox workspace-write <task prompt>"
 }
 
 Write-Host "AI_IMPLEMENTER_START"
@@ -97,8 +132,8 @@ if (-not $Execute) {
   return
 }
 
-if ($TaskFile -ne $probeTaskFile) {
-  throw "Real execute mode is only allowed for $probeTaskFile. Requested: $TaskFile"
+if ($TaskFile -ne $probeTaskFile -and $TaskFile -ne $auditTaskFile) {
+  throw "Real execute mode is only allowed for $probeTaskFile or $auditTaskFile. Requested: $TaskFile"
 }
 
 if ($null -eq $codexCommand) {
@@ -108,7 +143,8 @@ if ($null -eq $codexCommand) {
 Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_BEFORE_DIFF"
 
 $taskText = Get-Content -Path $taskPath -Raw
-$safePrompt = @"
+if ($TaskFile -eq $probeTaskFile) {
+  $safePrompt = @"
 You are running the AI-AUTO safe execute probe for four_in_one_app.
 
 Only create ai/reports/probe_agent_report.md.
@@ -127,29 +163,80 @@ Write ai/reports/probe_agent_report.md with:
 Task file content:
 $taskText
 "@
+  $allowedOutputs = $allowedProbeReports
+  $statusLabel = "EXECUTE_PROBE_COMPLETE"
+} else {
+  $visualBrief = "docs/ui_redesign/P7_VISUAL_BRIEF.md"
+  $referenceManifest = "docs/references/REFERENCE_MANIFEST.md"
+  $visualLibrary = "ai/reports/visual_library_full.md"
+  $imageManifest = "ai/reports/codex_image_manifest.md"
+  $visualSelection = "ai/reports/visual_refs_selected.txt"
+  $safePrompt = @"
+You are running AI-AUTO P7H-2A Habit Detail Rhythm Audit for four_in_one_app.
 
-Write-Host "Running safe probe codex exec."
-if ($UseImages) {
-  Write-Host "Image args requested, but execute mode only attaches images for UI-related tasks. Safe probe runs without images."
+This is audit-only. Do not modify app source code, tests, pubspec, native files, docs/references, build outputs, APK files, or tooling.
+Do not commit.
+Do not run Flutter.
+Do not build APK.
+
+Only create docs/ui_redesign/P7H_2A_habit_detail_audit.md.
+
+Read and use this context if present:
+- $visualBrief
+- $referenceManifest
+- $visualLibrary
+- $imageManifest
+- $visualSelection
+
+The audit must answer:
+1. Why current habit detail/month view feels database-like.
+2. What must remain for habit semantics and tests.
+3. How month grid should become rhythm visualization.
+4. How recent records should become minimal/collapsed.
+5. How completion distribution/year activity should become calmer.
+6. How Theme Studio and habit color should drive the page.
+7. Which reference images were used.
+8. What P7H-2B should be allowed to edit.
+9. What tests P7H-2B must run.
+10. Screenshot acceptance checklist.
+
+Reject color-only, token-only, giant card-stack, and generic dark dashboard recommendations.
+Preserve Theme Studio/custom colors, habit semantics, existing keys, and test behavior.
+
+Task file content:
+$taskText
+"@
+  $allowedOutputs = $allowedAuditFiles
+  $statusLabel = "EXECUTE_AUDIT_COMPLETE"
 }
-& $codexCommand.Source exec --sandbox workspace-write $safePrompt
+
+Write-Host "Running safe codex exec."
+if ($UseImages -and $TaskFile -eq $auditTaskFile -and -not [string]::IsNullOrWhiteSpace($imageValue)) {
+  & $codexCommand.Source exec --sandbox workspace-write --image $imageValue $safePrompt
+} else {
+  if ($UseImages -and $TaskFile -eq $probeTaskFile) {
+    Write-Host "Image args requested, but safe probe runs without images."
+  }
+  & $codexCommand.Source exec --sandbox workspace-write $safePrompt
+}
 $exitCode = $LASTEXITCODE
 
 Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_AFTER_DIFF"
+$changedFiles = @(git diff --name-only)
+Assert-OnlyAllowedChanges -ChangedFiles $changedFiles -AllowedFiles $allowedOutputs
 
 if ($exitCode -ne 0) {
   throw "codex exec failed with exit code $exitCode."
 }
 
-$changedFiles = @(git diff --name-only)
 $report = @"
 # Implementer Report
 
-Status: EXECUTE_PROBE_COMPLETE
+Status: $statusLabel
 
 Task file: $TaskFile
-Allowed report files:
-$($allowedProbeReports | ForEach-Object { "- $_" } | Out-String)
+Allowed output files:
+$($allowedOutputs | ForEach-Object { "- $_" } | Out-String)
 
 Tracked diff after implementer:
 $($changedFiles | ForEach-Object { "- $_" } | Out-String)

@@ -12,7 +12,16 @@ $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 $tasksDir = "D:\AI\Projects\four_in_one_app\ai\tasks"
 $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
 $probeTaskFile = "probe_agent_report.md"
+$auditTaskFile = "P7H_2A_habit_detail_audit.md"
 $imageManifestPath = Join-Path $reportsDir "codex_image_manifest.md"
+$auditReportPath = Join-Path $repoPath "docs\ui_redesign\P7H_2A_habit_detail_audit.md"
+$allowedAuditFiles = @(
+  "docs/ui_redesign/P7H_2A_habit_detail_audit.md",
+  "ai/reports/planner_report.md",
+  "ai/reports/implementer_report.md",
+  "ai/reports/reviewer_report.md",
+  "ai/reports/final_report.md"
+)
 
 Set-Location -Path $repoPath
 New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
@@ -50,6 +59,11 @@ function Assert-NoForbiddenChanges {
       throw "Forbidden change detected: $file"
     }
   }
+}
+
+function Test-IsAllowedAuditFile {
+  param([string]$Path)
+  return $allowedAuditFiles -contains $Path
 }
 
 $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
@@ -114,14 +128,39 @@ $(if ($UseImages -and (Test-Path -Path $imageManifestPath)) { Get-Content -Path 
   return
 }
 
-if ($TaskFile -ne $probeTaskFile) {
-  throw "Real execute mode is only allowed for $probeTaskFile. Requested: $TaskFile"
+if ($TaskFile -ne $probeTaskFile -and $TaskFile -ne $auditTaskFile) {
+  throw "Real execute mode is only allowed for $probeTaskFile or $auditTaskFile. Requested: $TaskFile"
 }
 
 Assert-NoForbiddenChanges -ChangedFiles $nameOnly
 
-$nonReportChanges = @($nameOnly | Where-Object { -not (Test-IsAllowedProbeReport -Path $_) })
-$status = if ($nonReportChanges.Count -eq 0) { "PASS" } else { "FAIL" }
+if ($TaskFile -eq $probeTaskFile) {
+  $blockingIssues = @($nameOnly | Where-Object { -not (Test-IsAllowedProbeReport -Path $_) })
+} else {
+  $blockingIssues = @($nameOnly | Where-Object { -not (Test-IsAllowedAuditFile -Path $_) })
+  if (-not (Test-Path -Path $auditReportPath)) {
+    $blockingIssues += "Missing docs/ui_redesign/P7H_2A_habit_detail_audit.md"
+  } else {
+    $auditText = Get-Content -Path $auditReportPath -Raw
+    if ($auditText -notmatch "docs/references|visual_library_full|codex_image_manifest|current_app_ui|The Outsiders|Equinox") {
+      $blockingIssues += "Audit does not cite visual references."
+    }
+    if ($auditText -notmatch "Theme Studio|custom color|habit color") {
+      $blockingIssues += "Audit ignores Theme Studio or habit color."
+    }
+    if ($auditText -notmatch "P7H-2B") {
+      $blockingIssues += "Audit does not define P7H-2B next scope."
+    }
+    if ($auditText -match "color-only|token-only|card-stack only|generic dark dashboard") {
+      $blockingIssues += "Audit suggests or permits a rejected color-only/token-only/card-stack direction."
+    }
+    if ($auditText.Length -lt 1200) {
+      $blockingIssues += "Audit is too short and likely generic."
+    }
+  }
+}
+
+$status = if ($blockingIssues.Count -eq 0) { "PASS" } else { "FAIL" }
 
 $report = @"
 # Reviewer Report
@@ -136,7 +175,7 @@ $($nameOnly | ForEach-Object { "- $_" } | Out-String)
 
 ## Blocking Issues
 
-$(if ($status -eq "PASS") { "None." } else { "Non-report changes detected:`n$($nonReportChanges | ForEach-Object { "- $_" } | Out-String)" })
+$(if ($status -eq "PASS") { "None." } else { $blockingIssues | ForEach-Object { "- $_" } | Out-String })
 
 ## Non-Blocking Issues
 
@@ -144,13 +183,13 @@ None.
 
 ## Exact Fix Prompt For Fixer
 
-$(if ($status -eq "PASS") { "No fixer needed." } else { "Revert or remove all non-ai/reports/*.md changes and rerun reviewer." })
+$(if ($status -eq "PASS") { "No fixer needed." } else { "Revise the audit so changed files are limited to allowed outputs, visual references are cited, Theme Studio is addressed, and P7H-2B scope/tests/screenshot checklist are concrete." })
 "@
 
 Set-Content -Path $reportPath -Value $report -Encoding UTF8
 
 if ($status -ne "PASS") {
-  throw "Reviewer failed because changed files are not limited to ai/reports/*.md."
+  throw "Reviewer failed for $TaskFile."
 }
 
-Write-Host "AI_REVIEWER_EXECUTE_PROBE_PASS"
+Write-Host "AI_REVIEWER_EXECUTE_PASS"
