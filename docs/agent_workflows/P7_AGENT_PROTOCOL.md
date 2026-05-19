@@ -46,6 +46,16 @@ D:\AI\Tools\Codex\four_in_one_v6b_verify.cmd
 - Taste-board images are used to define desired visual language.
 - Benchmark app images are inspiration, not literal cloning.
 
+## Full Visual Library Gate
+
+- All UI tasks must know the full visual library exists.
+- The full library index is `ai/reports/visual_library_full.md`.
+- The task-specific image pack manifest is `ai/reports/codex_image_manifest.md`.
+- Implementer sees task-specific selected images, not the entire library by default.
+- Reviewer checks against the full visual brief and full library lessons.
+- Do not attach all images blindly to every task unless explicitly requested.
+- If the user explicitly requests all images, planner should first create a full visual audit, not a direct implementation task.
+
 ## Default Exclusions
 
 Do not commit generated or local-only artifacts by default:

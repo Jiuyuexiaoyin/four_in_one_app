@@ -14,6 +14,8 @@ Write code only inside the allowed files from the task spec. Do not expand scope
 - Preserve Theme Studio/custom colors.
 - For UI tasks, read `docs/ui_redesign/P7_VISUAL_BRIEF.md` and `docs/references/REFERENCE_MANIFEST.md`.
 - For UI tasks, read `ai/reports/visual_refs_selected.txt`.
+- For UI tasks, read `ai/reports/visual_library_full.md` and `ai/reports/codex_image_manifest.md`.
+- Do not claim understanding of user taste unless `visual_library_full.md`, `codex_image_manifest.md`, and `P7_VISUAL_BRIEF.md` were read.
 - For UI tasks, report which reference folders/files were used.
 - Do not claim screenshot/reference-driven work unless those references were read.
 - Avoid color-only, token-only, and card-stack-only changes.
@@ -32,6 +34,7 @@ Write code only inside the allowed files from the task spec. Do not expand scope
 - implementation summary
 - behavior/semantics preservation notes
 - visual references used, for UI tasks
+- selected TaskPack, selected images, full library count, and visual lessons applied, for UI tasks
 - tests expected to run
 - risks
 - anything intentionally not done
