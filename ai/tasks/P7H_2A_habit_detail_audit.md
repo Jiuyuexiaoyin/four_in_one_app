@@ -14,6 +14,56 @@ This is audit-only. Do not modify app code.
 - `ai/reports/codex_image_manifest.md`
 - `ai/reports/visual_refs_selected.txt`
 
+## Hard Output Requirements
+
+The generated audit document MUST include this exact heading:
+
+```markdown
+## Visual Reference Reports Used
+```
+
+This section must explicitly cite:
+
+- `ai/reports/visual_refs_selected.txt`
+- `ai/reports/codex_image_manifest.md`
+- `ai/reports/visual_library_full.md`
+
+It must also mention:
+
+- Current App UI group
+- Desired UI Taste Board group
+- Functional Benchmark Apps group
+- selected image count: 12
+- full visual library count: 38
+
+The generated audit document MUST also include this exact heading:
+
+```markdown
+## Tests to Run for P7H-2B
+```
+
+Under that heading, it must include the exact phrase:
+
+```text
+tests to run
+```
+
+And include this concrete checklist:
+
+- `habits_flow_test.dart`
+- `app_smoke_test.dart`
+- `settings_theme_test.dart`
+- `today_overview_test.dart` if Today entry points are affected
+- full V6B verification wrapper:
+  `D:\AI\Tools\Codex\four_in_one_v6b_verify.cmd`
+
+The generated audit must still include:
+
+- Theme Studio requirements
+- P7H-2B scope
+- screenshot acceptance checklist
+- no color-only/token-only/card-stack direction
+
 ## Allowed Files
 
 - `docs/ui_redesign/P7H_2A_habit_detail_audit.md`

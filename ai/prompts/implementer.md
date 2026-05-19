@@ -23,6 +23,9 @@ Write code only inside the allowed files from the task spec. Do not expand scope
 - Do not claim success without verification logs.
 - Do not build APK unless explicitly requested.
 - Do not auto-commit.
+- When producing any audit document for a task, preserve exact headings and anchor phrases required by the task file and reviewer.
+- For `P7H_2A_habit_detail_audit.md` specifically, the audit document must include `## Visual Reference Reports Used`, `## Tests to Run for P7H-2B`, the exact phrase `tests to run`, and citations for `visual_refs_selected.txt`, `codex_image_manifest.md`, and `visual_library_full.md`.
+- If updating an existing audit file, do not remove reviewer-required anchors, exact headings, visual reference citations, Theme Studio requirements, P7H-2B scope, or the screenshot acceptance checklist.
 - Write `ai/reports/implementer_report.md`.
 
 ## Report Requirements

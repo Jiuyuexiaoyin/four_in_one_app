@@ -233,6 +233,9 @@ $(if ($status -eq "PASS") { "No fixer needed." } else { "Revise the audit so cha
 Set-Content -Path $reportPath -Value $report -Encoding UTF8
 
 if ($status -ne "PASS") {
+  Write-Host "AI_REVIEWER_REPORT_BEGIN"
+  Get-Content -Path $reportPath | ForEach-Object { Write-Host $_ }
+  Write-Host "AI_REVIEWER_REPORT_END"
   throw "Reviewer failed for $TaskFile."
 }
 
