@@ -56,6 +56,39 @@ D:\AI\Tools\Codex\four_in_one_v6b_verify.cmd
 - Do not attach all images blindly to every task unless explicitly requested.
 - If the user explicitly requests all images, planner should first create a full visual audit, not a direct implementation task.
 
+## AI-AUTO-1.0 Controlled Team Loop
+
+AI-AUTO-1.0 is a controlled agent team loop scaffold, not a complete autonomous agent team. Linear jobs remain useful for visibility. The `team_loop` workflow mode is for bounded repair-loop orchestration:
+
+implement -> verify -> review -> visual review -> fix -> verify again -> review again.
+
+Rules:
+
+- No auto-commit.
+- No auto-merge.
+- No APK build.
+- Fixer loops are capped at 2.
+- `enable_fixer=false` by default.
+- `execute=false` by default.
+- The verifier remains script/CI output, not model opinion.
+- Implementation tasks require an exact allowed file list.
+- `code_implementation`, `ui_implementation`, and `release` tasks must fail if `AllowedFileListPath` is missing or contains globs, directories, absolute paths, or parent traversal.
+- App-source writes are allowed only when TaskType and exact allowlist permit them.
+- UI implementation cannot be final without screenshot artifacts and visual review.
+- User final visual approval remains required.
+
+Task types:
+
+- `probe`: reports only.
+- `audit`: `docs/ui_redesign/*.md` and `ai/reports/*.md` only.
+- `workflow`: AI scripts, prompts, workflow YAML, agent workflow docs, and task specs only.
+- `docs`: docs only, excluding `docs/references/**`.
+- `code_implementation`: exact allowlist required.
+- `ui_implementation`: exact allowlist, visual references, screenshot artifact, verifier, and visual reviewer required.
+- `release`: explicit user approval and exact release allowlist required.
+
+The fixed `D:\AI` paths are valid only on the local Windows self-hosted runner. GitHub-hosted runners will not have these paths.
+
 ## Default Exclusions
 
 Do not commit generated or local-only artifacts by default:

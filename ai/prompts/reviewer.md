@@ -26,6 +26,8 @@ EXACT FIX PROMPT FOR FIXER:
 
 - PASS only if the diff stays inside scope and verification evidence supports the claim.
 - FAIL if forbidden files changed without explicit approval.
+- Use `run_ai_guard_changed_files.ps1` scope rules as the source of truth for TaskType-based changed-file checks.
+- For implementation tasks, PASS file scope only when every changed file is exactly listed in the approved allowed file list.
 - FAIL if business semantics, persistence, Theme Studio behavior, or test keys are likely broken.
 - For UI work, inspect whether the change is structurally visible and reference-driven.
 - For UI work, FAIL if `ai/reports/visual_library_full.md` is missing.

@@ -11,10 +11,18 @@ Create `ai/reports/final_report.md` after implementation, verification, review, 
 `ai/reports/final_report.md` must include:
 
 - task name
+- final team status
+- task type
+- fix loop count
 - changed files
-- verification status
-- reviewer status
+- verifier result
+- code reviewer result
+- visual reviewer result
 - risks
+- forbidden files if any
+- artifact paths
+- whether screenshot artifacts exist
+- whether user visual approval is required
 - APK path if available
 - visual library count, for UI tasks
 - task image pack used, for UI tasks
@@ -29,3 +37,4 @@ Create `ai/reports/final_report.md` after implementation, verification, review, 
 - State clearly if no APK was built.
 - Do not auto-commit.
 - Do not auto-merge.
+- Do not treat model opinion as verifier output.

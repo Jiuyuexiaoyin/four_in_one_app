@@ -8,7 +8,7 @@ on:
         required: true
         default: sample_P7H_2.md
       execute:
-        description: Run agent placeholders instead of dry-run
+        description: Run enabled execute paths instead of dry-run
         required: true
         default: "false"
         type: choice
@@ -37,9 +37,116 @@ on:
           - plan
           - focus
           - review
+      team_loop:
+        description: Run AI-AUTO-1.0 controlled team loop orchestrator
+        required: true
+        default: false
+        type: boolean
+      task_type:
+        description: TaskType for guard/verifier/team loop
+        required: true
+        default: audit
+        type: choice
+        options:
+          - probe
+          - audit
+          - workflow
+          - docs
+          - code_implementation
+          - ui_implementation
+          - release
+      enable_fixer:
+        description: Allow bounded fixer loop in team_loop mode
+        required: true
+        default: false
+        type: boolean
+      max_fix_loops:
+        description: Maximum fixer loops in team_loop mode
+        required: true
+        default: "2"
+        type: choice
+        options:
+          - "0"
+          - "1"
+          - "2"
+      verification_profile:
+        description: Verification profile for team_loop mode
+        required: true
+        default: none
+        type: choice
+        options:
+          - none
+          - audit
+          - habits
+          - ui-smoke
+          - full
+      allowed_file_list:
+        description: Optional repo-relative path to exact allowed file list
+        required: false
+        default: ""
 
 jobs:
+  team_loop:
+    if: ${{ inputs.team_loop == true }}
+    runs-on: [self-hosted, windows, x64, four-in-one]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        shell: powershell
+        run: |
+          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+          Write-Host "RUNNER_OS=$env:RUNNER_OS"
+          Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
+          Write-Host "GITHUB_WORKSPACE=$env:GITHUB_WORKSPACE"
+          Write-Host "AGENT_ROLE=TeamLoop"
+
+      - name: Probe Codex CLI
+        if: ${{ inputs.probe_codex == true }}
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File "D:\AI\Projects\four_in_one_app\ai\scripts\check_codex_env.ps1"
+
+      - name: Run controlled team loop
+        shell: powershell
+        run: |
+          $args = @(
+            "-TaskFile", "${{ github.event.inputs.task_file }}",
+            "-TaskType", "${{ inputs.task_type }}",
+            "-TaskPack", "${{ inputs.task_pack }}",
+            "-MaxFixLoops", [int]"${{ inputs.max_fix_loops }}",
+            "-VerificationProfile", "${{ inputs.verification_profile }}"
+          )
+          if ("${{ github.event.inputs.execute }}" -eq "true") {
+            $args += "-Execute"
+          }
+          if ("${{ inputs.use_images }}" -eq "true") {
+            $args += "-UseImages"
+          }
+          if ("${{ inputs.enable_fixer }}" -eq "true") {
+            $args += "-EnableFixer"
+          }
+          $allowedFileList = "${{ github.event.inputs.allowed_file_list }}"
+          if (-not [string]::IsNullOrWhiteSpace($allowedFileList)) {
+            $args += @("-AllowedFileListPath", $allowedFileList)
+          }
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_team_loop.ps1" @args
+
+      - name: Upload AI task artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-task-reports-${{ github.run_number }}
+          if-no-files-found: ignore
+          path: |
+            D:\AI\Projects\four_in_one_app\ai\reports\**
+            D:\AI\Projects\four_in_one_app\ai\logs\**
+            D:\AI\Projects\four_in_one_app\screenshots\**
+
   planner:
+    if: ${{ inputs.team_loop == false }}
     runs-on: [self-hosted, windows, x64, four-in-one]
 
     steps:
@@ -70,10 +177,11 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Planner turns the task into scope, constraints, tests, risks, and acceptance criteria."
-          Write-Host "AI Task v0.3 is DRY_RUN/report-only. No codex exec is run."
+          Write-Host "Visible linear mode is DRY_RUN/report-first unless execute is enabled for a safe task."
           & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_planner.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
 
   implementer:
+    if: ${{ inputs.team_loop == false }}
     needs: planner
     runs-on: [self-hosted, windows, x64, four-in-one]
 
@@ -85,15 +193,14 @@ jobs:
         shell: powershell
         run: |
           Write-Host "AGENT_ROLE=Implementer"
-          Write-Host "Implementer would edit only allowed files in a future execute mode."
-          Write-Host "AI Task v0.3 remains DRY_RUN/report-only. No app source edits and no codex exec."
+          Write-Host "Implementer edits only allowed files in enabled execute mode."
 
       - name: Show status
         shell: powershell
         run: |
           & "D:\AI\Projects\four_in_one_app\ai\scripts\show_status.ps1"
 
-      - name: Implementer dry-run
+      - name: Implementer
         shell: powershell
         run: |
           $execute = "${{ github.event.inputs.execute }}" -eq "true"
@@ -105,6 +212,7 @@ jobs:
           }
 
   verifier:
+    if: ${{ inputs.team_loop == false }}
     needs: implementer
     runs-on: [self-hosted, windows, x64, four-in-one]
 
@@ -117,15 +225,16 @@ jobs:
         run: |
           Write-Host "AGENT_ROLE=Verifier"
           Write-Host "Verifier is script/CI output, not model opinion."
-          Write-Host "AI Task v0.3 verifier is DRY_RUN/status-only and does not run Flutter."
+          Write-Host "Visible linear verifier remains status-only unless team_loop mode selects a profile."
 
       - name: Verifier dry-run status
         shell: powershell
         run: |
           & "D:\AI\Projects\four_in_one_app\ai\scripts\show_status.ps1"
-          Write-Host "Would run targeted verification in a later enabled mode."
+          Write-Host "Use team_loop=true with verification_profile to run central verifier."
 
   reviewer:
+    if: ${{ inputs.team_loop == false }}
     needs: verifier
     runs-on: [self-hosted, windows, x64, four-in-one]
 
@@ -137,21 +246,21 @@ jobs:
         shell: powershell
         run: |
           Write-Host "AGENT_ROLE=Reviewer"
-          Write-Host "Reviewer is read-only and must output PASS or FAIL in future enabled mode."
-          Write-Host "AI Task v0.3 remains DRY_RUN/report-only."
+          Write-Host "Reviewer is read-only and must output PASS or FAIL in enabled mode."
 
-      - name: Reviewer dry-run
+      - name: Reviewer
         shell: powershell
         run: |
           $execute = "${{ github.event.inputs.execute }}" -eq "true"
           $useImages = "${{ inputs.use_images }}" -eq "true"
           if ($execute) {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute -UseImages:$useImages
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskType "${{ inputs.task_type }}" -Execute -UseImages:$useImages
           } else {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -UseImages:$useImages
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskType "${{ inputs.task_type }}" -UseImages:$useImages
           }
 
   reporter:
+    if: ${{ inputs.team_loop == false }}
     needs: reviewer
     runs-on: [self-hosted, windows, x64, four-in-one]
 
@@ -171,12 +280,12 @@ jobs:
           $useImages = "${{ inputs.use_images }}" -eq "true"
           & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_pipeline.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskPack "${{ inputs.task_pack }}" -UseImages:$useImages
 
-      - name: Reporter dry-run
+      - name: Reporter
         shell: powershell
         run: |
           $execute = "${{ github.event.inputs.execute }}" -eq "true"
           if ($execute) {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -Execute
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskType "${{ inputs.task_type }}" -Execute
           } else {
-            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}"
+            & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" -TaskFile "${{ github.event.inputs.task_file }}" -TaskType "${{ inputs.task_type }}"
           }

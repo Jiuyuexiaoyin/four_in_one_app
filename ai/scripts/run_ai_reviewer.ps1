@@ -1,8 +1,11 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$TaskFile,
+  [ValidateSet("probe", "audit", "workflow", "docs", "code_implementation", "ui_implementation", "release")]
+  [string]$TaskType = "audit",
   [switch]$Execute,
-  [switch]$UseImages
+  [switch]$UseImages,
+  [string]$AllowedFileListPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,6 +14,7 @@ $repoPath = "D:\AI\Projects\four_in_one_app"
 $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 $tasksDir = "D:\AI\Projects\four_in_one_app\ai\tasks"
 $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
+$scriptsDir = "D:\AI\Projects\four_in_one_app\ai\scripts"
 $probeTaskFile = "probe_agent_report.md"
 $auditTaskFile = "P7H_2A_habit_detail_audit.md"
 $imageManifestPath = Join-Path $reportsDir "codex_image_manifest.md"
@@ -22,6 +26,10 @@ $allowedAuditFiles = @(
   "ai/reports/reviewer_report.md",
   "ai/reports/final_report.md"
 )
+
+if ($TaskFile -eq $probeTaskFile -and $TaskType -eq "audit") {
+  $TaskType = "probe"
+}
 
 Set-Location -Path $repoPath
 New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
@@ -77,6 +85,14 @@ function Get-ChangedFilesIncludingUntracked {
   return @($tracked + $untracked | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
 }
 
+function Invoke-ChangedFileGuard {
+  $guardArgs = @("-TaskFile", $TaskFile, "-TaskType", $TaskType)
+  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
+    $guardArgs += @("-AllowedFileListPath", $AllowedFileListPath)
+  }
+  & (Join-Path $scriptsDir "run_ai_guard_changed_files.ps1") @guardArgs
+}
+
 function Test-RejectedDirectionRecommended {
   param([string]$AuditText)
 
@@ -108,7 +124,9 @@ Write-Host "Mode: $(if ($Execute) { 'EXECUTE' } else { 'DRY_RUN' })"
 Write-Host "Task file: $taskPath"
 Write-Host "Prompt file: $promptPath"
 Write-Host "Report path: $reportPath"
+Write-Host "TaskType: $TaskType"
 Write-Host "Use images: $UseImages"
+Write-Host "AllowedFileListPath: $AllowedFileListPath"
 Write-Host "Changed files:"
 $nameOnly
 Write-Host "Diff stat:"
@@ -160,15 +178,11 @@ $(if ($UseImages -and (Test-Path -Path $imageManifestPath)) { Get-Content -Path 
   return
 }
 
-if ($TaskFile -ne $probeTaskFile -and $TaskFile -ne $auditTaskFile) {
-  throw "Real execute mode is only allowed for $probeTaskFile or $auditTaskFile. Requested: $TaskFile"
-}
-
-Assert-NoForbiddenChanges -ChangedFiles $nameOnly
+Invoke-ChangedFileGuard
 
 if ($TaskFile -eq $probeTaskFile) {
   $blockingIssues = @($nameOnly | Where-Object { -not (Test-IsAllowedProbeReport -Path $_) })
-} else {
+} elseif ($TaskFile -eq $auditTaskFile) {
   $blockingIssues = @($nameOnly | Where-Object { -not (Test-IsAllowedAuditFile -Path $_) })
   if (-not (Test-Path -Path $auditReportPath)) {
     $blockingIssues += "Missing docs/ui_redesign/P7H_2A_habit_detail_audit.md"
@@ -201,6 +215,14 @@ if ($TaskFile -eq $probeTaskFile) {
     if ($auditText.Length -lt 1200) {
       $blockingIssues += "Audit is too short and likely generic."
     }
+  }
+} else {
+  $blockingIssues = @()
+  if (-not (Test-Path -Path (Join-Path $reportsDir "implementer_report.md"))) {
+    $blockingIssues += "Implementer report is missing."
+  }
+  if (-not (Test-Path -Path (Join-Path $reportsDir "verifier_report.md"))) {
+    $blockingIssues += "Verifier report is missing."
   }
 }
 
