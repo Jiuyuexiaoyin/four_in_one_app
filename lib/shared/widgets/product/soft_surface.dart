@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
 
-enum SoftSurfaceTone { standard, accent, plain, flat }
+enum SoftSurfaceTone { standard, accent, plain, flat, ghost }
 
 class SoftSurface extends StatelessWidget {
   const SoftSurface({
@@ -41,7 +41,7 @@ class SoftSurface extends StatelessWidget {
   }
 
   List<BoxShadow> _resolveShadow(ColorScheme colorScheme) {
-    if (tone == SoftSurfaceTone.flat) {
+    if (tone == SoftSurfaceTone.flat || tone == SoftSurfaceTone.ghost) {
       return const <BoxShadow>[];
     }
     return [
@@ -64,6 +64,8 @@ class SoftSurface extends StatelessWidget {
         return AppThemeTokens.selectedStateTone(colorScheme);
       case SoftSurfaceTone.plain:
         return colorScheme.surface;
+      case SoftSurfaceTone.ghost:
+        return Colors.transparent;
     }
   }
 
@@ -75,6 +77,8 @@ class SoftSurface extends StatelessWidget {
       case SoftSurfaceTone.plain:
       case SoftSurfaceTone.flat:
         return AppThemeTokens.borderTone(colorScheme);
+      case SoftSurfaceTone.ghost:
+        return Colors.transparent;
     }
   }
 }

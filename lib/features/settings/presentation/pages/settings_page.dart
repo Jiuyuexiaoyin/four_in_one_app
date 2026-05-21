@@ -92,7 +92,7 @@ class _AppearanceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return MySettingsSection(
       title: '外观',
-      subtitle: '让界面跟随你的使用环境。',
+      subtitle: '让界面跟随你的使用环境。Theme Studio 的颜色会驱动整体氛围。',
       leadingIcon: Icons.palette_outlined,
       rows: [
         MySettingsRow(

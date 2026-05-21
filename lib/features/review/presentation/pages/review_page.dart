@@ -10,7 +10,7 @@ import 'package:four_in_one_app/shared/widgets/product/activity_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/app_section_panel.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
-import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
+import 'package:four_in_one_app/shared/widgets/product/outsiders_hero.dart';
 import 'package:four_in_one_app/shared/widgets/product/progress_rail.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
 
@@ -36,7 +36,11 @@ class ReviewPage extends StatelessWidget {
         AppThemeTokens.pagePadding,
       ),
       children: [
-        const ProductPageHeader(title: '今日回看', subtitle: '基于已有记录，安静看见当前进展。'),
+        const OutsidersHero(
+          eyebrow: 'REVIEW',
+          headline: '今日回看',
+          supporting: '基于已有记录，安静看见当前进展。',
+        ),
         const SizedBox(height: 24),
         _ReviewOverviewHero(data: reviewData),
         const SizedBox(height: 16),

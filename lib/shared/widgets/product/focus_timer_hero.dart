@@ -40,11 +40,24 @@ class FocusTimerHero extends StatelessWidget {
     final boundedProgress = progressValue?.clamp(0.0, 1.0).toDouble() ?? 0.0;
 
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
       decoration: BoxDecoration(
-        color: stateStyle.backgroundColor,
+        gradient: RadialGradient(
+          center: const Alignment(0.0, -0.35),
+          radius: 1.2,
+          colors: [
+            stateStyle.accentColor.withValues(
+              alpha: colorScheme.brightness == Brightness.dark ? 0.12 : 0.08,
+            ),
+            stateStyle.backgroundColor.withValues(alpha: 0.45),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.6, 1.0],
+        ),
         borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(color: stateStyle.borderColor),
+        border: Border.all(
+          color: stateStyle.borderColor.withValues(alpha: 0.45),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,10 +66,11 @@ class FocusTimerHero extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '专注状态',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  '专注状态'.toUpperCase(),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: AppThemeTokens.secondaryTextTone(colorScheme),
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
+                    letterSpacing: 2.4,
                   ),
                 ),
               ),

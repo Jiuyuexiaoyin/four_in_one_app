@@ -24,14 +24,14 @@ class ProductPageHeader extends StatelessWidget {
       children: [
         if (eyebrow != null) ...[
           Text(
-            eyebrow,
-            style: theme.textTheme.labelLarge?.copyWith(
+            eyebrow.toUpperCase(),
+            style: theme.textTheme.labelMedium?.copyWith(
               color: colorScheme.primary,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.6,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2.4,
             ),
           ),
-          const SizedBox(height: AppThemeTokens.spaceXs),
+          const SizedBox(height: AppThemeTokens.spaceMd),
         ],
         Text(
           title,
@@ -40,6 +40,7 @@ class ProductPageHeader extends StatelessWidget {
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
+            height: 1.15,
           ),
         ),
         const SizedBox(height: AppThemeTokens.spaceXs),
@@ -49,7 +50,7 @@ class ProductPageHeader extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: AppThemeTokens.secondaryTextTone(colorScheme),
-            height: 1.35,
+            height: 1.4,
           ),
         ),
       ],

@@ -109,10 +109,14 @@ abstract final class AppTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: colorScheme.onSurface,
         elevation: 0,
-        titleTextStyle: textTheme.titleLarge?.copyWith(
-          color: colorScheme.onSurface,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0,
+        scrolledUnderElevation: 0,
+        titleTextStyle: textTheme.labelMedium?.copyWith(
+          color: AppThemeTokens.secondaryTextTone(colorScheme),
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2.0,
+        ),
+        iconTheme: IconThemeData(
+          color: AppThemeTokens.secondaryTextTone(colorScheme),
         ),
       ),
       cardTheme: CardThemeData(

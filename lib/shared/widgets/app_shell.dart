@@ -40,22 +40,29 @@ class AppShell extends StatelessWidget {
       backgroundColor: canvasColor,
       appBar: showPageAppBar
           ? AppBar(
-              title: Text(title),
+              title: Text(
+                title,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: AppThemeTokens.secondaryTextTone(colorScheme),
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.0,
+                ),
+              ),
               flexibleSpace: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      canvasColor.withValues(alpha: 0.98),
-                      Color.lerp(canvasColor, colorScheme.primary, 0.06) ??
+                      canvasColor.withValues(alpha: 0.96),
+                      Color.lerp(canvasColor, colorScheme.primary, 0.04) ??
                           canvasColor,
-                      shellSurface.withValues(alpha: 0.90),
+                      shellSurface.withValues(alpha: 0.86),
                     ],
                   ),
                   border: Border(
                     bottom: BorderSide(
-                      color: colorScheme.primary.withValues(alpha: 0.12),
+                      color: colorScheme.primary.withValues(alpha: 0.08),
                     ),
                   ),
                 ),
@@ -100,9 +107,7 @@ class AppShell extends StatelessWidget {
               top: !showPageAppBar,
               bottom: false,
               child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: showBottomNavigation ? 82 : 0,
-                ),
+                padding: EdgeInsets.only(bottom: showBottomNavigation ? 82 : 0),
                 child: child,
               ),
             ),

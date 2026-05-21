@@ -90,10 +90,11 @@ class HabitsPage extends StatelessWidget {
         .cast<HabitItem?>()
         .firstWhere((habit) => habit != null, orElse: () => null);
     final weeklyCounts = _weeklyHabitCounts(habitsStore, activeHabits);
-    final recentRecords = _recentRecordPreviews(
-      habitsStore,
-      [...activeHabits, ...pausedHabits, ...archivedHabits],
-    );
+    final recentRecords = _recentRecordPreviews(habitsStore, [
+      ...activeHabits,
+      ...pausedHabits,
+      ...archivedHabits,
+    ]);
 
     final content = SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
@@ -674,7 +675,8 @@ class _HabitsRhythmStage extends StatelessWidget {
                 onPressed: onPrimaryPressed,
                 style: FilledButton.styleFrom(
                   backgroundColor: accent,
-                  foregroundColor: ThemeData.estimateBrightnessForColor(accent) ==
+                  foregroundColor:
+                      ThemeData.estimateBrightnessForColor(accent) ==
                           Brightness.dark
                       ? Colors.white
                       : Colors.black,
@@ -888,13 +890,13 @@ class _TodayHabitRow extends StatelessWidget {
     final statusLabel = skippedToday
         ? '今日已跳过'
         : targetReached
-            ? '今日已完成'
-            : '$todayCount/$targetCount';
+        ? '今日已完成'
+        : '$todayCount/$targetCount';
     final actionLabel = onCheckIn == null
         ? '暂停'
         : targetReached
-            ? '加一次'
-            : '打卡';
+        ? '加一次'
+        : '打卡';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
@@ -1038,9 +1040,9 @@ class _TodayHabitRow extends StatelessWidget {
                   backgroundColor: effectiveAccent,
                   foregroundColor:
                       ThemeData.estimateBrightnessForColor(effectiveAccent) ==
-                              Brightness.dark
-                          ? Colors.white
-                          : Colors.black,
+                          Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
                 ),
                 child: Text(actionLabel),
               ),
@@ -1166,10 +1168,7 @@ class _HabitIdentityCompatibilityAnchor extends HabitIdentityCard {
 }
 
 class _WeeklyRhythmStrip extends StatelessWidget {
-  const _WeeklyRhythmStrip({
-    required this.items,
-    required this.accentColor,
-  });
+  const _WeeklyRhythmStrip({required this.items, required this.accentColor});
 
   final List<ActivityStripItem> items;
   final Color accentColor;
@@ -1295,9 +1294,9 @@ class _RecentRecordPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme).withValues(
-          alpha: 0.72,
-        ),
+        color: AppThemeTokens.softSurfaceTone(
+          colorScheme,
+        ).withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
       ),
@@ -6691,10 +6690,7 @@ class _MonthlyActivityDialog extends StatelessWidget {
       titlePadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       contentPadding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
       actionsPadding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-      title: Text(
-        '月度节奏 · ${habit.name}',
-        style: theme.textTheme.titleMedium,
-      ),
+      title: Text('月度节奏 · ${habit.name}', style: theme.textTheme.titleMedium),
       content: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 420,

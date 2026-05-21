@@ -34,6 +34,7 @@ class FocusPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const ProductPageHeader(
+            eyebrow: 'FOCUS',
             title: '把注意力交给此刻。',
             subtitle: '选择一段时间，开始、暂停或重置这一轮专注。',
           ),

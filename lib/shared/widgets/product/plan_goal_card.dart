@@ -56,10 +56,11 @@ class PlanGoalCard extends StatelessWidget {
     final identityColor = Color(colorValue);
 
     return SoftSurface(
+      tone: SoftSurfaceTone.flat,
       padding: const EdgeInsets.all(18),
       borderColor: hasActions
-          ? identityColor.withValues(alpha: 0.14)
-          : AppThemeTokens.borderTone(colorScheme),
+          ? identityColor.withValues(alpha: 0.10)
+          : AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

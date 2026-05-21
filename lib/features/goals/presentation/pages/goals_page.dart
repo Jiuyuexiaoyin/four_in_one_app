@@ -11,8 +11,8 @@ import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/mini_heatmap_cell.dart';
 import 'package:four_in_one_app/shared/widgets/product/plan_goal_card.dart';
+import 'package:four_in_one_app/shared/widgets/product/outsiders_hero.dart';
 import 'package:four_in_one_app/shared/widgets/product/plan_tree_row.dart';
-import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
 import 'package:four_in_one_app/shared/widgets/product/progress_rail.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
 
@@ -36,9 +36,10 @@ class GoalsPage extends StatelessWidget {
         AppThemeTokens.pagePadding,
       ),
       children: [
-        const ProductPageHeader(
-          title: '计划你的长期推进。',
-          subtitle: '目标是方向，项目是路径，行动才是下一步。',
+        const OutsidersHero(
+          eyebrow: 'PLAN',
+          headline: '计划你的长期推进。',
+          supporting: '目标是方向，项目是路径，行动才是下一步。',
         ),
         const SizedBox(height: AppThemeTokens.spaceXl),
         _PlanOverviewSurface(goalsStore: goalsStore),

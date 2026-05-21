@@ -73,7 +73,8 @@ class TodayPage extends StatelessWidget {
           height: stageHeight,
           progress: stageProgress,
           primaryLabel: previewActions.isNotEmpty ? '继续下一项' : '开始今天',
-          habitSignal: '${habitsStore.completedCount}/${habitsStore.totalCount}',
+          habitSignal:
+              '${habitsStore.completedCount}/${habitsStore.totalCount}',
           planSignal: '$completedActionCount/$totalActionCount',
           focusSignal: '$todayFocusMinutes 分钟',
           onPrimaryAction: () {
@@ -1106,10 +1107,7 @@ class _TodayFocusSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _SoftMetaLine(
-            labels: [
-              '今日专注 $todaySessionCount 轮',
-              '今日 $todayFocusMinutes 分钟',
-            ],
+            labels: ['今日专注 $todaySessionCount 轮', '今日 $todayFocusMinutes 分钟'],
           ),
           const SizedBox(height: 12),
           _AgendaRow(
@@ -1140,11 +1138,10 @@ class _TodayReviewStrip extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: colorScheme.primary.withValues(alpha: 0.18)),
-          bottom: BorderSide(color: colorScheme.primary.withValues(alpha: 0.10)),
+          top: BorderSide(color: colorScheme.primary.withValues(alpha: 0.10)),
         ),
       ),
       child: _SoftMetaLine(
@@ -1500,9 +1497,7 @@ String _focusStatusDescription(FocusStore focusStore) {
   final target = focusStore.currentTarget;
 
   if (focusStore.isRunning) {
-    return target == null
-        ? '专注正在进行，保持当下节奏。'
-        : '正在推进「${target.title}」，保持当下节奏。';
+    return target == null ? '专注正在进行，保持当下节奏。' : '正在推进「${target.title}」，保持当下节奏。';
   }
 
   if (focusStore.isPaused) {
@@ -1515,9 +1510,7 @@ String _focusStatusDescription(FocusStore focusStore) {
     return '这一轮已完成，可去专注页开始下一轮。';
   }
 
-  return target == null
-      ? '准备好后去专注页开始一轮安静推进。'
-      : '准备好后去专注页推进「${target.title}」。';
+  return target == null ? '准备好后去专注页开始一轮安静推进。' : '准备好后去专注页推进「${target.title}」。';
 }
 
 String _localDateKey(DateTime value) {

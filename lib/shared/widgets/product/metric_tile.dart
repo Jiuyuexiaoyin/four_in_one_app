@@ -52,7 +52,7 @@ class MetricTile extends StatelessWidget {
         border: Border.all(
           color:
               borderColor ??
-              AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.72),
+              AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.32),
         ),
       ),
       child: Column(
