@@ -112,27 +112,38 @@ jobs:
       - name: Run controlled team loop
         shell: powershell
         run: |
-          $args = @(
-            "-TaskFile", "${{ github.event.inputs.task_file }}",
-            "-TaskType", "${{ inputs.task_type }}",
-            "-TaskPack", "${{ inputs.task_pack }}",
-            "-MaxFixLoops", [int]"${{ inputs.max_fix_loops }}",
-            "-VerificationProfile", "${{ inputs.verification_profile }}"
+          $taskFileInput = "${{ inputs.task_file }}"
+          $taskTypeInput = "${{ inputs.task_type }}"
+          $taskPackInput = "${{ inputs.task_pack }}"
+          $maxFixLoopsInput = [int]"${{ inputs.max_fix_loops }}"
+          $verificationProfileInput = "${{ inputs.verification_profile }}"
+
+          Write-Host "TASK_FILE_INPUT=$taskFileInput"
+          Write-Host "TASK_TYPE_INPUT=$taskTypeInput"
+          Write-Host "TASK_PACK_INPUT=$taskPackInput"
+          Write-Host "VERIFICATION_PROFILE_INPUT=$verificationProfileInput"
+
+          $teamLoopArgs = @(
+            "-TaskFile", $taskFileInput,
+            "-TaskType", $taskTypeInput,
+            "-TaskPack", $taskPackInput,
+            "-MaxFixLoops", $maxFixLoopsInput,
+            "-VerificationProfile", $verificationProfileInput
           )
-          if ("${{ github.event.inputs.execute }}" -eq "true") {
-            $args += "-Execute"
+          if ("${{ inputs.execute }}" -eq "true") {
+            $teamLoopArgs += "-Execute"
           }
           if ("${{ inputs.use_images }}" -eq "true") {
-            $args += "-UseImages"
+            $teamLoopArgs += "-UseImages"
           }
           if ("${{ inputs.enable_fixer }}" -eq "true") {
-            $args += "-EnableFixer"
+            $teamLoopArgs += "-EnableFixer"
           }
-          $allowedFileList = "${{ github.event.inputs.allowed_file_list }}"
+          $allowedFileList = "${{ inputs.allowed_file_list }}"
           if (-not [string]::IsNullOrWhiteSpace($allowedFileList)) {
-            $args += @("-AllowedFileListPath", $allowedFileList)
+            $teamLoopArgs += @("-AllowedFileListPath", $allowedFileList)
           }
-          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_team_loop.ps1" @args
+          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_team_loop.ps1" @teamLoopArgs
 
       - name: Upload AI task artifacts
         if: always()
