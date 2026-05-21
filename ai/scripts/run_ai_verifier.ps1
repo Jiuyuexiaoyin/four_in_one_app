@@ -22,14 +22,29 @@ Set-Location -Path $repoPath
 New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
 
 function Invoke-Guard {
-  $guardArgs = @(
-    "-TaskFile", $TaskFile,
-    "-TaskType", $TaskType
-  )
-  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-    $guardArgs += @("-AllowedFileListPath", $AllowedFileListPath)
+  $guardParams = @{
+    TaskFile = $TaskFile
+    TaskType = $TaskType
   }
-  & (Join-Path $scriptsDir "run_ai_guard_changed_files.ps1") @guardArgs
+
+  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
+    $guardParams["AllowedFileListPath"] = $AllowedFileListPath
+  }
+
+  Write-Host "VERIFIER_GUARD_PARAMS:"
+  foreach ($key in ($guardParams.Keys | Sort-Object)) {
+    Write-Host ("- {0}: {1}" -f $key, $guardParams[$key])
+  }
+
+  if ($guardParams["TaskType"] -eq $guardParams["TaskFile"]) {
+    throw "VERIFIER_INTERNAL_BINDING_BUG: Guard TaskType equals TaskFile"
+  }
+
+  if ($guardParams["TaskType"] -notin @("probe", "audit", "workflow", "docs", "code_implementation", "ui_implementation", "release")) {
+    throw "VERIFIER_INVALID_TASK_TYPE: $($guardParams["TaskType"])"
+  }
+
+  & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_guard_changed_files.ps1" @guardParams
 }
 
 function Invoke-VerifiedCommand {
