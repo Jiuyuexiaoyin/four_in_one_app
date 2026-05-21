@@ -23,6 +23,8 @@ $reportsDir = "D:\AI\Projects\four_in_one_app\ai\reports"
 Set-Location -Path $repoPath
 New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
 
+$validTaskTypes = @("probe", "audit", "workflow", "docs", "code_implementation", "ui_implementation", "release")
+
 function Invoke-Step {
   param(
     [string]$Name,
@@ -34,42 +36,77 @@ function Invoke-Step {
   Write-Host "AI_TEAM_LOOP_STAGE_OK: $Name"
 }
 
-function Invoke-Guard {
-  $guardParams = @("-TaskFile", $TaskFile, "-TaskType", $TaskType)
-  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-    $guardParams += @("-AllowedFileListPath", $AllowedFileListPath)
+function Assert-ChildTaskBinding {
+  param(
+    [string]$Label,
+    [hashtable]$Params
+  )
+
+  Write-Host "${Label}_PARAMS:"
+  foreach ($key in ($Params.Keys | Sort-Object)) {
+    Write-Host ("- {0}: {1}" -f $key, $Params[$key])
   }
-  & (Join-Path $scriptsDir "run_ai_guard_changed_files.ps1") @guardParams
+
+  if ($Params.ContainsKey("TaskType")) {
+    if ($Params["TaskType"] -eq $Params["TaskFile"]) {
+      throw "TEAM_LOOP_INTERNAL_BINDING_BUG: $Label TaskType equals TaskFile"
+    }
+    if ($Params["TaskType"] -notin $validTaskTypes) {
+      throw "TEAM_LOOP_INTERNAL_INVALID_TASK_TYPE: $Label TaskType is $($Params["TaskType"])"
+    }
+  }
+}
+
+function Invoke-Guard {
+  $guardParams = @{
+    TaskFile = $TaskFile
+    TaskType = $TaskType
+  }
+  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
+    $guardParams["AllowedFileListPath"] = $AllowedFileListPath
+  }
+  Assert-ChildTaskBinding -Label "PREFLIGHT_GUARD" -Params $guardParams
+  & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_guard_changed_files.ps1" @guardParams
 }
 
 function Invoke-Verifier {
-  $verifierParams = @(
-    "-TaskFile", $TaskFile,
-    "-TaskType", $TaskType,
-    "-VerificationProfile", $VerificationProfile
-  )
-  if ($Execute) { $verifierParams += "-Execute" }
-  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-    $verifierParams += @("-AllowedFileListPath", $AllowedFileListPath)
+  $verifierParams = @{
+    TaskFile = $TaskFile
+    TaskType = $TaskType
+    VerificationProfile = $VerificationProfile
   }
-  & (Join-Path $scriptsDir "run_ai_verifier.ps1") @verifierParams
+  if ($Execute) { $verifierParams["Execute"] = $true }
+  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
+    $verifierParams["AllowedFileListPath"] = $AllowedFileListPath
+  }
+  Assert-ChildTaskBinding -Label "VERIFIER" -Params $verifierParams
+  & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_verifier.ps1" @verifierParams
 }
 
 function Invoke-CodeReviewer {
-  $reviewerParams = @("-TaskFile", $TaskFile, "-TaskType", $TaskType)
-  if ($Execute) { $reviewerParams += "-Execute" }
-  if ($UseImages) { $reviewerParams += "-UseImages" }
-  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-    $reviewerParams += @("-AllowedFileListPath", $AllowedFileListPath)
+  $reviewerParams = @{
+    TaskFile = $TaskFile
+    TaskType = $TaskType
   }
-  & (Join-Path $scriptsDir "run_ai_reviewer.ps1") @reviewerParams
+  if ($Execute) { $reviewerParams["Execute"] = $true }
+  if ($UseImages) { $reviewerParams["UseImages"] = $true }
+  if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
+    $reviewerParams["AllowedFileListPath"] = $AllowedFileListPath
+  }
+  Assert-ChildTaskBinding -Label "CODE_REVIEWER" -Params $reviewerParams
+  & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reviewer.ps1" @reviewerParams
 }
 
 function Invoke-VisualReviewer {
-  $visualReviewerParams = @("-TaskFile", $TaskFile, "-TaskType", $TaskType, "-TaskPack", $TaskPack)
-  if ($UseImages) { $visualReviewerParams += "-UseImages" }
-  if ($Execute) { $visualReviewerParams += "-Execute" }
-  & (Join-Path $scriptsDir "run_ai_visual_reviewer.ps1") @visualReviewerParams
+  $visualReviewerParams = @{
+    TaskFile = $TaskFile
+    TaskType = $TaskType
+    TaskPack = $TaskPack
+  }
+  if ($UseImages) { $visualReviewerParams["UseImages"] = $true }
+  if ($Execute) { $visualReviewerParams["Execute"] = $true }
+  Assert-ChildTaskBinding -Label "VISUAL_REVIEWER" -Params $visualReviewerParams
+  & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_visual_reviewer.ps1" @visualReviewerParams
 }
 
 function Invoke-Reporter {
@@ -78,14 +115,15 @@ function Invoke-Reporter {
     [int]$FixLoopCount
   )
 
-  $reporterParams = @(
-    "-TaskFile", $TaskFile,
-    "-TaskType", $TaskType,
-    "-FinalTeamStatus", $FinalStatus,
-    "-FixLoopCount", $FixLoopCount
-  )
-  if ($Execute) { $reporterParams += "-Execute" }
-  & (Join-Path $scriptsDir "run_ai_reporter.ps1") @reporterParams
+  $reporterParams = @{
+    TaskFile = $TaskFile
+    TaskType = $TaskType
+    FinalTeamStatus = $FinalStatus
+    FixLoopCount = $FixLoopCount
+  }
+  if ($Execute) { $reporterParams["Execute"] = $true }
+  Assert-ChildTaskBinding -Label "REPORTER" -Params $reporterParams
+  & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_reporter.ps1" @reporterParams
 }
 
 Write-Host "AI_TEAM_LOOP_START"
@@ -116,10 +154,17 @@ try {
   Invoke-Step -Name "planner" -Action { & (Join-Path $scriptsDir "run_ai_planner.ps1") -TaskFile $TaskFile }
 
   Invoke-Step -Name "implementer" -Action {
-    $implementerParams = @("-TaskFile", $TaskFile, "-TaskPack", $TaskPack)
-    if ($Execute) { $implementerParams += "-Execute" }
-    if ($UseImages) { $implementerParams += "-UseImages" }
-    & (Join-Path $scriptsDir "run_ai_implementer.ps1") @implementerParams
+    $implementerParams = @{
+      TaskFile = $TaskFile
+      TaskPack = $TaskPack
+    }
+    if ($Execute) { $implementerParams["Execute"] = $true }
+    if ($UseImages) { $implementerParams["UseImages"] = $true }
+    Write-Host "IMPLEMENTER_PARAMS:"
+    foreach ($key in ($implementerParams.Keys | Sort-Object)) {
+      Write-Host ("- {0}: {1}" -f $key, $implementerParams[$key])
+    }
+    & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_implementer.ps1" @implementerParams
   }
 
   $stagesPassed = $false
@@ -143,13 +188,18 @@ try {
       $fixLoopCount += 1
       Write-Host "AI_TEAM_LOOP_FIX_LOOP_START: $fixLoopCount"
       $env:AI_TEAM_LOOP_FIXER_ENABLED = "1"
-      $fixerArgs = @("-TaskFile", $TaskFile, "-TaskType", $TaskType, "-TaskPack", $TaskPack)
-      if ($Execute) { $fixerArgs += "-Execute" }
-      if ($UseImages) { $fixerArgs += "-UseImages" }
-      if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-        $fixerArgs += @("-AllowedFileListPath", $AllowedFileListPath)
+      $fixerParams = @{
+        TaskFile = $TaskFile
+        TaskType = $TaskType
+        TaskPack = $TaskPack
       }
-      & (Join-Path $scriptsDir "run_ai_fixer.ps1") @fixerArgs
+      if ($Execute) { $fixerParams["Execute"] = $true }
+      if ($UseImages) { $fixerParams["UseImages"] = $true }
+      if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
+        $fixerParams["AllowedFileListPath"] = $AllowedFileListPath
+      }
+      Assert-ChildTaskBinding -Label "FIXER" -Params $fixerParams
+      & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_fixer.ps1" @fixerParams
       Invoke-Guard
     }
   }
