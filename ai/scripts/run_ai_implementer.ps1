@@ -16,6 +16,19 @@ $promptsDir = "D:\AI\Projects\four_in_one_app\ai\prompts"
 $probeTaskFile = "probe_agent_report.md"
 $auditTaskFile = "P7H_2A_habit_detail_audit.md"
 $imageArgsPath = Join-Path $reportsDir "codex_image_args.txt"
+$maxCodexRetries = 2
+$codexRetryDelays = @(10, 30)
+$transientCodexPatterns = @(
+  "Transport channel closed",
+  "http request failed",
+  "mcp::transport::worker",
+  "Reconnecting",
+  "backend-api",
+  "connection reset",
+  "timeout",
+  "network",
+  "failed to refresh available models"
+)
 $allowedProbeReports = @(
   "ai/reports/probe_agent_report.md",
   "ai/reports/planner_report.md",
@@ -114,6 +127,41 @@ function Read-OptionalContext {
 
   $content = Get-Content -Path $Path -Raw
   return "## $Title`n`nPath: $Path`n`n$content`n"
+}
+
+function Test-TransientCodexFailure {
+  param([string]$Text)
+
+  foreach ($pattern in $transientCodexPatterns) {
+    if ($Text -match [regex]::Escape($pattern)) {
+      return $true
+    }
+  }
+  return $false
+}
+
+function Write-ImplementerReport {
+  param(
+    [string]$Status,
+    [string]$Body
+  )
+
+  $report = @"
+# Implementer Report
+
+Status: $Status
+
+Task file: $TaskFile
+Prompt length: $promptLength
+Images requested: $UseImages
+Images attached: $imagesAvailable
+Max Codex retries: $maxCodexRetries
+Retry delays: $($codexRetryDelays -join ", ") seconds
+
+$Body
+"@
+
+  Set-Content -Path $reportPath -Value $report -Encoding UTF8
 }
 
 $taskText = Get-Content -Path $taskPath -Raw
@@ -226,6 +274,8 @@ Write-Host "Use images: $UseImages"
 Write-Host "Task pack: $TaskPack"
 Write-Host "Prompt length: $promptLength"
 Write-Host "Images attached: $imagesAvailable"
+Write-Host "Max Codex retries: $maxCodexRetries"
+Write-Host "Codex retry delays: $($codexRetryDelays -join ', ') seconds"
 
 if ($null -eq $codexCommand) {
   Write-Host "codex command not found. Dry-run only."
@@ -236,18 +286,15 @@ if ($null -eq $codexCommand) {
 }
 
 if (-not $Execute) {
-  $dryRunReport = @"
-# Implementer Report
-
-Status: DRY_RUN
-
+  $dryRunBody = @"
 Would run: $codexExecCommand
 
-Prompt length: $promptLength
-Images requested: $UseImages
-Images attached in preview: $imagesAvailable
+Retry settings:
+- Max Codex retries: $maxCodexRetries
+- Retry delays: $($codexRetryDelays -join ", ") seconds
+- Transient patterns: $($transientCodexPatterns -join "; ")
 "@
-  Set-Content -Path $reportPath -Value $dryRunReport -Encoding UTF8
+  Write-ImplementerReport -Status "DRY_RUN" -Body $dryRunBody
   Write-Host "AI_IMPLEMENTER_DRY_RUN_OK"
   return
 }
@@ -276,16 +323,96 @@ if ($imagesAttachInExecute) {
     Write-Host "Image args requested, but safe probe runs without images."
   }
 }
-$codexPrompt | & $codexCommand.Source @codexArgs
-$exitCode = $LASTEXITCODE
+
+$attemptReports = New-Object System.Collections.Generic.List[string]
+$exitCode = 1
+$lastCodexOutput = ""
+$succeeded = $false
+
+for ($attempt = 1; $attempt -le ($maxCodexRetries + 1); $attempt += 1) {
+  Write-Host "CODEX_EXEC_ATTEMPT_START: $attempt"
+  $attemptOutputLines = @($codexPrompt | & $codexCommand.Source @codexArgs 2>&1 | ForEach-Object { $_.ToString() })
+  $exitCode = $LASTEXITCODE
+  $lastCodexOutput = $attemptOutputLines -join "`n"
+
+  Write-Host "CODEX_EXEC_ATTEMPT_EXIT_CODE: $exitCode"
+  if ($attemptOutputLines.Count -gt 0) {
+    Write-Host "CODEX_EXEC_ATTEMPT_OUTPUT_BEGIN"
+    $attemptOutputLines | ForEach-Object { Write-Host $_ }
+    Write-Host "CODEX_EXEC_ATTEMPT_OUTPUT_END"
+  }
+
+  $isTransient = $exitCode -ne 0 -and (Test-TransientCodexFailure -Text $lastCodexOutput)
+  $attemptReport = @"
+## Codex Attempt $attempt
+
+Exit code: $exitCode
+Transient transport pattern matched: $isTransient
+
+Output:
+
+```text
+$lastCodexOutput
+```
+"@
+  $attemptReports.Add($attemptReport)
+
+  Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_AFTER_CODEX_ATTEMPT_$attempt"
+
+  if ($exitCode -eq 0) {
+    $succeeded = $true
+    break
+  }
+
+  if (-not $isTransient) {
+    $failureBody = @"
+Codex exec failed with a non-transient error.
+
+Attempts:
+$($attemptReports -join "`n")
+"@
+    Write-ImplementerReport -Status "CODEX_EXEC_FAILED" -Body $failureBody
+    throw "codex exec failed with exit code $exitCode."
+  }
+
+  if ($attempt -gt $maxCodexRetries) {
+    $failureBody = @"
+Codex exec failed after transient transport retries were exhausted.
+
+Captured transport error:
+
+```text
+$lastCodexOutput
+```
+
+Attempts:
+$($attemptReports -join "`n")
+"@
+    Write-ImplementerReport -Status "TRANSIENT_CODEX_FAILURE" -Body $failureBody
+    throw "CODEX_TRANSIENT_FAILURE_AFTER_RETRIES"
+  }
+
+  $delaySeconds = $codexRetryDelays[$attempt - 1]
+  $retryBody = @"
+Codex transient transport failure detected. Retry $attempt of $maxCodexRetries will wait $delaySeconds seconds.
+
+Attempts so far:
+$($attemptReports -join "`n")
+"@
+  Write-ImplementerReport -Status "TRANSIENT_CODEX_RETRY_PENDING" -Body $retryBody
+  Write-Host "CODEX_TRANSIENT_FAILURE_DETECTED"
+  Write-Host "CODEX_RETRY_DELAY_SECONDS: $delaySeconds"
+  Start-Sleep -Seconds $delaySeconds
+}
+
+if (-not $succeeded) {
+  Write-ImplementerReport -Status "CODEX_EXEC_FAILED" -Body "Codex exec ended without success and without a classified retry path."
+  throw "codex exec failed with exit code $exitCode."
+}
 
 Assert-NoForbiddenChanges -Label "AI_IMPLEMENTER_AFTER_DIFF"
 $changedFiles = @(git diff --name-only)
 Assert-OnlyAllowedChanges -ChangedFiles $changedFiles -AllowedFiles $allowedOutputs
-
-if ($exitCode -ne 0) {
-  throw "codex exec failed with exit code $exitCode."
-}
 
 $report = @"
 # Implementer Report
@@ -298,6 +425,9 @@ $($allowedOutputs | ForEach-Object { "- $_" } | Out-String)
 
 Tracked diff after implementer:
 $($changedFiles | ForEach-Object { "- $_" } | Out-String)
+
+Codex attempts:
+$($attemptReports -join "`n")
 
 Safety:
 - No commit was made.
