@@ -351,9 +351,9 @@ Transient transport pattern matched: $isTransient
 
 Output:
 
-```text
+~~~text
 $lastCodexOutput
-```
+~~~
 "@
   $attemptReports.Add($attemptReport)
 
@@ -381,9 +381,9 @@ Codex exec failed after transient transport retries were exhausted.
 
 Captured transport error:
 
-```text
+~~~text
 $lastCodexOutput
-```
+~~~
 
 Attempts:
 $($attemptReports -join "`n")
