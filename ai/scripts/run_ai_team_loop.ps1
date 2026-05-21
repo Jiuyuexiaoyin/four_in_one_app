@@ -35,41 +35,41 @@ function Invoke-Step {
 }
 
 function Invoke-Guard {
-  $args = @("-TaskFile", $TaskFile, "-TaskType", $TaskType)
+  $guardParams = @("-TaskFile", $TaskFile, "-TaskType", $TaskType)
   if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-    $args += @("-AllowedFileListPath", $AllowedFileListPath)
+    $guardParams += @("-AllowedFileListPath", $AllowedFileListPath)
   }
-  & (Join-Path $scriptsDir "run_ai_guard_changed_files.ps1") @args
+  & (Join-Path $scriptsDir "run_ai_guard_changed_files.ps1") @guardParams
 }
 
 function Invoke-Verifier {
-  $args = @(
+  $verifierParams = @(
     "-TaskFile", $TaskFile,
     "-TaskType", $TaskType,
     "-VerificationProfile", $VerificationProfile
   )
-  if ($Execute) { $args += "-Execute" }
+  if ($Execute) { $verifierParams += "-Execute" }
   if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-    $args += @("-AllowedFileListPath", $AllowedFileListPath)
+    $verifierParams += @("-AllowedFileListPath", $AllowedFileListPath)
   }
-  & (Join-Path $scriptsDir "run_ai_verifier.ps1") @args
+  & (Join-Path $scriptsDir "run_ai_verifier.ps1") @verifierParams
 }
 
 function Invoke-CodeReviewer {
-  $args = @("-TaskFile", $TaskFile, "-TaskType", $TaskType)
-  if ($Execute) { $args += "-Execute" }
-  if ($UseImages) { $args += "-UseImages" }
+  $reviewerParams = @("-TaskFile", $TaskFile, "-TaskType", $TaskType)
+  if ($Execute) { $reviewerParams += "-Execute" }
+  if ($UseImages) { $reviewerParams += "-UseImages" }
   if (-not [string]::IsNullOrWhiteSpace($AllowedFileListPath)) {
-    $args += @("-AllowedFileListPath", $AllowedFileListPath)
+    $reviewerParams += @("-AllowedFileListPath", $AllowedFileListPath)
   }
-  & (Join-Path $scriptsDir "run_ai_reviewer.ps1") @args
+  & (Join-Path $scriptsDir "run_ai_reviewer.ps1") @reviewerParams
 }
 
 function Invoke-VisualReviewer {
-  $args = @("-TaskFile", $TaskFile, "-TaskType", $TaskType, "-TaskPack", $TaskPack)
-  if ($UseImages) { $args += "-UseImages" }
-  if ($Execute) { $args += "-Execute" }
-  & (Join-Path $scriptsDir "run_ai_visual_reviewer.ps1") @args
+  $visualReviewerParams = @("-TaskFile", $TaskFile, "-TaskType", $TaskType, "-TaskPack", $TaskPack)
+  if ($UseImages) { $visualReviewerParams += "-UseImages" }
+  if ($Execute) { $visualReviewerParams += "-Execute" }
+  & (Join-Path $scriptsDir "run_ai_visual_reviewer.ps1") @visualReviewerParams
 }
 
 function Invoke-Reporter {
@@ -78,14 +78,14 @@ function Invoke-Reporter {
     [int]$FixLoopCount
   )
 
-  $args = @(
+  $reporterParams = @(
     "-TaskFile", $TaskFile,
     "-TaskType", $TaskType,
     "-FinalTeamStatus", $FinalStatus,
     "-FixLoopCount", $FixLoopCount
   )
-  if ($Execute) { $args += "-Execute" }
-  & (Join-Path $scriptsDir "run_ai_reporter.ps1") @args
+  if ($Execute) { $reporterParams += "-Execute" }
+  & (Join-Path $scriptsDir "run_ai_reporter.ps1") @reporterParams
 }
 
 Write-Host "AI_TEAM_LOOP_START"
@@ -116,10 +116,10 @@ try {
   Invoke-Step -Name "planner" -Action { & (Join-Path $scriptsDir "run_ai_planner.ps1") -TaskFile $TaskFile }
 
   Invoke-Step -Name "implementer" -Action {
-    $args = @("-TaskFile", $TaskFile, "-TaskPack", $TaskPack)
-    if ($Execute) { $args += "-Execute" }
-    if ($UseImages) { $args += "-UseImages" }
-    & (Join-Path $scriptsDir "run_ai_implementer.ps1") @args
+    $implementerParams = @("-TaskFile", $TaskFile, "-TaskPack", $TaskPack)
+    if ($Execute) { $implementerParams += "-Execute" }
+    if ($UseImages) { $implementerParams += "-UseImages" }
+    & (Join-Path $scriptsDir "run_ai_implementer.ps1") @implementerParams
   }
 
   $stagesPassed = $false

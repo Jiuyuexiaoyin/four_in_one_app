@@ -115,35 +115,62 @@ jobs:
           $taskFileInput = "${{ inputs.task_file }}"
           $taskTypeInput = "${{ inputs.task_type }}"
           $taskPackInput = "${{ inputs.task_pack }}"
-          $maxFixLoopsInput = [int]"${{ inputs.max_fix_loops }}"
+          $maxFixLoopsInput = "${{ inputs.max_fix_loops }}"
           $verificationProfileInput = "${{ inputs.verification_profile }}"
+          $executeInput = "${{ inputs.execute }}"
+          $useImagesInput = "${{ inputs.use_images }}"
+          $enableFixerInput = "${{ inputs.enable_fixer }}"
+          $allowedFileListInput = "${{ inputs.allowed_file_list }}"
+          $teamLoopScript = "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_team_loop.ps1"
 
           Write-Host "TASK_FILE_INPUT=$taskFileInput"
           Write-Host "TASK_TYPE_INPUT=$taskTypeInput"
           Write-Host "TASK_PACK_INPUT=$taskPackInput"
           Write-Host "VERIFICATION_PROFILE_INPUT=$verificationProfileInput"
+          Write-Host "MAX_FIX_LOOPS_INPUT=$maxFixLoopsInput"
+          Write-Host "USE_IMAGES_INPUT=$useImagesInput"
+          Write-Host "EXECUTE_INPUT=$executeInput"
+          Write-Host "ENABLE_FIXER_INPUT=$enableFixerInput"
+          Write-Host "ALLOWED_FILE_LIST_INPUT=$allowedFileListInput"
 
-          $teamLoopArgs = @(
-            "-TaskFile", $taskFileInput,
-            "-TaskType", $taskTypeInput,
-            "-TaskPack", $taskPackInput,
-            "-MaxFixLoops", $maxFixLoopsInput,
-            "-VerificationProfile", $verificationProfileInput
-          )
-          if ("${{ inputs.execute }}" -eq "true") {
-            $teamLoopArgs += "-Execute"
+          $teamLoopParams = @{
+            TaskFile = $taskFileInput
+            TaskType = $taskTypeInput
+            TaskPack = $taskPackInput
+            MaxFixLoops = [int]$maxFixLoopsInput
+            VerificationProfile = $verificationProfileInput
           }
-          if ("${{ inputs.use_images }}" -eq "true") {
-            $teamLoopArgs += "-UseImages"
+
+          if ($executeInput -eq "true") {
+            $teamLoopParams["Execute"] = $true
           }
-          if ("${{ inputs.enable_fixer }}" -eq "true") {
-            $teamLoopArgs += "-EnableFixer"
+
+          if ($useImagesInput -eq "true") {
+            $teamLoopParams["UseImages"] = $true
           }
-          $allowedFileList = "${{ inputs.allowed_file_list }}"
-          if (-not [string]::IsNullOrWhiteSpace($allowedFileList)) {
-            $teamLoopArgs += @("-AllowedFileListPath", $allowedFileList)
+
+          if ($enableFixerInput -eq "true") {
+            $teamLoopParams["EnableFixer"] = $true
           }
-          & "D:\AI\Projects\four_in_one_app\ai\scripts\run_ai_team_loop.ps1" @teamLoopArgs
+
+          if (-not [string]::IsNullOrWhiteSpace($allowedFileListInput)) {
+            $teamLoopParams["AllowedFileListPath"] = $allowedFileListInput
+          }
+
+          if ($teamLoopParams["TaskType"] -eq $teamLoopParams["TaskFile"]) {
+            throw "TEAM_LOOP_PARAMETER_BINDING_BUG: TaskType equals TaskFile"
+          }
+
+          if ($teamLoopParams["TaskType"] -notin @("probe","audit","workflow","docs","code_implementation","ui_implementation","release")) {
+            throw "TEAM_LOOP_INVALID_TASK_TYPE: $($teamLoopParams["TaskType"])"
+          }
+
+          Write-Host "TEAM_LOOP_PARAMS:"
+          foreach ($key in ($teamLoopParams.Keys | Sort-Object)) {
+            Write-Host ("- {0}: {1}" -f $key, $teamLoopParams[$key])
+          }
+
+          & $teamLoopScript @teamLoopParams
 
       - name: Upload AI task artifacts
         if: always()
