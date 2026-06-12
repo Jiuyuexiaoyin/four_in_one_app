@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:four_in_one_app/app/router/app_router.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
 import 'package:four_in_one_app/features/focus/application/focus_store.dart';
@@ -63,13 +64,13 @@ class TodayPage extends StatelessWidget {
       selectedFocusMinutes: focusStore.selectedDurationSeconds ~/ 60,
     );
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final stageHeight = math.min(460.0, math.max(350.0, screenHeight * 0.44));
+    final stageHeight = math.min(600.0, math.max(500.0, screenHeight * 0.62));
 
     final previewGoals = goalsStore.goals.take(2).toList(growable: false);
 
     return ListView(
       padding: EdgeInsets.zero,
-      cacheExtent: 1600,
+      scrollCacheExtent: const ScrollCacheExtent.pixels(1600),
       children: [
         _TodayStage(
           height: stageHeight,
@@ -79,6 +80,17 @@ class TodayPage extends StatelessWidget {
               '${habitsStore.completedCount}/${habitsStore.totalCount}',
           planSignal: '$completedActionCount/$totalActionCount',
           focusSignal: '$todayFocusMinutes 分钟',
+          completedHabits: habitsStore.completedCount,
+          totalHabits: habitsStore.totalCount,
+          totalCheckInsToday: habitsStore.totalCheckInsToday,
+          pendingHabits: pendingHabits,
+          habitsStore: habitsStore,
+          onHabitsAction: () {
+            Navigator.of(context).pushNamed(AppRoute.habits);
+          },
+          onReviewAction: () {
+            Navigator.of(context).pushNamed(AppRoute.review);
+          },
           onPrimaryAction: () {
             if (previewActions.isNotEmpty || goalsStore.goals.isNotEmpty) {
               Navigator.of(context).pushNamed(AppRoute.goals);
@@ -103,12 +115,11 @@ class TodayPage extends StatelessWidget {
               _TodayRhythmNodeData(
                 marker: 'H',
                 alignment: _NodeAlign.left,
-                title: '今日习惯',
+                title: '习惯节奏',
                 subtitle: habitsStore.totalCount == 0
                     ? '先建立一个可重复动作'
                     : '轻轻推进日常动作',
                 action: TextButton(
-                  key: const ValueKey('today-habits-view-all'),
                   onPressed: () =>
                       Navigator.of(context).pushNamed(AppRoute.habits),
                   child: const Text('进入习惯'),
@@ -169,9 +180,15 @@ class TodayPage extends StatelessWidget {
               _TodayRhythmNodeData(
                 marker: 'R',
                 alignment: _NodeAlign.right,
-                title: '今日小结',
-                subtitle: '当前累积的真实记录。',
-                action: const SizedBox.shrink(),
+                title: '今日复盘',
+                subtitle: 'End of Day · 当前累积的真实记录。',
+                action: TextButton.icon(
+                  key: const ValueKey('today-review-entry'),
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(AppRoute.review),
+                  icon: const Icon(Icons.insights_outlined, size: 18),
+                  label: const Text('End of Day'),
+                ),
                 content: _todayReviewContent(
                   context: context,
                   totalCheckInsToday: habitsStore.totalCheckInsToday,
@@ -196,6 +213,13 @@ class _TodayStage extends StatelessWidget {
     required this.habitSignal,
     required this.planSignal,
     required this.focusSignal,
+    required this.completedHabits,
+    required this.totalHabits,
+    required this.totalCheckInsToday,
+    required this.pendingHabits,
+    required this.habitsStore,
+    required this.onHabitsAction,
+    required this.onReviewAction,
     required this.onPrimaryAction,
   });
 
@@ -205,144 +229,340 @@ class _TodayStage extends StatelessWidget {
   final String habitSignal;
   final String planSignal;
   final String focusSignal;
+  final int completedHabits;
+  final int totalHabits;
+  final int totalCheckInsToday;
+  final List<HabitItem> pendingHabits;
+  final HabitsStore habitsStore;
+  final VoidCallback onHabitsAction;
+  final VoidCallback onReviewAction;
   final VoidCallback onPrimaryAction;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final readiness = (progress.clamp(0, 1) * 100).round();
 
-    return SizedBox(
-      height: height,
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
       child: Stack(
-        fit: StackFit.expand,
         children: [
-          IgnorePointer(
-            child: CustomPaint(
-              painter: _TodayBackdropPainter(
-                colorScheme: colorScheme,
-                progress: progress,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _TodayBackdropPainter(
+                  colorScheme: colorScheme,
+                  progress: progress,
+                ),
               ),
             ),
           ),
           Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colorScheme.surfaceContainerLowest.withValues(alpha: 0.10),
-                    colorScheme.surfaceContainerLowest.withValues(alpha: 0.78),
-                    colorScheme.surfaceContainerLowest,
-                  ],
-                  stops: const [0.0, 0.70, 1.0],
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      colorScheme.surfaceContainerLowest.withValues(
+                        alpha: 0.05,
+                      ),
+                      const Color(0xFF131313).withValues(alpha: 0.72),
+                      colorScheme.surfaceContainerLowest,
+                    ],
+                    stops: const [0.0, 0.72, 1.0],
+                  ),
                 ),
               ),
             ),
           ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final textScale = MediaQuery.textScalerOf(context).scale(1);
-              final compact = constraints.maxHeight < 420 || textScale > 1.0;
-              final horizontalPadding = compact ? 22.0 : 26.0;
-              final topPadding = compact ? 22.0 : 34.0;
-              final bottomPadding = compact ? 20.0 : 30.0;
-              final titleSize = compact ? 30.0 : 36.0;
-              final sectionGap = compact ? 10.0 : 18.0;
-              final actionGap = compact ? 16.0 : 24.0;
-              final signalGap = compact ? 16.0 : 24.0;
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 28),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final textScale = MediaQuery.textScalerOf(context).scale(1);
+                final compact = constraints.maxWidth < 380 || textScale > 1.0;
+                final scoreSize = compact ? 48.0 : 58.0;
 
-              return Padding(
-                padding: EdgeInsets.fromLTRB(
-                  horizontalPadding,
-                  topPadding,
-                  horizontalPadding,
-                  bottomPadding,
-                ),
-                child: Column(
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(right: 52),
+                      padding: const EdgeInsetsDirectional.only(end: 54),
                       child: Row(
                         children: [
-                          _StageLabel(text: '今日', compact: compact),
+                          const Icon(
+                            Icons.bolt_rounded,
+                            color: Color(0xFF00E5FF),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            '今日',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: const Color(0xFF00E5FF),
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '今日中心',
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.82,
-                                    ),
-                                    fontWeight: FontWeight.w700,
+                            child: Text(
+                              'STRIVE',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: colorScheme.onSurface,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'TODAY / COMMAND',
+                                  maxLines: 1,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: const Color(0xFF00E5FF),
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.7,
                                   ),
                                 ),
-                                const SizedBox(height: 1),
-                                Text(
-                                  '今天的节奏',
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: AppThemeTokens.secondaryTextTone(
-                                      colorScheme,
-                                    ).withValues(alpha: 0.74),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    if (compact)
-                      SizedBox(height: sectionGap)
-                    else
-                      const Spacer(),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 340),
-                      child: Text(
-                        '今天，先推进一件事',
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontSize: titleSize,
-                          height: compact ? 1.05 : 1.08,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0,
+                    const SizedBox(height: 24),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF201F1F).withValues(alpha: 0.86),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF00E5FF).withValues(
+                            alpha: 0.16,
+                          ),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF00E5FF).withValues(
+                              alpha: 0.09,
+                            ),
+                            blurRadius: 28,
+                            spreadRadius: -16,
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(compact ? 18 : 22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _StageLabel(
+                                        text: '今日中心',
+                                        compact: compact,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        '每日准备就绪',
+                                        style: theme.textTheme.titleLarge
+                                            ?.copyWith(
+                                              color: colorScheme.onSurface,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0,
+                                              height: 1.08,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '今天的节奏',
+                                        style: theme.textTheme.labelLarge
+                                            ?.copyWith(
+                                              color:
+                                                  AppThemeTokens
+                                                      .secondaryTextTone(
+                                                        colorScheme,
+                                                      ),
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 1.1,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(text: '$readiness'),
+                                      TextSpan(
+                                        text: '%',
+                                        style: theme.textTheme.headlineSmall
+                                            ?.copyWith(
+                                              color: const Color(0xFF00E5FF),
+                                              fontWeight: FontWeight.w900,
+                                              height: 1,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  style: theme.textTheme.displaySmall?.copyWith(
+                                    color: const Color(0xFF00E5FF),
+                                    fontSize: scoreSize,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0,
+                                    height: 0.95,
+                                    shadows: [
+                                      Shadow(
+                                        color: const Color(
+                                          0xFF00E5FF,
+                                        ).withValues(alpha: 0.40),
+                                        blurRadius: 14,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            _CognitiveLoadBar(progress: progress),
+                            const SizedBox(height: 18),
+                            _StageSignalRow(
+                              habitSignal: habitSignal,
+                              planSignal: planSignal,
+                              focusSignal: focusSignal,
+                              compact: compact,
+                            ),
+                            const SizedBox(height: 14),
+                            _TodayHabitQuickEntry(
+                              completedHabits: completedHabits,
+                              totalHabits: totalHabits,
+                              totalCheckInsToday: totalCheckInsToday,
+                              pendingHabits: pendingHabits,
+                              habitsStore: habitsStore,
+                              onPressed: onHabitsAction,
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    SizedBox(height: sectionGap),
-                    Text(
-                      '先看最重要的事',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: AppThemeTokens.secondaryTextTone(
-                          colorScheme,
-                        ).withValues(alpha: 0.82),
-                        fontWeight: FontWeight.w500,
-                        height: 1.36,
+                    const SizedBox(height: 16),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1B1B).withValues(alpha: 0.90),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.07),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(compact ? 18 : 22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00E5FF),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF00E5FF,
+                                        ).withValues(alpha: 0.60),
+                                        blurRadius: 10,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Text(
+                                    '当前节奏 (CURRENT CADENCE)',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: const Color(0xFF00E5FF),
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.psychology_alt_outlined,
+                                  color: const Color(0xFF00E5FF).withValues(
+                                    alpha: 0.90,
+                                  ),
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              '今天，先推进一件事',
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: colorScheme.onSurface,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0,
+                                height: 1.05,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '先看最重要的事',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: AppThemeTokens.secondaryTextTone(
+                                  colorScheme,
+                                ),
+                                fontWeight: FontWeight.w700,
+                                height: 1.38,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _PrimaryActionPill(
+                                    label: primaryLabel,
+                                    compact: compact,
+                                    onPressed: onPrimaryAction,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                _ReviewEntryButton(
+                                  compact: compact,
+                                  onPressed: onReviewAction,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    SizedBox(height: actionGap),
-                    _PrimaryActionPill(
-                      label: primaryLabel,
-                      compact: compact,
-                      onPressed: onPrimaryAction,
-                    ),
-                    SizedBox(height: signalGap),
-                    _StageSignalRow(
-                      habitSignal: habitSignal,
-                      planSignal: planSignal,
-                      focusSignal: focusSignal,
-                      compact: compact,
-                    ),
                   ],
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -350,6 +570,339 @@ class _TodayStage extends StatelessWidget {
   }
 }
 
+class _CognitiveLoadBar extends StatelessWidget {
+  const _CognitiveLoadBar({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final clampedProgress = progress.clamp(0, 1).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '认知负荷 (COGNITIVE LOAD)',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.86),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            Text(
+              clampedProgress >= 0.72
+                  ? '最佳'
+                  : clampedProgress >= 0.36
+                  ? '稳定'
+                  : '预热',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: Stack(
+            children: [
+              Container(
+                height: 3,
+                color: colorScheme.onSurface.withValues(alpha: 0.12),
+              ),
+              FractionallySizedBox(
+                widthFactor: clampedProgress,
+                child: Container(
+                  height: 3,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF00E5FF), Color(0xFFDCC8FF)],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TodayHabitQuickEntry extends StatelessWidget {
+  const _TodayHabitQuickEntry({
+    required this.completedHabits,
+    required this.totalHabits,
+    required this.totalCheckInsToday,
+    required this.pendingHabits,
+    required this.habitsStore,
+    required this.onPressed,
+  });
+
+  final int completedHabits;
+  final int totalHabits;
+  final int totalCheckInsToday;
+  final List<HabitItem> pendingHabits;
+  final HabitsStore habitsStore;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const ValueKey('today-habits-view-all'),
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E0E0E).withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '今日习惯',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '今日打卡 $totalCheckInsToday 次',
+                          key: const ValueKey('today-habits-check-ins-total'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: AppThemeTokens.secondaryTextTone(
+                              colorScheme,
+                            ),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '$completedHabits',
+                    key: const ValueKey('today-habits-completed'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: const Color(0xFF00E5FF),
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                  Text(
+                    '/ $totalHabits',
+                    key: const ValueKey('today-habits-total'),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: AppThemeTokens.secondaryTextTone(colorScheme),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: const Color(0xFF00E5FF).withValues(alpha: 0.88),
+                    size: 18,
+                  ),
+                ],
+              ),
+              if (pendingHabits.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '还可继续',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: AppThemeTokens.secondaryTextTone(colorScheme),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                for (final habit in pendingHabits)
+                  _TodayHabitQuickLine(
+                    habit: habit,
+                    habitsStore: habitsStore,
+                  ),
+              ] else ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    totalHabits == 0 ? '还没有习惯' : '今天都已达标',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: AppThemeTokens.secondaryTextTone(colorScheme),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayHabitQuickLine extends StatelessWidget {
+  const _TodayHabitQuickLine({
+    required this.habit,
+    required this.habitsStore,
+  });
+
+  final HabitItem habit;
+  final HabitsStore habitsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${habit.emoji} ${habit.name}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '今日 ${habitsStore.todayCheckInCount(habit)} / ${habit.targetCountPerDay}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (habit.reminderTime != null) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                '提醒 ${habit.reminderTime}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: const Color(0xFF00E5FF),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewEntryButton extends StatelessWidget {
+  const _ReviewEntryButton({
+    required this.compact,
+    required this.onPressed,
+  });
+
+  final bool compact;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const ValueKey('today-end-of-day-entry'),
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+        child: Ink(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 12 : 14,
+            vertical: compact ? 10 : 12,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E0E0E).withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+            border: Border.all(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.insights_outlined,
+                color: Color(0xFF00E5FF),
+                size: 18,
+              ),
+              const SizedBox(width: 7),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '复盘',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: const Color(0xFF00E5FF),
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'End of Day',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.68),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 class _TodayBackdropPainter extends CustomPainter {
   const _TodayBackdropPainter({
     required this.colorScheme,
@@ -543,13 +1096,18 @@ class _PrimaryActionPill extends StatelessWidget {
             ],
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.max,
             children: [
-              Text(
-                label,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onPrimary,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -581,50 +1139,95 @@ class _StageSignalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: compact ? 16 : 22,
-      runSpacing: compact ? 6 : 8,
+    return Row(
       children: [
-        _StageSignal(label: '习惯完成', value: habitSignal),
-        _StageSignal(label: '计划行动', value: planSignal),
-        _StageSignal(label: '专注分钟', value: focusSignal),
+        Expanded(
+          child: _StageSignal(
+            label: '恢复',
+            value: habitSignal,
+            icon: Icons.directions_run_rounded,
+          ),
+        ),
+        SizedBox(width: compact ? 8 : 12),
+        Expanded(
+          child: _StageSignal(
+            label: '压力',
+            value: planSignal,
+            icon: Icons.local_fire_department_outlined,
+          ),
+        ),
+        SizedBox(width: compact ? 8 : 12),
+        Expanded(
+          child: _StageSignal(
+            label: 'FOCUS',
+            value: focusSignal,
+            icon: Icons.graphic_eq_rounded,
+          ),
+        ),
       ],
     );
   }
 }
 
 class _StageSignal extends StatelessWidget {
-  const _StageSignal({required this.label, required this.value});
+  const _StageSignal({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   final String label;
   final String value;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Text.rich(
-      TextSpan(
+    return Container(
+      constraints: const BoxConstraints(minHeight: 80),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E0E0E).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          TextSpan(
-            text: value,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.88),
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 15, color: const Color(0xFF00E5FF)),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppThemeTokens.secondaryTextTone(colorScheme),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextSpan(
-            text: '  $label',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              fontWeight: FontWeight.w500,
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+              height: 1,
             ),
           ),
         ],
       ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -1237,7 +1840,6 @@ Widget _todayHabitsContent({
         children: [
           Text(
             '$completedHabits',
-            key: const ValueKey('today-habits-completed'),
             style: theme.textTheme.headlineSmall?.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w800,
@@ -1247,7 +1849,6 @@ Widget _todayHabitsContent({
           const SizedBox(width: 5),
           Text(
             '/ $totalHabits',
-            key: const ValueKey('today-habits-total'),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AppThemeTokens.secondaryTextTone(colorScheme),
               fontWeight: FontWeight.w600,
@@ -1256,7 +1857,6 @@ Widget _todayHabitsContent({
           const SizedBox(width: 14),
           Text(
             '今日打卡 $totalCheckInsToday 次',
-            key: const ValueKey('today-habits-check-ins-total'),
             style: theme.textTheme.labelMedium?.copyWith(
               color: colorScheme.primary.withValues(alpha: 0.86),
               fontWeight: FontWeight.w700,

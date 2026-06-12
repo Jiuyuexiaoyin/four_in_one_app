@@ -994,8 +994,10 @@ class _AdvancedColorInputs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ExpansionTile(
-      key: const ValueKey('theme-studio-advanced-input'),
+    return Material(
+      color: Colors.transparent,
+      child: ExpansionTile(
+        key: const ValueKey('theme-studio-advanced-input'),
       tilePadding: EdgeInsets.zero,
       childrenPadding: EdgeInsets.zero,
       title: const Text('高级输入'),
@@ -1117,7 +1119,8 @@ class _AdvancedColorInputs extends StatelessWidget {
             ),
           ],
         ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1388,16 +1391,19 @@ class _ThemeModeTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final selected = value == groupValue;
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(title),
-      trailing: Icon(
-        selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-        color: selected ? colorScheme.primary : colorScheme.outline,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(title),
+        trailing: Icon(
+          selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+          color: selected ? colorScheme.primary : colorScheme.outline,
+        ),
+        onTap: () {
+          onChanged(value);
+        },
       ),
-      onTap: () {
-        onChanged(value);
-      },
     );
   }
 }

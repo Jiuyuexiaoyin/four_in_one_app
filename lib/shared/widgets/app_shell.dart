@@ -21,7 +21,6 @@ class AppShell extends StatelessWidget {
     AppRoute.habits,
     AppRoute.goals,
     AppRoute.focus,
-    AppRoute.review,
   ];
 
   @override
@@ -32,7 +31,8 @@ class AppShell extends StatelessWidget {
     final shellSurface =
         Color.lerp(colorScheme.surface, canvasColor, 0.26) ??
         colorScheme.surface;
-    final isTodayTab = showBottomNavigation && currentIndex == 0;
+    final selectedIndex = currentIndex.clamp(0, _routes.length - 1).toInt();
+    final isTodayTab = showBottomNavigation && selectedIndex == 0;
     final showPageAppBar = !isTodayTab;
 
     return Scaffold(
@@ -68,11 +68,12 @@ class AppShell extends StatelessWidget {
                 ),
               ),
               actions: [
-                IconButton(
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoute.settings),
-                  icon: const Icon(Icons.settings_outlined),
-                  tooltip: '我的',
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 10),
+                  child: _ShellUtilityButton(
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed(AppRoute.settings),
+                  ),
                 ),
               ],
             )
@@ -118,20 +119,9 @@ class AppShell extends StatelessWidget {
               end: 18,
               child: SafeArea(
                 bottom: false,
-                child: Material(
-                  color: Colors.transparent,
-                  child: IconButton(
-                    onPressed: () =>
-                        Navigator.of(context).pushNamed(AppRoute.settings),
-                    icon: const Icon(Icons.settings_outlined),
-                    tooltip: '我的',
-                    style: IconButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                      backgroundColor: colorScheme.primary.withValues(
-                        alpha: 0.12,
-                      ),
-                    ),
-                  ),
+                child: _ShellUtilityButton(
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(AppRoute.settings),
                 ),
               ),
             ),
@@ -140,83 +130,226 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: showBottomNavigation
           ? SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: shellSurface.withValues(alpha: 0.52),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: colorScheme.primary.withValues(alpha: 0.10),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 16,
-                        offset: const Offset(0, 7),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
-                    child: NavigationBar(
-                      height: 54,
-                      backgroundColor: Colors.transparent,
-                      indicatorColor: colorScheme.primary.withValues(
-                        alpha: 0.08,
-                      ),
-                      selectedIndex: currentIndex,
-                      labelBehavior:
-                          NavigationDestinationLabelBehavior.alwaysShow,
-                      onDestinationSelected: (index) {
-                        if (index == currentIndex) {
-                          return;
-                        }
-                        Navigator.of(
-                          context,
-                        ).pushReplacementNamed(_routes[index]);
-                      },
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.home_outlined, size: 19),
-                          selectedIcon: Icon(Icons.home, size: 19),
-                          label: '今天',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(
-                            Icons.check_circle_outline_rounded,
-                            size: 19,
-                          ),
-                          selectedIcon: Icon(
-                            Icons.check_circle_rounded,
-                            size: 19,
-                          ),
-                          label: '习惯',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.track_changes_outlined, size: 19),
-                          selectedIcon: Icon(Icons.track_changes, size: 19),
-                          label: '计划',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.timer_outlined, size: 19),
-                          selectedIcon: Icon(Icons.timer, size: 19),
-                          label: '专注',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.insights_outlined, size: 19),
-                          selectedIcon: Icon(Icons.insights, size: 19),
-                          label: '复盘',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              child: _PerformanceBottomNavigation(
+                selectedIndex: selectedIndex,
+                onSelected: (index) {
+                  if (index == selectedIndex) {
+                    return;
+                  }
+                  Navigator.of(context).pushReplacementNamed(_routes[index]);
+                },
               ),
             )
           : null,
     );
   }
+}
+
+class _ShellUtilityButton extends StatelessWidget {
+  const _ShellUtilityButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    const cyan = Color(0xFF00E5FF);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Tooltip(
+      message: '我的 / Theme Studio',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const ValueKey('shell-settings-entry'),
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1B1B).withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Color.lerp(cyan, colorScheme.onSurface, 0.70)!
+                    .withValues(alpha: 0.28),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: cyan.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  spreadRadius: -8,
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.settings_outlined,
+                  size: 20,
+                  color: AppThemeTokens.secondaryTextTone(colorScheme),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: cyan,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: cyan.withValues(alpha: 0.55),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PerformanceBottomNavigation extends StatelessWidget {
+  const _PerformanceBottomNavigation({
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  static const _items = <_PerformanceNavItem>[
+    _PerformanceNavItem(
+      label: '今天',
+      icon: Icons.calendar_today_outlined,
+      selectedIcon: Icons.calendar_today_rounded,
+    ),
+    _PerformanceNavItem(
+      label: '习惯',
+      icon: Icons.check_circle_outline_rounded,
+      selectedIcon: Icons.check_circle_rounded,
+    ),
+    _PerformanceNavItem(
+      label: '计划',
+      icon: Icons.track_changes_outlined,
+      selectedIcon: Icons.track_changes,
+    ),
+    _PerformanceNavItem(
+      label: '专注',
+      icon: Icons.timer_outlined,
+      selectedIcon: Icons.timer,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const cyan = Color(0xFF00E5FF);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFF0E0E0E).withValues(alpha: 0.92),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(24),
+            bottom: Radius.circular(24),
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.10),
+              blurRadius: 24,
+              spreadRadius: -12,
+              offset: const Offset(0, -4),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: NavigationBarTheme(
+            data: theme.navigationBarTheme.copyWith(
+              height: 68,
+              backgroundColor: Colors.transparent,
+              indicatorColor: cyan.withValues(alpha: 0.13),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              iconTheme: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+                return IconThemeData(
+                  size: 20,
+                  color: selected
+                      ? cyan
+                      : AppThemeTokens.secondaryTextTone(
+                          colorScheme,
+                        ).withValues(alpha: 0.68),
+                  shadows: selected
+                      ? [
+                          Shadow(
+                            color: cyan.withValues(alpha: 0.58),
+                            blurRadius: 8,
+                          ),
+                        ]
+                      : const [],
+                );
+              }),
+              labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+                return theme.textTheme.labelSmall?.copyWith(
+                  color: selected
+                      ? cyan
+                      : AppThemeTokens.secondaryTextTone(
+                          colorScheme,
+                        ).withValues(alpha: 0.70),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                  height: 1,
+                );
+              }),
+            ),
+            child: NavigationBar(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: onSelected,
+              destinations: [
+                for (final item in _items)
+                  NavigationDestination(
+                    icon: Icon(item.icon),
+                    selectedIcon: Icon(item.selectedIcon),
+                    label: item.label,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PerformanceNavItem {
+  const _PerformanceNavItem({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
 }
 
 class _AmbientGlow extends StatelessWidget {

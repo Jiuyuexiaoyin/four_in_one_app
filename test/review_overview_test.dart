@@ -305,7 +305,14 @@ void main() {
 }
 
 Future<void> _openReview(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.insights_outlined));
+  final reviewEntry = find.byKey(const ValueKey('today-end-of-day-entry'));
+  await tester.scrollUntilVisible(
+    reviewEntry,
+    180,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(reviewEntry);
   await tester.pumpAndSettle();
 }
 

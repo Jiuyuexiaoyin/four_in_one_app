@@ -48,7 +48,12 @@ abstract final class AppRouter {
       case AppRoute.review:
         return _buildRoute(
           settings,
-          const AppShell(title: '复盘', currentIndex: 4, child: ReviewPage()),
+          const AppShell(
+            title: '复盘',
+            currentIndex: 0,
+            showBottomNavigation: false,
+            child: ReviewPage(),
+          ),
         );
       case AppRoute.settings:
         return _buildRoute(

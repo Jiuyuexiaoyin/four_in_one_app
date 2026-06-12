@@ -313,7 +313,7 @@ Future<void> _pumpApp(
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.settings_outlined));
+  await tester.tap(find.byKey(const ValueKey('shell-settings-entry')));
   await tester.pumpAndSettle();
 }
 
