@@ -64,7 +64,7 @@ class TodayPage extends StatelessWidget {
       selectedFocusMinutes: focusStore.selectedDurationSeconds ~/ 60,
     );
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final stageHeight = math.min(600.0, math.max(500.0, screenHeight * 0.62));
+    final stageHeight = math.min(420.0, math.max(340.0, screenHeight * 0.38));
 
     final previewGoals = goalsStore.goals.take(2).toList(growable: false);
 
@@ -75,6 +75,7 @@ class TodayPage extends StatelessWidget {
         _TodayStage(
           height: stageHeight,
           progress: stageProgress,
+          todayDateLabel: _compactDateLabel(todayKey),
           primaryLabel: previewActions.isNotEmpty ? '继续下一项' : '开始今天',
           habitSignal:
               '${habitsStore.completedCount}/${habitsStore.totalCount}',
@@ -102,6 +103,31 @@ class TodayPage extends StatelessWidget {
             }
             Navigator.of(context).pushNamed(AppRoute.focus);
           },
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppThemeTokens.pagePadding,
+            4,
+            AppThemeTokens.pagePadding,
+            0,
+          ),
+          child: Column(
+            children: [
+              _FocusFluxPanel(
+                progress: stageProgress,
+                todayFocusMinutes: todayFocusMinutes,
+                sessionCount: todayFocusSessions.length,
+              ),
+              const SizedBox(height: 14),
+              _ActionPlanTimeline(
+                progress: stageProgress,
+                previewActions: previewActions,
+                pendingHabits: pendingHabits,
+                todayFocusMinutes: todayFocusMinutes,
+                focusStore: focusStore,
+              ),
+            ],
+          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -209,6 +235,7 @@ class _TodayStage extends StatelessWidget {
   const _TodayStage({
     required this.height,
     required this.progress,
+    required this.todayDateLabel,
     required this.primaryLabel,
     required this.habitSignal,
     required this.planSignal,
@@ -225,6 +252,7 @@ class _TodayStage extends StatelessWidget {
 
   final double height;
   final double progress;
+  final String todayDateLabel;
   final String primaryLabel;
   final String habitSignal;
   final String planSignal;
@@ -279,12 +307,12 @@ class _TodayStage extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 28),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final textScale = MediaQuery.textScalerOf(context).scale(1);
                 final compact = constraints.maxWidth < 380 || textScale > 1.0;
-                final scoreSize = compact ? 48.0 : 58.0;
+                final scoreSize = compact ? 54.0 : 64.0;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,28 +372,17 @@ class _TodayStage extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF201F1F).withValues(alpha: 0.86),
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: const Color(0xFF00E5FF).withValues(
-                            alpha: 0.16,
-                          ),
+                          color: Colors.transparent,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF00E5FF).withValues(
-                              alpha: 0.09,
-                            ),
-                            blurRadius: 28,
-                            spreadRadius: -16,
-                          ),
-                        ],
                       ),
                       child: Padding(
-                        padding: EdgeInsets.all(compact ? 18 : 22),
+                        padding: EdgeInsets.zero,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -378,32 +395,50 @@ class _TodayStage extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       _StageLabel(
-                                        text: '今日中心',
+                                        text: 'FOCUS SCORE',
                                         compact: compact,
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 5),
                                       Text(
-                                        '每日准备就绪',
-                                        style: theme.textTheme.titleLarge
+                                        '今日中心',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.labelSmall
                                             ?.copyWith(
-                                              color: colorScheme.onSurface,
+                                              color: const Color(
+                                                0xFF00E5FF,
+                                              ).withValues(alpha: 0.72),
+                                              fontSize: 10,
                                               fontWeight: FontWeight.w900,
-                                              letterSpacing: 0,
-                                              height: 1.08,
+                                              letterSpacing: 0.8,
                                             ),
                                       ),
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 7),
                                       Text(
                                         '今天的节奏',
                                         style: theme.textTheme.labelLarge
+                                            ?.copyWith(
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.88),
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 1.0,
+                                              height: 1,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Peak Rhythm · $todayDateLabel',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.labelSmall
                                             ?.copyWith(
                                               color:
                                                   AppThemeTokens
                                                       .secondaryTextTone(
                                                         colorScheme,
                                                       ),
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: 1.1,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0.9,
                                             ),
                                       ),
                                     ],
@@ -443,16 +478,16 @@ class _TodayStage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 13),
                             _CognitiveLoadBar(progress: progress),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
                             _StageSignalRow(
                               habitSignal: habitSignal,
                               planSignal: planSignal,
                               focusSignal: focusSignal,
                               compact: compact,
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             _TodayHabitQuickEntry(
                               completedHabits: completedHabits,
                               totalHabits: totalHabits,
@@ -465,17 +500,17 @@ class _TodayStage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C1B1B).withValues(alpha: 0.90),
-                        borderRadius: BorderRadius.circular(20),
+                        color: const Color(0xFF111111).withValues(alpha: 0.94),
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.07),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                       ),
                       child: Padding(
-                        padding: EdgeInsets.all(compact ? 18 : 22),
+                        padding: EdgeInsets.all(compact ? 13 : 15),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -500,16 +535,18 @@ class _TodayStage extends StatelessWidget {
                                 const SizedBox(width: 9),
                                 Expanded(
                                   child: Text(
-                                    '当前节奏 (CURRENT CADENCE)',
+                                    'PRIORITY EXECUTE / 当前优先',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.labelSmall?.copyWith(
                                       color: const Color(0xFF00E5FF),
                                       fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.2,
+                                      letterSpacing: 1.0,
                                     ),
                                   ),
                                 ),
                                 Icon(
-                                  Icons.psychology_alt_outlined,
+                                  Icons.ads_click_rounded,
                                   color: const Color(0xFF00E5FF).withValues(
                                     alpha: 0.90,
                                   ),
@@ -517,28 +554,47 @@ class _TodayStage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 11),
                             Text(
                               '今天，先推进一件事',
-                              style: theme.textTheme.headlineSmall?.copyWith(
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleLarge?.copyWith(
                                 color: colorScheme.onSurface,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 0,
-                                height: 1.05,
+                                height: 1.03,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               '先看最重要的事',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: AppThemeTokens.secondaryTextTone(
                                   colorScheme,
                                 ),
                                 fontWeight: FontWeight.w700,
-                                height: 1.38,
+                                height: 1.25,
                               ),
                             ),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 11),
+                            Wrap(
+                              spacing: 7,
+                              runSpacing: 6,
+                              children: const [
+                                _MicroChip(
+                                  label: '120m',
+                                  color: Color(0xFF00E5FF),
+                                ),
+                                _MicroChip(
+                                  label: 'Initiate',
+                                  color: Color(0xFF80FF2C),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
                             Row(
                               children: [
                                 Expanded(
@@ -570,6 +626,507 @@ class _TodayStage extends StatelessWidget {
   }
 }
 
+class _FocusFluxPanel extends StatelessWidget {
+  const _FocusFluxPanel({
+    required this.progress,
+    required this.todayFocusMinutes,
+    required this.sessionCount,
+  });
+
+  final double progress;
+  final int todayFocusMinutes;
+  final int sessionCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return _TechnicalPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'FOCUS FLUX',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'OPTIMAL RANGE',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFFDCC8FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 112,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _FocusFluxPainter(
+                progress: progress,
+                focusMinutes: todayFocusMinutes,
+                sessionCount: sessionCount,
+                colorScheme: colorScheme,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusFluxPainter extends CustomPainter {
+  const _FocusFluxPainter({
+    required this.progress,
+    required this.focusMinutes,
+    required this.sessionCount,
+    required this.colorScheme,
+  });
+
+  final double progress;
+  final int focusMinutes;
+  final int sessionCount;
+  final ColorScheme colorScheme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = Colors.white.withValues(alpha: 0.045);
+    final labelPaint = TextPainter(textDirection: TextDirection.ltr);
+    final chartRect = Rect.fromLTWH(0, 4, size.width, size.height - 22);
+
+    for (var index = 0; index < 4; index += 1) {
+      final y = chartRect.top + chartRect.height * index / 3;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    for (var index = 0; index < 5; index += 1) {
+      final x = size.width * index / 4;
+      canvas.drawLine(
+        Offset(x, chartRect.top),
+        Offset(x, chartRect.bottom),
+        gridPaint,
+      );
+    }
+
+    final normalized = progress.clamp(0.08, 0.96).toDouble();
+    final points = <double>[
+      (0.18 + normalized * 0.18).clamp(0.0, 1.0),
+      (0.30 + sessionCount * 0.06).clamp(0.0, 0.86),
+      (0.24 + normalized * 0.28).clamp(0.0, 1.0),
+      (0.58 + normalized * 0.18).clamp(0.0, 1.0),
+      (0.40 + focusMinutes / 180).clamp(0.0, 0.92),
+      (0.78 + normalized * 0.15).clamp(0.0, 1.0),
+      (0.50 + sessionCount * 0.04).clamp(0.0, 0.82),
+    ];
+
+    Offset pointFor(int index, double value) {
+      return Offset(
+        size.width * index / (points.length - 1),
+        chartRect.bottom - chartRect.height * value,
+      );
+    }
+
+    final fillPath = Path();
+    final linePath = Path();
+    for (var index = 0; index < points.length; index += 1) {
+      final point = pointFor(index, points[index]);
+      if (index == 0) {
+        linePath.moveTo(point.dx, point.dy);
+        fillPath.moveTo(point.dx, chartRect.bottom);
+        fillPath.lineTo(point.dx, point.dy);
+      } else {
+        linePath.lineTo(point.dx, point.dy);
+        fillPath.lineTo(point.dx, point.dy);
+      }
+    }
+    fillPath
+      ..lineTo(size.width, chartRect.bottom)
+      ..close();
+
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF00E5FF).withValues(alpha: 0.18),
+            Colors.transparent,
+          ],
+        ).createShader(chartRect),
+    );
+
+    canvas.drawPath(
+      linePath,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = const Color(0xFF00E5FF),
+    );
+
+    final marker = pointFor(5, points[5]);
+    canvas.drawCircle(
+      marker,
+      4.2,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = const Color(0xFF00E5FF),
+    );
+    canvas.drawCircle(
+      marker,
+      9,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.22),
+    );
+
+    final labels = ['06:00', '12:00', '18:00', '22:00'];
+    for (var index = 0; index < labels.length; index += 1) {
+      labelPaint.text = TextSpan(
+        text: labels[index],
+        style: TextStyle(
+          color: colorScheme.onSurface.withValues(alpha: 0.42),
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+      labelPaint.layout();
+      final x = size.width * index / (labels.length - 1) - labelPaint.width / 2;
+      labelPaint.paint(
+        canvas,
+        Offset(x.clamp(0.0, size.width - labelPaint.width), size.height - 13),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FocusFluxPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.focusMinutes != focusMinutes ||
+        oldDelegate.sessionCount != sessionCount ||
+        oldDelegate.colorScheme != colorScheme;
+  }
+}
+
+class _ActionPlanTimeline extends StatelessWidget {
+  const _ActionPlanTimeline({
+    required this.progress,
+    required this.previewActions,
+    required this.pendingHabits,
+    required this.todayFocusMinutes,
+    required this.focusStore,
+  });
+
+  final double progress;
+  final List<GoalTaskItem> previewActions;
+  final List<HabitItem> pendingHabits;
+  final int todayFocusMinutes;
+  final FocusStore focusStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final rows = _rows();
+
+    return _TechnicalPanel(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'ACTION PLAN',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${(progress.clamp(0, 1) * 100).round()}% READY',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFF80FF2C),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.9,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (var index = 0; index < rows.length; index += 1)
+            _ActionPlanRow(
+              data: rows[index],
+              isLast: index == rows.length - 1,
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<_ActionPlanRowData> _rows() {
+    final rows = <_ActionPlanRowData>[];
+    const times = ['09:00', '11:30'];
+    for (var index = 0; index < previewActions.length && index < 2; index += 1) {
+      rows.add(
+        _ActionPlanRowData(
+          time: times[index],
+          title: previewActions[index].title,
+          description: 'High leverage task. Keep the next action visible.',
+          tags: const ['Deep Work', 'Plan'],
+          accent: const Color(0xFF00E5FF),
+        ),
+      );
+    }
+
+    if (pendingHabits.isNotEmpty) {
+      final habit = pendingHabits.first;
+      rows.add(
+        _ActionPlanRowData(
+          time: rows.isEmpty ? '09:00' : '14:00',
+          title: '${habit.emoji} ${habit.name}',
+          description: 'Daily protocol still open. Complete the next check-in.',
+          tags: const ['Habit', 'Signal'],
+          accent: const Color(0xFF80FF2C),
+        ),
+      );
+    }
+
+    rows.add(
+      _ActionPlanRowData(
+        time: rows.isEmpty ? '09:00' : '16:30',
+        title: _focusCueLabel(focusStore, todayFocusMinutes),
+        description: _focusStatusDescription(focusStore),
+        tags: const ['Focus', 'Flow'],
+        accent: const Color(0xFFDCC8FF),
+      ),
+    );
+
+    return rows.take(3).toList(growable: false);
+  }
+}
+
+class _ActionPlanRowData {
+  const _ActionPlanRowData({
+    required this.time,
+    required this.title,
+    required this.description,
+    required this.tags,
+    required this.accent,
+  });
+
+  final String time;
+  final String title;
+  final String description;
+  final List<String> tags;
+  final Color accent;
+}
+
+class _ActionPlanRow extends StatelessWidget {
+  const _ActionPlanRow({
+    required this.data,
+    required this.isLast,
+  });
+
+  final _ActionPlanRowData data;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 42,
+            child: Text(
+              data.time,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: data.accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: data.accent,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: data.accent.withValues(alpha: 0.45),
+                      blurRadius: 9,
+                    ),
+                  ],
+                ),
+              ),
+              if (!isLast)
+                Container(
+                  width: 1,
+                  height: 64,
+                  margin: const EdgeInsets.symmetric(vertical: 5),
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+            ],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          data.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w900,
+                            height: 1.08,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: data.accent.withValues(alpha: 0.88),
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppThemeTokens.secondaryTextTone(colorScheme),
+                      fontWeight: FontWeight.w700,
+                      height: 1.22,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    children: [
+                      for (final tag in data.tags)
+                        _MicroChip(label: tag, color: data.accent),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TechnicalPanel extends StatelessWidget {
+  const _TechnicalPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111).withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
+class _MicroChip extends StatelessWidget {
+  const _MicroChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.2,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
 class _CognitiveLoadBar extends StatelessWidget {
   const _CognitiveLoadBar({required this.progress});
 
@@ -588,9 +1145,9 @@ class _CognitiveLoadBar extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '认知负荷 (COGNITIVE LOAD)',
+                'PEAK RHYTHM',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.86),
+                  color: const Color(0xFF80FF2C),
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.2,
                 ),
@@ -664,13 +1221,13 @@ class _TodayHabitQuickEntry extends StatelessWidget {
       child: InkWell(
         key: const ValueKey('today-habits-view-all'),
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
           decoration: BoxDecoration(
-            color: const Color(0xFF0E0E0E).withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            color: const Color(0xFF101010).withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -686,12 +1243,13 @@ class _TodayHabitQuickEntry extends StatelessWidget {
                           '今日习惯',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelLarge?.copyWith(
+                          style: theme.textTheme.labelMedium?.copyWith(
                             color: colorScheme.onSurface,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: 0.2,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           '今日打卡 $totalCheckInsToday 次',
                           key: const ValueKey('today-habits-check-ins-total'),
@@ -711,7 +1269,7 @@ class _TodayHabitQuickEntry extends StatelessWidget {
                   Text(
                     '$completedHabits',
                     key: const ValueKey('today-habits-completed'),
-                    style: theme.textTheme.titleLarge?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       color: const Color(0xFF00E5FF),
                       fontWeight: FontWeight.w900,
                       height: 1,
@@ -734,7 +1292,7 @@ class _TodayHabitQuickEntry extends StatelessWidget {
                 ],
               ),
               if (pendingHabits.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -745,7 +1303,7 @@ class _TodayHabitQuickEntry extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 for (final habit in pendingHabits)
                   _TodayHabitQuickLine(
                     habit: habit,
@@ -795,7 +1353,7 @@ class _TodayHabitQuickLine extends StatelessWidget {
               '${habit.emoji} ${habit.name}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
@@ -1035,24 +1593,15 @@ class _StageLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 10 : 12,
-        vertical: compact ? 5 : 6,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.14)),
-      ),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: colorScheme.primary,
-          fontWeight: FontWeight.w700,
-        ),
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: const Color(0xFF00E5FF),
+        fontSize: compact ? 10 : 11,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.2,
       ),
     );
   }
@@ -1072,7 +1621,6 @@ class _PrimaryActionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Material(
       color: Colors.transparent,
@@ -1085,12 +1633,12 @@ class _PrimaryActionPill extends StatelessWidget {
             vertical: compact ? 9 : 10,
           ),
           decoration: BoxDecoration(
-            color: colorScheme.primary.withValues(alpha: 0.86),
+            color: const Color(0xFF00E5FF),
             borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
             boxShadow: [
               BoxShadow(
-                color: colorScheme.primary.withValues(alpha: 0.14),
-                blurRadius: 18,
+                color: const Color(0xFF00E5FF).withValues(alpha: 0.18),
+                blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
             ],
@@ -1105,15 +1653,15 @@ class _PrimaryActionPill extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onPrimary,
-                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF001F24),
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Icon(
                 Icons.arrow_forward_rounded,
-                color: colorScheme.onPrimary,
+                color: const Color(0xFF001F24),
                 size: compact ? 17 : 18,
               ),
             ],
@@ -1184,45 +1732,73 @@ class _StageSignal extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final accent = label == '恢复'
+        ? const Color(0xFF00E5FF)
+        : label == '压力'
+        ? const Color(0xFF80FF2C)
+        : const Color(0xFFDCC8FF);
+    final indicatorValue = label == '恢复'
+        ? 0.72
+        : label == '压力'
+        ? 0.58
+        : 0.46;
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 80),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E0E0E).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 15, color: const Color(0xFF00E5FF)),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.4,
+          SizedBox(
+            width: 58,
+            height: 58,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox.expand(
+                  child: CircularProgressIndicator(
+                    value: indicatorValue,
+                    strokeWidth: 3,
+                    strokeCap: StrokeCap.round,
+                    backgroundColor: Colors.white.withValues(alpha: 0.08),
+                    valueColor: AlwaysStoppedAnimation<Color>(accent),
                   ),
                 ),
-              ),
-            ],
+                Icon(
+                  icon,
+                  size: 13,
+                  color: accent.withValues(alpha: 0.78),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 18),
+                  child: SizedBox(
+                    width: 43,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 7),
           Text(
-            value,
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: colorScheme.onSurface,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontSize: 10,
               fontWeight: FontWeight.w900,
-              letterSpacing: 0,
+              letterSpacing: 0.8,
               height: 1,
             ),
           ),
@@ -1562,6 +2138,13 @@ String _localDateKey(DateTime value) {
   return '${local.year.toString().padLeft(4, '0')}-'
       '${local.month.toString().padLeft(2, '0')}-'
       '${local.day.toString().padLeft(2, '0')}';
+}
+
+String _compactDateLabel(String value) {
+  if (value.length >= 10) {
+    return '${value.substring(5, 7)}.${value.substring(8, 10)}';
+  }
+  return value;
 }
 
 String _focusTargetLabel(FocusTargetSnapshot target) {
