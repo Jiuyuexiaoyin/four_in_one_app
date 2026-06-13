@@ -191,6 +191,10 @@ class HabitReminderLocalNotificationService
   }
 
   Future<bool> _ensurePermissions({required bool requestPermission}) async {
+    if (kIsWeb) {
+      return false;
+    }
+
     if (Platform.isAndroid) {
       final androidImplementation = _notificationsPlugin
           .resolvePlatformSpecificImplementation<

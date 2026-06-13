@@ -108,7 +108,7 @@ class AppShell extends StatelessWidget {
               top: !showPageAppBar,
               bottom: false,
               child: Padding(
-                padding: EdgeInsets.only(bottom: showBottomNavigation ? 82 : 0),
+                padding: EdgeInsets.only(bottom: showBottomNavigation ? 66 : 0),
                 child: child,
               ),
             ),
@@ -163,13 +163,13 @@ class _ShellUtilityButton extends StatelessWidget {
         child: InkWell(
           key: const ValueKey('shell-settings-entry'),
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(15),
           child: Ink(
-            width: 42,
-            height: 42,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1B1B).withValues(alpha: 0.88),
-              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFF15191A).withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(15),
               border: Border.all(
                 color: Color.lerp(cyan, colorScheme.onSurface, 0.70)!
                     .withValues(alpha: 0.28),
@@ -186,16 +186,16 @@ class _ShellUtilityButton extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 Icon(
-                  Icons.settings_outlined,
-                  size: 20,
-                  color: AppThemeTokens.secondaryTextTone(colorScheme),
+                  Icons.person_outline_rounded,
+                  size: 15,
+                  color: colorScheme.onSurface.withValues(alpha: 0.86),
                 ),
                 Positioned(
-                  top: 10,
-                  right: 10,
+                  top: 7,
+                  right: 7,
                   child: Container(
-                    width: 5,
-                    height: 5,
+                    width: 4,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: cyan,
                       shape: BoxShape.circle,
@@ -256,41 +256,41 @@ class _PerformanceBottomNavigation extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 6),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xFF0E0E0E).withValues(alpha: 0.92),
           borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(24),
-            bottom: Radius.circular(24),
+            top: Radius.circular(14),
+            bottom: Radius.circular(14),
           ),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF00E5FF).withValues(alpha: 0.10),
-              blurRadius: 24,
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.08),
+              blurRadius: 18,
               spreadRadius: -12,
-              offset: const Offset(0, -4),
+              offset: const Offset(0, -3),
             ),
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 22,
-              offset: const Offset(0, 8),
+              color: Colors.black.withValues(alpha: 0.32),
+              blurRadius: 18,
+              offset: const Offset(0, 7),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(14),
           child: NavigationBarTheme(
             data: theme.navigationBarTheme.copyWith(
-              height: 68,
+              height: 54,
               backgroundColor: Colors.transparent,
-              indicatorColor: cyan.withValues(alpha: 0.13),
+              indicatorColor: cyan.withValues(alpha: 0.10),
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               iconTheme: WidgetStateProperty.resolveWith((states) {
                 final selected = states.contains(WidgetState.selected);
                 return IconThemeData(
-                  size: 20,
+                  size: 18,
                   color: selected
                       ? cyan
                       : AppThemeTokens.secondaryTextTone(
@@ -314,7 +314,7 @@ class _PerformanceBottomNavigation extends StatelessWidget {
                       : AppThemeTokens.secondaryTextTone(
                           colorScheme,
                         ).withValues(alpha: 0.70),
-                  fontSize: 10,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.1,
                   height: 1,

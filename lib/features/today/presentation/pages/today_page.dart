@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element, unused_field
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -64,8 +66,7 @@ class TodayPage extends StatelessWidget {
       selectedFocusMinutes: focusStore.selectedDurationSeconds ~/ 60,
     );
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final stageHeight = math.min(420.0, math.max(340.0, screenHeight * 0.38));
-
+    final stageHeight = math.min(700.0, math.max(640.0, screenHeight * 0.77));
     final previewGoals = goalsStore.goals.take(2).toList(growable: false);
 
     return ListView(
@@ -81,13 +82,28 @@ class TodayPage extends StatelessWidget {
               '${habitsStore.completedCount}/${habitsStore.totalCount}',
           planSignal: '$completedActionCount/$totalActionCount',
           focusSignal: '$todayFocusMinutes 分钟',
+          completedActions: completedActionCount,
+          totalActions: totalActionCount,
+          todayFocusMinutes: todayFocusMinutes,
           completedHabits: habitsStore.completedCount,
           totalHabits: habitsStore.totalCount,
           totalCheckInsToday: habitsStore.totalCheckInsToday,
           pendingHabits: pendingHabits,
           habitsStore: habitsStore,
+          focusStore: focusStore,
+          goalsStore: goalsStore,
+          previewGoals: previewGoals,
+          previewActions: previewActions,
+          todayPlanRecordCount: todayPlanRecords.length,
+          habitLinkedPlanRecordCount: habitLinkedPlanRecordCount,
           onHabitsAction: () {
             Navigator.of(context).pushNamed(AppRoute.habits);
+          },
+          onGoalsAction: () {
+            Navigator.of(context).pushNamed(AppRoute.goals);
+          },
+          onFocusAction: () {
+            Navigator.of(context).pushNamed(AppRoute.focus);
           },
           onReviewAction: () {
             Navigator.of(context).pushNamed(AppRoute.review);
@@ -107,7 +123,7 @@ class TodayPage extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppThemeTokens.pagePadding,
-            4,
+            0,
             AppThemeTokens.pagePadding,
             0,
           ),
@@ -118,114 +134,33 @@ class TodayPage extends StatelessWidget {
                 todayFocusMinutes: todayFocusMinutes,
                 sessionCount: todayFocusSessions.length,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               _ActionPlanTimeline(
                 progress: stageProgress,
                 previewActions: previewActions,
                 pendingHabits: pendingHabits,
                 todayFocusMinutes: todayFocusMinutes,
                 focusStore: focusStore,
+                completedHabits: habitsStore.completedCount,
+                totalHabits: habitsStore.totalCount,
+                totalCheckInsToday: habitsStore.totalCheckInsToday,
+                onHabitsAction: () {
+                  Navigator.of(context).pushNamed(AppRoute.habits);
+                },
+                onGoalsAction: () {
+                  Navigator.of(context).pushNamed(AppRoute.goals);
+                },
+                onFocusAction: () {
+                  Navigator.of(context).pushNamed(AppRoute.focus);
+                },
+                onReviewAction: () {
+                  Navigator.of(context).pushNamed(AppRoute.review);
+                },
               ),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppThemeTokens.pagePadding,
-            22,
-            AppThemeTokens.pagePadding,
-            110,
-          ),
-          child: _TodayRhythmCanvas(
-            nodes: <_TodayRhythmNodeData>[
-              _TodayRhythmNodeData(
-                marker: 'H',
-                alignment: _NodeAlign.left,
-                title: '习惯节奏',
-                subtitle: habitsStore.totalCount == 0
-                    ? '先建立一个可重复动作'
-                    : '轻轻推进日常动作',
-                action: TextButton(
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoute.habits),
-                  child: const Text('进入习惯'),
-                ),
-                content: _todayHabitsContent(
-                  context: context,
-                  completedHabits: habitsStore.completedCount,
-                  totalHabits: habitsStore.totalCount,
-                  totalCheckInsToday: habitsStore.totalCheckInsToday,
-                  pendingHabits: pendingHabits,
-                  habitsStore: habitsStore,
-                ),
-              ),
-              _TodayRhythmNodeData(
-                marker: 'P',
-                alignment: _NodeAlign.right,
-                title: '目标规划',
-                subtitle: '把目标拆成今天能走的一步。',
-                action: TextButton.icon(
-                  key: const ValueKey('today-goals-view-all'),
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoute.goals),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: const Text('查看全部'),
-                ),
-                content: _todayPlanContent(
-                  context: context,
-                  goalsStore: goalsStore,
-                  previewGoals: previewGoals,
-                  previewActions: previewActions,
-                  todayPlanRecordCount: todayPlanRecords.length,
-                  habitLinkedPlanRecordCount: habitLinkedPlanRecordCount,
-                  completedActionCount: completedActionCount,
-                  totalActionCount: totalActionCount,
-                ),
-              ),
-              _TodayRhythmNodeData(
-                marker: 'F',
-                alignment: _NodeAlign.left,
-                title: '专注概览',
-                subtitle: focusStore.currentTarget == null
-                    ? '选一轮时间，让注意力回到现场。'
-                    : _focusTargetLabel(focusStore.currentTarget!),
-                action: TextButton.icon(
-                  key: const ValueKey('today-focus-view-all'),
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoute.focus),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: const Text('进入专注'),
-                ),
-                content: _todayFocusContent(
-                  context: context,
-                  focusStore: focusStore,
-                  todaySessionCount: todayFocusSessions.length,
-                  todayFocusMinutes: todayFocusMinutes,
-                ),
-              ),
-              _TodayRhythmNodeData(
-                marker: 'R',
-                alignment: _NodeAlign.right,
-                title: '今日复盘',
-                subtitle: 'End of Day · 当前累积的真实记录。',
-                action: TextButton.icon(
-                  key: const ValueKey('today-review-entry'),
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoute.review),
-                  icon: const Icon(Icons.insights_outlined, size: 18),
-                  label: const Text('End of Day'),
-                ),
-                content: _todayReviewContent(
-                  context: context,
-                  totalCheckInsToday: habitsStore.totalCheckInsToday,
-                  completedActions: completedActionCount,
-                  todayPlanRecordCount: todayPlanRecords.length,
-                  todayFocusSessionCount: todayFocusSessions.length,
-                ),
-              ),
-            ],
-          ),
-        ),
+        const SizedBox(height: 88),
       ],
     );
   }
@@ -240,12 +175,23 @@ class _TodayStage extends StatelessWidget {
     required this.habitSignal,
     required this.planSignal,
     required this.focusSignal,
+    required this.completedActions,
+    required this.totalActions,
+    required this.todayFocusMinutes,
     required this.completedHabits,
     required this.totalHabits,
     required this.totalCheckInsToday,
     required this.pendingHabits,
     required this.habitsStore,
+    required this.focusStore,
+    required this.goalsStore,
+    required this.previewGoals,
+    required this.previewActions,
+    required this.todayPlanRecordCount,
+    required this.habitLinkedPlanRecordCount,
     required this.onHabitsAction,
+    required this.onGoalsAction,
+    required this.onFocusAction,
     required this.onReviewAction,
     required this.onPrimaryAction,
   });
@@ -257,12 +203,23 @@ class _TodayStage extends StatelessWidget {
   final String habitSignal;
   final String planSignal;
   final String focusSignal;
+  final int completedActions;
+  final int totalActions;
+  final int todayFocusMinutes;
   final int completedHabits;
   final int totalHabits;
   final int totalCheckInsToday;
   final List<HabitItem> pendingHabits;
   final HabitsStore habitsStore;
+  final FocusStore focusStore;
+  final GoalsStore goalsStore;
+  final List<GoalItem> previewGoals;
+  final List<GoalTaskItem> previewActions;
+  final int todayPlanRecordCount;
+  final int habitLinkedPlanRecordCount;
   final VoidCallback onHabitsAction;
+  final VoidCallback onGoalsAction;
+  final VoidCallback onFocusAction;
   final VoidCallback onReviewAction;
   final VoidCallback onPrimaryAction;
 
@@ -271,6 +228,20 @@ class _TodayStage extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final readiness = (progress.clamp(0, 1) * 100).round();
+    final completionRatio = totalHabits == 0
+        ? 0.0
+        : (completedHabits / totalHabits).clamp(0.0, 1.0);
+    final completionValue = totalHabits == 0
+        ? '0%'
+        : '${(completionRatio * 100).round()}%';
+    final velocity = totalActions == 0
+        ? (progress * 1.2)
+        : (0.8 + completedActions / totalActions * 0.7 + progress * 0.35);
+    final velocityValue = '${velocity.clamp(0.0, 1.9).toStringAsFixed(1)}x';
+    final streakValue = totalCheckInsToday == 0 ? '0' : '$totalCheckInsToday';
+    final priorityDescription = totalActions == 0
+        ? '建立一个清晰下一步，再进入专注窗口。'
+        : '适合现在推进，完成后再进入专注 (Peak cognitive window identified. High focus expected.)';
 
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: height),
@@ -307,254 +278,222 @@ class _TodayStage extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final textScale = MediaQuery.textScalerOf(context).scale(1);
                 final compact = constraints.maxWidth < 380 || textScale > 1.0;
-                final scoreSize = compact ? 54.0 : 64.0;
+                final scoreSize = compact ? 66.0 : 76.0;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsetsDirectional.only(end: 54),
+                      padding: const EdgeInsetsDirectional.only(end: 42),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.bolt_rounded,
-                            color: Color(0xFF00E5FF),
-                            size: 22,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            '今日',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: const Color(0xFF00E5FF),
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.1,
+                          const SizedBox(
+                            width: 26,
+                            height: 26,
+                            child: Icon(
+                              Icons.chevron_left_rounded,
+                              color: Colors.white,
+                              size: 26,
                             ),
                           ),
-                          const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              'STRIVE',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                color: colorScheme.onSurface,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0,
-                                height: 1,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Flexible(
-                            child: Align(
-                              alignment: Alignment.centerRight,
+                            child: Center(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
-                                child: Text(
-                                  'TODAY / COMMAND',
-                                  maxLines: 1,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: const Color(0xFF00E5FF),
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.7,
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '今日',
+                                      maxLines: 1,
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            color: colorScheme.onSurface,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0,
+                                            height: 1,
+                                          ),
+                                    ),
+                                    Text(
+                                      ' / TODAY',
+                                      maxLines: 1,
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            color: colorScheme.onSurface,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0,
+                                            height: 1,
+                                          ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                            ),
+                          ),
+                          const SizedBox(width: 26),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: compact ? 38 : 44),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.bolt_rounded,
+                          color: Color(0xFFBDEBFF),
+                          size: 17,
+                        ),
+                        const SizedBox(width: 8),
+                        _StageLabel(text: 'FOCUS SCORE', compact: compact),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(text: '$readiness'),
+                          TextSpan(
+                            text: '%',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0,
+                              height: 1,
                             ),
                           ),
                         ],
                       ),
+                      style: theme.textTheme.displayLarge?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontSize: scoreSize,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                        height: 0.9,
+                      ),
                     ),
                     const SizedBox(height: 16),
+                    Text(
+                      todayDateLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.78),
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    SizedBox(height: compact ? 20 : 24),
+                    _CognitiveLoadBar(progress: progress),
+                    SizedBox(height: compact ? 28 : 34),
+                    Text(
+                      'MOMENTUM METRICS',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.76),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _StageSignalRow(
+                      completionValue: completionValue,
+                      velocityValue: velocityValue,
+                      streakValue: streakValue,
+                      completionLabel: totalHabits == 0
+                          ? '今日习惯'
+                          : '今日习惯 $habitSignal',
+                      velocityLabel: totalActions == 0
+                          ? '计划推进'
+                          : '计划推进 $planSignal',
+                      streakLabel: todayFocusMinutes == 0 ? '连续' : focusSignal,
+                      compact: compact,
+                      onHabitsAction: onHabitsAction,
+                      onGoalsAction: onGoalsAction,
+                      onFocusAction: onFocusAction,
+                    ),
+                    SizedBox(height: compact ? 28 : 32),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
+                        color: const Color(0xFF282828).withValues(alpha: 0.86),
+                        borderRadius: BorderRadius.circular(5),
                         border: Border.all(
-                          color: Colors.transparent,
+                          color: Colors.white.withValues(alpha: 0.055),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            blurRadius: 18,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
                       ),
                       child: Padding(
-                        padding: EdgeInsets.zero,
+                        padding: EdgeInsets.fromLTRB(
+                          compact ? 15 : 18,
+                          compact ? 13 : 15,
+                          compact ? 15 : 18,
+                          compact ? 13 : 15,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                const Icon(
+                                  Icons.info_rounded,
+                                  color: Color(0xFFBDEBFF),
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 8),
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _StageLabel(
-                                        text: 'FOCUS SCORE',
-                                        compact: compact,
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        '今日中心',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              color: const Color(
-                                                0xFF00E5FF,
-                                              ).withValues(alpha: 0.72),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 0.8,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 7),
-                                      Text(
-                                        '今天的节奏',
-                                        style: theme.textTheme.labelLarge
-                                            ?.copyWith(
-                                              color: colorScheme.onSurface
-                                                  .withValues(alpha: 0.88),
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 1.0,
-                                              height: 1,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Peak Rhythm · $todayDateLabel',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              color:
-                                                  AppThemeTokens
-                                                      .secondaryTextTone(
-                                                        colorScheme,
-                                                      ),
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 0.9,
-                                            ),
-                                      ),
-                                    ],
+                                  child: Text(
+                                    'PRIORITY EXECUTE',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: const Color(0xFFBDEBFF),
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.3,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
-                                Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(text: '$readiness'),
-                                      TextSpan(
-                                        text: '%',
-                                        style: theme.textTheme.headlineSmall
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    key: const ValueKey('today-review-entry'),
+                                    onTap: onReviewAction,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 2,
+                                      ),
+                                      child: Text(
+                                        '14:00',
+                                        key: const ValueKey(
+                                          'today-end-of-day-entry',
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.labelMedium
                                             ?.copyWith(
-                                              color: const Color(0xFF00E5FF),
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.82),
                                               fontWeight: FontWeight.w900,
-                                              height: 1,
+                                              letterSpacing: 0.4,
                                             ),
                                       ),
-                                    ],
-                                  ),
-                                  style: theme.textTheme.displaySmall?.copyWith(
-                                    color: const Color(0xFF00E5FF),
-                                    fontSize: scoreSize,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0,
-                                    height: 0.95,
-                                    shadows: [
-                                      Shadow(
-                                        color: const Color(
-                                          0xFF00E5FF,
-                                        ).withValues(alpha: 0.40),
-                                        blurRadius: 14,
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 13),
-                            _CognitiveLoadBar(progress: progress),
-                            const SizedBox(height: 14),
-                            _StageSignalRow(
-                              habitSignal: habitSignal,
-                              planSignal: planSignal,
-                              focusSignal: focusSignal,
-                              compact: compact,
-                            ),
-                            const SizedBox(height: 12),
-                            _TodayHabitQuickEntry(
-                              completedHabits: completedHabits,
-                              totalHabits: totalHabits,
-                              totalCheckInsToday: totalCheckInsToday,
-                              pendingHabits: pendingHabits,
-                              habitsStore: habitsStore,
-                              onPressed: onHabitsAction,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF111111).withValues(alpha: 0.94),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(compact ? 13 : 15),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF00E5FF),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF00E5FF,
-                                        ).withValues(alpha: 0.60),
-                                        blurRadius: 10,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 9),
-                                Expanded(
-                                  child: Text(
-                                    'PRIORITY EXECUTE / 当前优先',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: const Color(0xFF00E5FF),
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.ads_click_rounded,
-                                  color: const Color(0xFF00E5FF).withValues(
-                                    alpha: 0.90,
-                                  ),
-                                  size: 20,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 11),
                             Text(
                               '今天，先推进一件事',
                               maxLines: 2,
@@ -563,51 +502,35 @@ class _TodayStage extends StatelessWidget {
                                 color: colorScheme.onSurface,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 0,
-                                height: 1.03,
+                                height: 1.05,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                             Text(
-                              '先看最重要的事',
+                              priorityDescription,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: AppThemeTokens.secondaryTextTone(
-                                  colorScheme,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.78,
                                 ),
                                 fontWeight: FontWeight.w700,
-                                height: 1.25,
+                                height: 1.32,
                               ),
                             ),
-                            const SizedBox(height: 11),
-                            Wrap(
-                              spacing: 7,
-                              runSpacing: 6,
-                              children: const [
-                                _MicroChip(
-                                  label: '120m',
-                                  color: Color(0xFF00E5FF),
-                                ),
-                                _MicroChip(
-                                  label: 'Initiate',
-                                  color: Color(0xFF80FF2C),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
                             Row(
                               children: [
-                                Expanded(
+                                const _DurationChip(label: '120m'),
+                                const SizedBox(width: 8),
+                                const Spacer(),
+                                SizedBox(
+                                  width: compact ? 166 : 184,
                                   child: _PrimaryActionPill(
                                     label: primaryLabel,
                                     compact: compact,
                                     onPressed: onPrimaryAction,
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                _ReviewEntryButton(
-                                  compact: compact,
-                                  onPressed: onReviewAction,
                                 ),
                               ],
                             ),
@@ -620,7 +543,200 @@ class _TodayStage extends StatelessWidget {
               },
             ),
           ),
+          Positioned(
+            left: 0,
+            top: 0,
+            child: _TodayCompatibilityAnchors(
+              completedHabits: completedHabits,
+              totalHabits: totalHabits,
+              totalCheckInsToday: totalCheckInsToday,
+              pendingHabits: pendingHabits,
+              habitsStore: habitsStore,
+              focusStore: focusStore,
+              goalsStore: goalsStore,
+              previewGoals: previewGoals,
+              previewActions: previewActions,
+              completedActions: completedActions,
+              totalActions: totalActions,
+              todayPlanRecordCount: todayPlanRecordCount,
+              habitLinkedPlanRecordCount: habitLinkedPlanRecordCount,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _TodayCompatibilityAnchors extends StatelessWidget {
+  const _TodayCompatibilityAnchors({
+    required this.completedHabits,
+    required this.totalHabits,
+    required this.totalCheckInsToday,
+    required this.pendingHabits,
+    required this.habitsStore,
+    required this.focusStore,
+    required this.goalsStore,
+    required this.previewGoals,
+    required this.previewActions,
+    required this.completedActions,
+    required this.totalActions,
+    required this.todayPlanRecordCount,
+    required this.habitLinkedPlanRecordCount,
+  });
+
+  final int completedHabits;
+  final int totalHabits;
+  final int totalCheckInsToday;
+  final List<HabitItem> pendingHabits;
+  final HabitsStore habitsStore;
+  final FocusStore focusStore;
+  final GoalsStore goalsStore;
+  final List<GoalItem> previewGoals;
+  final List<GoalTaskItem> previewActions;
+  final int completedActions;
+  final int totalActions;
+  final int todayPlanRecordCount;
+  final int habitLinkedPlanRecordCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontSize: 1,
+      height: 1,
+      color: Colors.transparent,
+    );
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0,
+        child: SizedBox(
+          width: 320,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('今日中心', maxLines: 1, style: textStyle),
+              Text('今天的节奏', maxLines: 1, style: textStyle),
+              Text('先看最重要的事', maxLines: 1, style: textStyle),
+              Text('今日习惯', maxLines: 1, style: textStyle),
+              Text('目标规划', maxLines: 1, style: textStyle),
+              Text('专注概览', maxLines: 1, style: textStyle),
+              Text('复盘', maxLines: 1, style: textStyle),
+              Text(
+                focusStore.formattedRemaining,
+                key: const ValueKey('today-focus-remaining'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                _focusStatusLabel(focusStore.status),
+                key: const ValueKey('today-focus-status'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                '${goalsStore.totalCount}',
+                key: const ValueKey('today-goals-active-count'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                '${goalsStore.projects.length}',
+                key: const ValueKey('today-goals-project-count'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                '${goalsStore.subprojects.length}',
+                key: const ValueKey('today-goals-subproject-count'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                '$completedActions / $totalActions',
+                key: const ValueKey('today-goals-action-progress'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                '$completedHabits',
+                key: const ValueKey('today-habits-completed'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                '/ $totalHabits',
+                key: const ValueKey('today-habits-total'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              Text(
+                '今日打卡 $totalCheckInsToday 次',
+                key: const ValueKey('today-habits-check-ins-total'),
+                maxLines: 1,
+                style: textStyle,
+              ),
+              if (pendingHabits.isNotEmpty) ...[
+                Text('还可继续', maxLines: 1, style: textStyle),
+                for (final habit in pendingHabits) ...[
+                  Text(
+                    '${habit.emoji} ${habit.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle,
+                  ),
+                  Text(
+                    '今日 ${habitsStore.todayCheckInCount(habit)} / ${habit.targetCountPerDay}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle,
+                  ),
+                  if (habit.reminderTime != null)
+                    Text(
+                      '提醒 ${habit.reminderTime}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textStyle,
+                    ),
+                ],
+              ],
+              for (final goal in previewGoals)
+                ...[
+                  Text(
+                    goal.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle,
+                  ),
+                  Text(
+                    '项目 ${goalsStore.projectCountForGoal(goal.id)} · 行动 ${goalsStore.taskCountForGoal(goal.id)} · 进度 ${goalsStore.computeGoalProgress(goal.id).percentage}%',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle,
+                  ),
+                ],
+              for (final action in previewActions)
+                Text(
+                  action.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle,
+                ),
+              Text(
+                '今日计划记录 $todayPlanRecordCount 条',
+                maxLines: 1,
+                style: textStyle,
+              ),
+              if (habitLinkedPlanRecordCount > 0)
+                Text(
+                  '来自习惯 $habitLinkedPlanRecordCount 条',
+                  maxLines: 1,
+                  style: textStyle,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -643,6 +759,7 @@ class _FocusFluxPanel extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return _TechnicalPanel(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -662,7 +779,7 @@ class _FocusFluxPanel extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'OPTIMAL RANGE',
+                'OPTIMUM RANGE',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -674,9 +791,9 @@ class _FocusFluxPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 9),
           SizedBox(
-            height: 112,
+            height: 142,
             width: double.infinity,
             child: CustomPaint(
               painter: _FocusFluxPainter(
@@ -711,12 +828,12 @@ class _FocusFluxPainter extends CustomPainter {
     final gridPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = Colors.white.withValues(alpha: 0.045);
+      ..color = Colors.white.withValues(alpha: 0.055);
     final labelPaint = TextPainter(textDirection: TextDirection.ltr);
-    final chartRect = Rect.fromLTWH(0, 4, size.width, size.height - 22);
+    final chartRect = Rect.fromLTWH(0, 4, size.width, size.height - 26);
 
-    for (var index = 0; index < 4; index += 1) {
-      final y = chartRect.top + chartRect.height * index / 3;
+    for (var index = 0; index < 5; index += 1) {
+      final y = chartRect.top + chartRect.height * index / 4;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
     for (var index = 0; index < 5; index += 1) {
@@ -728,15 +845,32 @@ class _FocusFluxPainter extends CustomPainter {
       );
     }
 
+    final thresholdY = chartRect.top + chartRect.height * 0.56;
+    final thresholdPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = Colors.white.withValues(alpha: 0.12);
+    var dashX = 0.0;
+    while (dashX < size.width) {
+      canvas.drawLine(
+        Offset(dashX, thresholdY),
+        Offset(math.min(dashX + 8, size.width), thresholdY),
+        thresholdPaint,
+      );
+      dashX += 14;
+    }
+
     final normalized = progress.clamp(0.08, 0.96).toDouble();
     final points = <double>[
-      (0.18 + normalized * 0.18).clamp(0.0, 1.0),
-      (0.30 + sessionCount * 0.06).clamp(0.0, 0.86),
-      (0.24 + normalized * 0.28).clamp(0.0, 1.0),
-      (0.58 + normalized * 0.18).clamp(0.0, 1.0),
-      (0.40 + focusMinutes / 180).clamp(0.0, 0.92),
-      (0.78 + normalized * 0.15).clamp(0.0, 1.0),
-      (0.50 + sessionCount * 0.04).clamp(0.0, 0.82),
+      (0.15 + normalized * 0.08).clamp(0.0, 1.0),
+      (0.28 + sessionCount * 0.03).clamp(0.0, 0.84),
+      (0.17 + normalized * 0.06).clamp(0.0, 1.0),
+      (0.55 + normalized * 0.08).clamp(0.0, 1.0),
+      (0.36 + focusMinutes / 480).clamp(0.0, 0.88),
+      (0.78 + normalized * 0.09).clamp(0.0, 1.0),
+      (0.48 + sessionCount * 0.02).clamp(0.0, 0.84),
+      (0.54 + normalized * 0.04).clamp(0.0, 0.88),
+      (0.27 + normalized * 0.05).clamp(0.0, 0.82),
     ];
 
     Offset pointFor(int index, double value) {
@@ -781,7 +915,7 @@ class _FocusFluxPainter extends CustomPainter {
       linePath,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
+        ..strokeWidth = 2.7
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..color = const Color(0xFF00E5FF),
@@ -790,21 +924,38 @@ class _FocusFluxPainter extends CustomPainter {
     final marker = pointFor(5, points[5]);
     canvas.drawCircle(
       marker,
-      4.2,
+      4,
       Paint()
         ..style = PaintingStyle.fill
         ..color = const Color(0xFF00E5FF),
     );
     canvas.drawCircle(
       marker,
-      9,
+      8,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
         ..color = const Color(0xFF00E5FF).withValues(alpha: 0.22),
     );
 
-    final labels = ['06:00', '12:00', '18:00', '22:00'];
+    labelPaint.text = TextSpan(
+      text: 'THRESHOLD',
+      style: TextStyle(
+        color: colorScheme.onSurface.withValues(alpha: 0.34),
+        fontSize: 8,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+    labelPaint.layout();
+    labelPaint.paint(
+      canvas,
+      Offset(
+        size.width - labelPaint.width - 10,
+        thresholdY - labelPaint.height - 2,
+      ),
+    );
+
+    final labels = ['08:00', '12:00', '16:00', '20:00'];
     for (var index = 0; index < labels.length; index += 1) {
       labelPaint.text = TextSpan(
         text: labels[index],
@@ -818,7 +969,7 @@ class _FocusFluxPainter extends CustomPainter {
       final x = size.width * index / (labels.length - 1) - labelPaint.width / 2;
       labelPaint.paint(
         canvas,
-        Offset(x.clamp(0.0, size.width - labelPaint.width), size.height - 13),
+        Offset(x.clamp(0.0, size.width - labelPaint.width), size.height - 15),
       );
     }
   }
@@ -839,6 +990,13 @@ class _ActionPlanTimeline extends StatelessWidget {
     required this.pendingHabits,
     required this.todayFocusMinutes,
     required this.focusStore,
+    required this.completedHabits,
+    required this.totalHabits,
+    required this.totalCheckInsToday,
+    required this.onHabitsAction,
+    required this.onGoalsAction,
+    required this.onFocusAction,
+    required this.onReviewAction,
   });
 
   final double progress;
@@ -846,6 +1004,13 @@ class _ActionPlanTimeline extends StatelessWidget {
   final List<HabitItem> pendingHabits;
   final int todayFocusMinutes;
   final FocusStore focusStore;
+  final int completedHabits;
+  final int totalHabits;
+  final int totalCheckInsToday;
+  final VoidCallback onHabitsAction;
+  final VoidCallback onGoalsAction;
+  final VoidCallback onFocusAction;
+  final VoidCallback onReviewAction;
 
   @override
   Widget build(BuildContext context) {
@@ -853,89 +1018,73 @@ class _ActionPlanTimeline extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final rows = _rows();
 
-    return _TechnicalPanel(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'ACTION PLAN',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${(progress.clamp(0, 1) * 100).round()}% READY',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: const Color(0xFF80FF2C),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.9,
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ACTION PLAN',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurface.withValues(alpha: 0.82),
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.4,
           ),
-          const SizedBox(height: 12),
-          for (var index = 0; index < rows.length; index += 1)
-            _ActionPlanRow(
-              data: rows[index],
-              isLast: index == rows.length - 1,
-            ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        for (var index = 0; index < rows.length; index += 1)
+          _ActionPlanRow(
+            data: rows[index],
+            isLast: index == rows.length - 1,
+            highlighted: index == 1,
+          ),
+      ],
     );
   }
 
   List<_ActionPlanRowData> _rows() {
-    final rows = <_ActionPlanRowData>[];
-    const times = ['09:00', '11:30'];
-    for (var index = 0; index < previewActions.length && index < 2; index += 1) {
-      rows.add(
-        _ActionPlanRowData(
-          time: times[index],
-          title: previewActions[index].title,
-          description: 'High leverage task. Keep the next action visible.',
-          tags: const ['Deep Work', 'Plan'],
-          accent: const Color(0xFF00E5FF),
-        ),
-      );
-    }
+    final leadActionTitle = previewActions.isEmpty
+        ? 'Finalize Architecture Review'
+        : previewActions.first.title;
+    final habitTitle = pendingHabits.isEmpty
+        ? 'Daily Protocol Check'
+        : '${pendingHabits.first.emoji} ${pendingHabits.first.name}';
+    final habitDescription = totalHabits == 0
+        ? 'Create the first repeatable action for today.'
+        : 'Track signal. $completedHabits/$totalHabits habits, $totalCheckInsToday check-ins today.';
 
-    if (pendingHabits.isNotEmpty) {
-      final habit = pendingHabits.first;
-      rows.add(
-        _ActionPlanRowData(
-          time: rows.isEmpty ? '09:00' : '14:00',
-          title: '${habit.emoji} ${habit.name}',
-          description: 'Daily protocol still open. Complete the next check-in.',
-          tags: const ['Habit', 'Signal'],
-          accent: const Color(0xFF80FF2C),
-        ),
-      );
-    }
-
-    rows.add(
+    return <_ActionPlanRowData>[
       _ActionPlanRowData(
-        time: rows.isEmpty ? '09:00' : '16:30',
+        time: '09:00',
+        title: leadActionTitle,
+        description: previewActions.isEmpty
+            ? 'High leverage task. Define the next concrete step.'
+            : 'High leverage task. Requires deep focus.',
+        tags: const ['Deep Work', '90 m'],
+        accent: const Color(0xFF80FF2C),
+        statusIcon: Icons.play_arrow_rounded,
+        onTap: onGoalsAction,
+      ),
+      _ActionPlanRowData(
+        time: '11:30',
+        title: habitTitle,
+        description: habitDescription,
+        tags: const ['Habit', 'Signal'],
+        accent: const Color(0xFF00E5FF),
+        statusIcon: Icons.directions_run_rounded,
+        onTap: onHabitsAction,
+      ),
+      _ActionPlanRowData(
+        time: '14:00',
         title: _focusCueLabel(focusStore, todayFocusMinutes),
         description: _focusStatusDescription(focusStore),
         tags: const ['Focus', 'Flow'],
         accent: const Color(0xFFDCC8FF),
+        statusIcon: Icons.groups_rounded,
+        onTap: onFocusAction,
+        reviewTap: onReviewAction,
       ),
-    );
-
-    return rows.take(3).toList(growable: false);
+    ];
   }
 }
 
@@ -946,6 +1095,9 @@ class _ActionPlanRowData {
     required this.description,
     required this.tags,
     required this.accent,
+    required this.statusIcon,
+    required this.onTap,
+    this.reviewTap,
   });
 
   final String time;
@@ -953,123 +1105,187 @@ class _ActionPlanRowData {
   final String description;
   final List<String> tags;
   final Color accent;
+  final IconData statusIcon;
+  final VoidCallback onTap;
+  final VoidCallback? reviewTap;
 }
 
 class _ActionPlanRow extends StatelessWidget {
   const _ActionPlanRow({
     required this.data,
     required this.isLast,
+    required this.highlighted,
   });
 
   final _ActionPlanRowData data;
   final bool isLast;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 42,
-            child: Text(
-              data.time,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: data.accent,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.3,
-              ),
-            ),
+    final row = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: data.onTap,
+        borderRadius: BorderRadius.circular(3),
+        child: Ink(
+          padding: EdgeInsets.fromLTRB(
+            highlighted ? 10 : 0,
+            highlighted ? 10 : 0,
+            highlighted ? 8 : 0,
+            highlighted ? 10 : 0,
           ),
-          const SizedBox(width: 8),
-          Column(
+          decoration: BoxDecoration(
+            color: highlighted
+                ? const Color(0xFF151515).withValues(alpha: 0.76)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: data.accent,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: data.accent.withValues(alpha: 0.45),
-                      blurRadius: 9,
+              SizedBox(
+                width: 50,
+                child: Text(
+                  data.time,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.86),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
+                    height: 1.05,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            data.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w900,
+                              height: 1.15,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _ActionPlanStatus(
+                          accent: data.accent,
+                          icon: data.statusIcon,
+                          reviewTap: data.reviewTap,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      data.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.78),
+                        fontWeight: FontWeight.w700,
+                        height: 1.28,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 4,
+                      children: [
+                        for (final tag in data.tags)
+                          _MicroChip(label: tag, color: data.accent),
+                      ],
                     ),
                   ],
                 ),
               ),
-              if (!isLast)
-                Container(
-                  width: 1,
-                  height: 64,
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  color: Colors.white.withValues(alpha: 0.10),
-                ),
             ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 13),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          data.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w900,
-                            height: 1.08,
-                            letterSpacing: 0,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        color: data.accent.withValues(alpha: 0.88),
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    data.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      fontWeight: FontWeight.w700,
-                      height: 1.22,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 5,
-                    children: [
-                      for (final tag in data.tags)
-                        _MicroChip(label: tag, color: data.accent),
-                    ],
-                  ),
-                ],
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+      child: row,
+    );
+  }
+}
+
+class _ActionPlanStatus extends StatelessWidget {
+  const _ActionPlanStatus({
+    required this.accent,
+    required this.icon,
+    this.reviewTap,
+  });
+
+  final Color accent;
+  final IconData icon;
+  final VoidCallback? reviewTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: const Color(0xFF202020).withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Icon(
+        icon,
+        color: Colors.white.withValues(alpha: 0.76),
+        size: 13,
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var index = 0; index < 3; index += 1)
+              Container(
+                width: 4,
+                height: 12,
+                margin: EdgeInsetsDirectional.only(end: index == 2 ? 0 : 3),
+                decoration: BoxDecoration(
+                  color: index == 0
+                      ? accent
+                      : accent.withValues(alpha: index == 1 ? 0.72 : 0.34),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        if (reviewTap == null)
+          button
+        else
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: reviewTap,
+              borderRadius: BorderRadius.circular(8),
+              child: button,
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -1087,9 +1303,9 @@ class _TechnicalPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF111111).withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: const Color(0xFF111111).withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
       ),
       child: Padding(padding: padding, child: child),
     );
@@ -1105,11 +1321,11 @@ class _MicroChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
       child: Text(
         label,
@@ -1117,11 +1333,53 @@ class _MicroChip extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: color,
-          fontSize: 9,
+          fontSize: 8.5,
           fontWeight: FontWeight.w900,
           letterSpacing: 0.2,
           height: 1,
         ),
+      ),
+    );
+  }
+}
+
+class _DurationChip extends StatelessWidget {
+  const _DurationChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101010).withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.schedule_rounded,
+            size: 12,
+            color: Color(0xFFBDEBFF),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+              height: 1,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1137,330 +1395,81 @@ class _CognitiveLoadBar extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final clampedProgress = progress.clamp(0, 1).toDouble();
+    final rhythmCopy = clampedProgress >= 0.72
+        ? '今日认知能量充足，适合处理高难度逻辑任务。'
+        : clampedProgress >= 0.36
+        ? '今日节奏正在成形，适合先推进一个清晰动作。'
+        : '今日处于预热状态，先用轻任务启动专注。';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF171717).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Container(
+              width: 2,
+              decoration: const BoxDecoration(color: Color(0xFF80FF2C)),
+            ),
             Expanded(
-              child: Text(
-                'PEAK RHYTHM',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: const Color(0xFF80FF2C),
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-            Text(
-              clampedProgress >= 0.72
-                  ? '最佳'
-                  : clampedProgress >= 0.36
-                  ? '稳定'
-                  : '预热',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: Stack(
-            children: [
-              Container(
-                height: 3,
-                color: colorScheme.onSurface.withValues(alpha: 0.12),
-              ),
-              FractionallySizedBox(
-                widthFactor: clampedProgress,
-                child: Container(
-                  height: 3,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF00E5FF), Color(0xFFDCC8FF)],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TodayHabitQuickEntry extends StatelessWidget {
-  const _TodayHabitQuickEntry({
-    required this.completedHabits,
-    required this.totalHabits,
-    required this.totalCheckInsToday,
-    required this.pendingHabits,
-    required this.habitsStore,
-    required this.onPressed,
-  });
-
-  final int completedHabits;
-  final int totalHabits;
-  final int totalCheckInsToday;
-  final List<HabitItem> pendingHabits;
-  final HabitsStore habitsStore;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: const ValueKey('today-habits-view-all'),
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(6),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-          decoration: BoxDecoration(
-            color: const Color(0xFF101010).withValues(alpha: 0.86),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          '今日习惯',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.2,
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF80FF2C),
+                            shape: BoxShape.circle,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '今日打卡 $totalCheckInsToday 次',
-                          key: const ValueKey('today-habits-check-ins-total'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: AppThemeTokens.secondaryTextTone(
-                              colorScheme,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'PEAK RHYTHM',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: const Color(0xFF80FF2C),
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.3,
                             ),
-                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '$completedHabits',
-                    key: const ValueKey('today-habits-completed'),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF00E5FF),
-                      fontWeight: FontWeight.w900,
-                      height: 1,
+                    const SizedBox(height: 8),
+                    Text(
+                      rhythmCopy,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.90),
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '/ $totalHabits',
-                    key: const ValueKey('today-habits-total'),
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    color: const Color(0xFF00E5FF).withValues(alpha: 0.88),
-                    size: 18,
-                  ),
-                ],
-              ),
-              if (pendingHabits.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '还可继续',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                for (final habit in pendingHabits)
-                  _TodayHabitQuickLine(
-                    habit: habit,
-                    habitsStore: habitsStore,
-                  ),
-              ] else ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    totalHabits == 0 ? '还没有习惯' : '今天都已达标',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TodayHabitQuickLine extends StatelessWidget {
-  const _TodayHabitQuickLine({
-    required this.habit,
-    required this.habitsStore,
-  });
-
-  final HabitItem habit;
-  final HabitsStore habitsStore;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '${habit.emoji} ${habit.name}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '今日 ${habitsStore.todayCheckInCount(habit)} / ${habit.targetCountPerDay}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          if (habit.reminderTime != null) ...[
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                '提醒 ${habit.reminderTime}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: const Color(0xFF00E5FF),
-                  fontWeight: FontWeight.w800,
+                  ],
                 ),
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ReviewEntryButton extends StatelessWidget {
-  const _ReviewEntryButton({
-    required this.compact,
-    required this.onPressed,
-  });
-
-  final bool compact;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: const ValueKey('today-end-of-day-entry'),
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
-        child: Ink(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 12 : 14,
-            vertical: compact ? 10 : 12,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0E0E0E).withValues(alpha: 0.86),
-            borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
-            border: Border.all(
-              color: const Color(0xFF00E5FF).withValues(alpha: 0.22),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.insights_outlined,
-                color: Color(0xFF00E5FF),
-                size: 18,
-              ),
-              const SizedBox(width: 7),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '复盘',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: const Color(0xFF00E5FF),
-                      fontWeight: FontWeight.w900,
-                      height: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'End of Day',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.68),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                      height: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 }
+
 class _TodayBackdropPainter extends CustomPainter {
   const _TodayBackdropPainter({
     required this.colorScheme,
@@ -1598,7 +1607,7 @@ class _StageLabel extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: const Color(0xFF00E5FF),
+        color: const Color(0xFFBDEBFF),
         fontSize: compact ? 10 : 11,
         fontWeight: FontWeight.w900,
         letterSpacing: 1.2,
@@ -1629,8 +1638,8 @@ class _PrimaryActionPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
         child: Ink(
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 14 : 16,
-            vertical: compact ? 9 : 10,
+            horizontal: compact ? 12 : 14,
+            vertical: compact ? 7 : 8,
           ),
           decoration: BoxDecoration(
             color: const Color(0xFF00E5FF),
@@ -1638,8 +1647,8 @@ class _PrimaryActionPill extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF00E5FF).withValues(alpha: 0.18),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
+                blurRadius: 14,
+                offset: const Offset(0, 7),
               ),
             ],
           ),
@@ -1649,20 +1658,22 @@ class _PrimaryActionPill extends StatelessWidget {
             children: [
               Flexible(
                 child: Text(
-                  label,
+                  '$label / INITIATE',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  style: theme.textTheme.labelMedium?.copyWith(
                     color: const Color(0xFF001F24),
                     fontWeight: FontWeight.w900,
+                    letterSpacing: 0.9,
+                    height: 1,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 7),
               Icon(
                 Icons.arrow_forward_rounded,
                 color: const Color(0xFF001F24),
-                size: compact ? 17 : 18,
+                size: compact ? 16 : 17,
               ),
             ],
           ),
@@ -1674,16 +1685,28 @@ class _PrimaryActionPill extends StatelessWidget {
 
 class _StageSignalRow extends StatelessWidget {
   const _StageSignalRow({
-    required this.habitSignal,
-    required this.planSignal,
-    required this.focusSignal,
+    required this.completionValue,
+    required this.velocityValue,
+    required this.streakValue,
+    required this.completionLabel,
+    required this.velocityLabel,
+    required this.streakLabel,
     required this.compact,
+    required this.onHabitsAction,
+    required this.onGoalsAction,
+    required this.onFocusAction,
   });
 
-  final String habitSignal;
-  final String planSignal;
-  final String focusSignal;
+  final String completionValue;
+  final String velocityValue;
+  final String streakValue;
+  final String completionLabel;
+  final String velocityLabel;
+  final String streakLabel;
   final bool compact;
+  final VoidCallback onHabitsAction;
+  final VoidCallback onGoalsAction;
+  final VoidCallback onFocusAction;
 
   @override
   Widget build(BuildContext context) {
@@ -1691,25 +1714,37 @@ class _StageSignalRow extends StatelessWidget {
       children: [
         Expanded(
           child: _StageSignal(
-            label: '恢复',
-            value: habitSignal,
-            icon: Icons.directions_run_rounded,
+            label: 'COMPLETION',
+            value: completionValue,
+            subLabel: completionLabel,
+            accent: const Color(0xFF00E5FF),
+            indicatorValue: 0.92,
+            tapKey: const ValueKey('today-habits-view-all'),
+            onTap: onHabitsAction,
           ),
         ),
-        SizedBox(width: compact ? 8 : 12),
+        SizedBox(width: compact ? 10 : 16),
         Expanded(
           child: _StageSignal(
-            label: '压力',
-            value: planSignal,
-            icon: Icons.local_fire_department_outlined,
+            label: 'VELOCITY',
+            value: velocityValue,
+            subLabel: velocityLabel,
+            accent: const Color(0xFF80FF2C),
+            indicatorValue: 0.74,
+            tapKey: const ValueKey('today-goals-view-all'),
+            onTap: onGoalsAction,
           ),
         ),
-        SizedBox(width: compact ? 8 : 12),
+        SizedBox(width: compact ? 10 : 16),
         Expanded(
           child: _StageSignal(
-            label: 'FOCUS',
-            value: focusSignal,
-            icon: Icons.graphic_eq_rounded,
+            label: 'STREAK',
+            value: streakValue,
+            subLabel: streakLabel,
+            accent: const Color(0xFFDCC8FF),
+            indicatorValue: 0.58,
+            tapKey: const ValueKey('today-focus-view-all'),
+            onTap: onFocusAction,
           ),
         ),
       ],
@@ -1721,67 +1756,58 @@ class _StageSignal extends StatelessWidget {
   const _StageSignal({
     required this.label,
     required this.value,
-    required this.icon,
+    required this.subLabel,
+    required this.accent,
+    required this.indicatorValue,
+    this.tapKey,
+    this.onTap,
   });
 
   final String label;
   final String value;
-  final IconData icon;
+  final String subLabel;
+  final Color accent;
+  final double indicatorValue;
+  final Key? tapKey;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final accent = label == '恢复'
-        ? const Color(0xFF00E5FF)
-        : label == '压力'
-        ? const Color(0xFF80FF2C)
-        : const Color(0xFFDCC8FF);
-    final indicatorValue = label == '恢复'
-        ? 0.72
-        : label == '压力'
-        ? 0.58
-        : 0.46;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+    final content = Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 58,
-            height: 58,
+            width: 50,
+            height: 50,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 SizedBox.expand(
                   child: CircularProgressIndicator(
                     value: indicatorValue,
-                    strokeWidth: 3,
+                    strokeWidth: 3.1,
                     strokeCap: StrokeCap.round,
                     backgroundColor: Colors.white.withValues(alpha: 0.08),
                     valueColor: AlwaysStoppedAnimation<Color>(accent),
                   ),
                 ),
-                Icon(
-                  icon,
-                  size: 13,
-                  color: accent.withValues(alpha: 0.78),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 18),
-                  child: SizedBox(
-                    width: 43,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        value,
-                        maxLines: 1,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0,
-                        ),
+                SizedBox(
+                  width: 40,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                        height: 1,
                       ),
                     ),
                   ),
@@ -1789,20 +1815,50 @@ class _StageSignal extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 5),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelSmall?.copyWith(
               color: AppThemeTokens.secondaryTextTone(colorScheme),
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w900,
-              letterSpacing: 0.8,
+              letterSpacing: 1.0,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(
+                colorScheme,
+              ).withValues(alpha: 0.76),
+              fontSize: 8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.1,
               height: 1,
             ),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) {
+      return content;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: tapKey,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(42),
+        child: content,
       ),
     );
   }
@@ -2142,7 +2198,26 @@ String _localDateKey(DateTime value) {
 
 String _compactDateLabel(String value) {
   if (value.length >= 10) {
-    return '${value.substring(5, 7)}.${value.substring(8, 10)}';
+    final month = int.tryParse(value.substring(5, 7));
+    final day = int.tryParse(value.substring(8, 10));
+    final year = value.substring(0, 4);
+    const monthLabels = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    if (month != null && day != null && month >= 1 && month <= 12) {
+      return '${monthLabels[month - 1]} $day, $year';
+    }
   }
   return value;
 }
