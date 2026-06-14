@@ -33,7 +33,11 @@ class AppShell extends StatelessWidget {
         colorScheme.surface;
     final selectedIndex = currentIndex.clamp(0, _routes.length - 1).toInt();
     final usesInlineChrome =
-        showBottomNavigation && (selectedIndex == 0 || selectedIndex == 2);
+        showBottomNavigation &&
+        (selectedIndex == 0 ||
+            selectedIndex == 1 ||
+            selectedIndex == 2 ||
+            selectedIndex == 3);
     final showPageAppBar = !usesInlineChrome;
 
     return Scaffold(
@@ -126,6 +130,15 @@ class AppShell extends StatelessWidget {
                 ),
               ),
             ),
+          if (usesInlineChrome && Navigator.of(context).canPop())
+            PositionedDirectional(
+              top: 12,
+              start: 18,
+              child: SafeArea(
+                bottom: false,
+                child: _ShellBackButton(onPressed: Navigator.of(context).pop),
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: showBottomNavigation
@@ -142,6 +155,46 @@ class AppShell extends StatelessWidget {
               ),
             )
           : null,
+    );
+  }
+}
+
+class _ShellBackButton extends StatelessWidget {
+  const _ShellBackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    const cyan = Color(0xFF00E5FF);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: MaterialLocalizations.of(context).backButtonTooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(15),
+          child: Ink(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: const Color(0xFF15191A).withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: Color.lerp(cyan, colorScheme.onSurface, 0.70)!
+                    .withValues(alpha: 0.24),
+              ),
+            ),
+            child: Icon(
+              Icons.arrow_back_rounded,
+              size: 16,
+              color: colorScheme.onSurface.withValues(alpha: 0.86),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

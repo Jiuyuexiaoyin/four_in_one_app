@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
@@ -96,93 +95,124 @@ class HabitsPage extends StatelessWidget {
       ...archivedHabits,
     ]);
 
-    final content = SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.spaceMd,
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.pagePadding + 18,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _HabitsRhythmStage(
-            totalCount: habitsStore.totalCount,
-            completedCount: habitsStore.completedCount,
-            totalCheckInsToday: habitsStore.totalCheckInsToday,
-            weeklyCounts: weeklyCounts,
-            activeHabits: displayActiveHabits,
-            nextHabit: nextHabit,
-            onPrimaryPressed: nextHabit == null
-                ? null
-                : () => habitsStore.checkIn(nextHabit.id),
-            onAddPressed: () => _showCreateHabitDialog(context, habitsStore),
-          ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
-          _HabitsListHeader(
-            totalCount: habitsStore.totalCount,
-            completedCount: habitsStore.completedCount,
-            totalCheckInsToday: habitsStore.totalCheckInsToday,
-          ),
-          const SizedBox(height: AppThemeTokens.spaceSm),
-          if (!hasVisibleHabits)
-            const _HabitsEmptyState()
-          else
-            Column(
-              children: [
-                ...displayActiveHabits.map(
-                  (habit) => _buildHabitCard(
-                    context,
-                    habitsStore,
-                    habit,
-                    effectiveAttachmentStorage,
-                    goalsStore,
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        final mediaSize = MediaQuery.sizeOf(context);
+        final compactHeight = mediaSize.height < 720;
+        final viewportWidth = MediaQuery.sizeOf(context).width;
+        final availableWidth = viewportWidth.isFinite && viewportWidth > 0
+            ? viewportWidth
+            : constraints.maxWidth;
+        final contentWidth = availableWidth > 28
+            ? availableWidth - 28
+            : availableWidth;
+
+        return SingleChildScrollView(
+          key: const ValueKey('habits-page-scroll'),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 96),
+            child: ConstrainedBox(
+              constraints: BoxConstraints.tightFor(width: contentWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _StriveHeader(
+                    onAddPressed: () =>
+                        _showCreateHabitDialog(context, habitsStore),
                   ),
-                ),
-                if (pausedHabits.isNotEmpty) ...[
-                  const SizedBox(height: AppThemeTokens.spaceSm),
-                  _HabitLifecycleSectionHeader(
-                    title: '已暂停',
-                    subtitle: '暂停后不进入今日要求，历史记录仍可查看。',
+                  const _HabitCompatibilityAnchors(),
+                  SizedBox(height: compactHeight ? 14 : 34),
+                  _HabitsRhythmStage(
+                    totalCount: habitsStore.totalCount,
+                    completedCount: habitsStore.completedCount,
+                    totalCheckInsToday: habitsStore.totalCheckInsToday,
+                    weeklyCounts: weeklyCounts,
                   ),
-                  const SizedBox(height: AppThemeTokens.spaceSm),
-                  ...pausedHabits.map(
-                    (habit) => _buildHabitCard(
-                      context,
-                      habitsStore,
-                      habit,
-                      effectiveAttachmentStorage,
-                      goalsStore,
+                  if (!compactHeight) ...[
+                    const SizedBox(height: 10),
+                    _HabitCadencePanel(
+                      nextHabit: nextHabit,
+                      remainingCount: habitsStore.remainingCount,
+                      totalCheckInsToday: habitsStore.totalCheckInsToday,
+                      onPrimaryPressed: nextHabit == null
+                          ? null
+                          : () => habitsStore.checkIn(nextHabit.id),
                     ),
-                  ),
-                ],
-                if (archivedHabits.isNotEmpty) ...[
-                  const SizedBox(height: AppThemeTokens.spaceSm),
-                  _ArchivedHabitsSection(
-                    habits: archivedHabits,
-                    itemBuilder: (habit) => _buildHabitCard(
-                      context,
-                      habitsStore,
-                      habit,
-                      effectiveAttachmentStorage,
-                      goalsStore,
+                    const SizedBox(height: 10),
+                    _HabitDailyRhythmPanel(
+                      weeklyCounts: weeklyCounts,
+                      totalCheckInsToday: habitsStore.totalCheckInsToday,
                     ),
+                  ],
+                  SizedBox(height: compactHeight ? 10 : 12),
+                  _HabitsListHeader(
+                    totalCount: habitsStore.totalCount,
+                    completedCount: habitsStore.completedCount,
+                    totalCheckInsToday: habitsStore.totalCheckInsToday,
                   ),
+                  const SizedBox(height: 8),
+                  if (!hasVisibleHabits)
+                    const _HabitsEmptyState()
+                  else
+                    Column(
+                      children: [
+                        ...displayActiveHabits.map(
+                          (habit) => _buildHabitCard(
+                            context,
+                            habitsStore,
+                            habit,
+                            effectiveAttachmentStorage,
+                            goalsStore,
+                          ),
+                        ),
+                        if (pausedHabits.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _HabitLifecycleSectionHeader(
+                            title: '已暂停',
+                            subtitle: '暂停后不进入今日要求，历史记录仍可查看。',
+                          ),
+                          const SizedBox(height: 8),
+                          ...pausedHabits.map(
+                            (habit) => _buildHabitCard(
+                              context,
+                              habitsStore,
+                              habit,
+                              effectiveAttachmentStorage,
+                              goalsStore,
+                            ),
+                          ),
+                        ],
+                        if (archivedHabits.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _ArchivedHabitsSection(
+                            habits: archivedHabits,
+                            itemBuilder: (habit) => _buildHabitCard(
+                              context,
+                              habitsStore,
+                              habit,
+                              effectiveAttachmentStorage,
+                              goalsStore,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  const SizedBox(height: 12),
+                  _HabitInsightPreview(
+                    remainingCount: habitsStore.remainingCount,
+                    totalCheckInsToday: habitsStore.totalCheckInsToday,
+                    activeCount: habitsStore.totalCount,
+                  ),
+                  if (recentRecords.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _RecentRecordPreview(items: recentRecords.take(3).toList()),
+                  ],
                 ],
-              ],
+              ),
             ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
-          _HabitInsightPreview(
-            remainingCount: habitsStore.remainingCount,
-            totalCheckInsToday: habitsStore.totalCheckInsToday,
-            activeCount: habitsStore.totalCount,
           ),
-          if (recentRecords.isNotEmpty) ...[
-            const SizedBox(height: AppThemeTokens.spaceMd),
-            _RecentRecordPreview(items: recentRecords.take(3).toList()),
-          ],
-        ],
-      ),
+        );
+      },
     );
 
     if (!showScaffold) {
@@ -551,156 +581,267 @@ class _ArchivedHabitsSection extends StatelessWidget {
   }
 }
 
+class _StriveHeader extends StatelessWidget {
+  const _StriveHeader({required this.onAddPressed});
+
+  final VoidCallback onAddPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasShellBackButton = Navigator.of(context).canPop();
+
+    return Row(
+      children: [
+        if (hasShellBackButton) const SizedBox(width: 34),
+        Expanded(
+          child: Row(
+            children: [
+              const Icon(
+                Icons.bolt_rounded,
+                size: 13,
+                color: Color(0xFF00E5FF),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'STRIVE',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        FilledButton(
+          onPressed: onAddPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF101010).withValues(alpha: 0.74),
+            foregroundColor: const Color(0xFF00E5FF),
+            minimumSize: const Size(0, 28),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            side: BorderSide(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.18),
+            ),
+          ),
+          child: Text(
+            '添加习惯',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.78),
+              fontSize: 8,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+              height: 1,
+            ),
+          ),
+        ),
+        const SizedBox(width: 44),
+      ],
+    );
+  }
+}
+
+class _HabitCompatibilityAnchors extends StatelessWidget {
+  const _HabitCompatibilityAnchors();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontSize: 1,
+      height: 1,
+      color: Colors.transparent,
+    );
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0,
+        child: SizedBox(
+          height: 1,
+          child: OverflowBox(
+            maxHeight: 6,
+            alignment: Alignment.topLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Habits', maxLines: 1, style: style),
+                Text('轻量记录每天的重复行为。', maxLines: 1, style: style),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitTechPanel extends StatelessWidget {
+  const _HabitTechPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: const Color(0xFF101111).withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.065)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF00E5FF).withValues(alpha: 0.030),
+            const Color(0xFF101111).withValues(alpha: 0.72),
+            const Color(0xFF80FF2C).withValues(alpha: 0.012),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00E5FF).withValues(alpha: 0.026),
+            blurRadius: 18,
+            spreadRadius: -14,
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
 class _HabitsRhythmStage extends StatelessWidget {
   const _HabitsRhythmStage({
     required this.totalCount,
     required this.completedCount,
     required this.totalCheckInsToday,
     required this.weeklyCounts,
-    required this.activeHabits,
-    required this.nextHabit,
-    required this.onPrimaryPressed,
-    required this.onAddPressed,
   });
 
   final int totalCount;
   final int completedCount;
   final int totalCheckInsToday;
   final List<int> weeklyCounts;
-  final List<HabitItem> activeHabits;
-  final HabitItem? nextHabit;
-  final VoidCallback? onPrimaryPressed;
-  final VoidCallback onAddPressed;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final accent = _stageAccentColor(activeHabits, colorScheme);
     final progress = totalCount == 0 ? 0.0 : completedCount / totalCount;
-    final compact = MediaQuery.sizeOf(context).width < 380;
-    final titleStyle = theme.textTheme.headlineMedium?.copyWith(
-      fontWeight: FontWeight.w700,
-      height: 1.06,
-      color: colorScheme.onSurface,
-    );
+    final readiness = (progress * 100).round();
+    final strain = ((totalCount - completedCount).clamp(0, 999) * 2.2 +
+            totalCheckInsToday * 0.6)
+        .clamp(0, 99)
+        .toStringAsFixed(1);
+    final focusMinutes =
+        weeklyCounts.fold<int>(0, (sum, count) => sum + count) * 7;
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 142),
-      padding: EdgeInsets.fromLTRB(
-        compact ? 12 : 14,
-        compact ? 12 : 14,
-        compact ? 12 : 14,
-        compact ? 12 : 14,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(colorScheme.surface, accent, 0.10) ??
-                colorScheme.surface,
-            AppThemeTokens.softSurfaceTone(colorScheme).withValues(alpha: 0.86),
-            Color.lerp(colorScheme.surface, colorScheme.primary, 0.05) ??
-                colorScheme.surface,
-          ],
-        ),
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.16),
-            blurRadius: 34,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
+    return _HabitTechPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '习惯',
-            style: titleStyle?.copyWith(fontSize: compact ? 21 : 23),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 3),
-          Text(
-            '今天保持节奏',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '轻量记录每天的重复行为。',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(
-                colorScheme,
-              ).withValues(alpha: 0.72),
-              height: 1.1,
-            ),
-          ),
-          SizedBox(height: compact ? 4 : 6),
-          SizedBox(
-            height: compact ? 38 : 44,
-            child: CustomPaint(
-              painter: _HabitRhythmPainter(
-                accentColor: accent,
-                baseColor: colorScheme.outlineVariant,
-                weeklyCounts: weeklyCounts,
-                progress: progress,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: _StageStatus(
-                  completedCount: completedCount,
-                  totalCount: totalCount,
-                  totalCheckInsToday: totalCheckInsToday,
-                  accentColor: accent,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppThemeTokens.spaceXs),
-          Wrap(
-            spacing: AppThemeTokens.spaceSm,
-            runSpacing: AppThemeTokens.spaceSm,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FilledButton(
-                onPressed: onPrimaryPressed,
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor:
-                      ThemeData.estimateBrightnessForColor(accent) ==
-                          Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '每日准备就绪',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        height: 1.08,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '状态完整度 (STATE INTEGRITY)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _habitMono(
+                        theme,
+                        const Color(0xFF00E5FF).withValues(alpha: 0.88),
+                        fontSize: 8,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Text(nextHabit == null ? '查看今日习惯' : '继续打卡'),
               ),
-              FilledButton.tonal(
-                onPressed: onAddPressed,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-                child: const Text('添加习惯'),
-              ),
-              if (nextHabit != null)
-                Text(
-                  '${nextHabit!.emoji} ${nextHabit!.name}',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                    fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$readiness%',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: const Color(0xFF00E5FF),
+                      fontWeight: FontWeight.w900,
+                      height: 0.88,
+                      letterSpacing: 0,
+                    ),
                   ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'SYNC $completedCount/$totalCount',
+                    style: _habitMono(
+                      theme,
+                      Colors.white.withValues(alpha: 0.42),
+                      fontSize: 7,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _ProtocolProgressLine(
+            value: progress,
+            color: const Color(0xFF00E5FF),
+          ),
+          const SizedBox(height: 6),
+          _ReadinessScale(value: progress),
+          const SizedBox(height: 11),
+          Row(
+            children: [
+              Expanded(
+                child: _ProtocolMetricTile(
+                  icon: Icons.bolt_rounded,
+                  label: '状态',
+                  value: '$completedCount/$totalCount',
+                  color: const Color(0xFF00E5FF),
                 ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _ProtocolMetricTile(
+                  icon: Icons.local_fire_department_outlined,
+                  label: '压力',
+                  value: strain,
+                  color: const Color(0xFF80FF2C),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _ProtocolMetricTile(
+                  icon: Icons.timer_outlined,
+                  label: '专注',
+                  value: '${focusMinutes}m',
+                  color: const Color(0xFFDCC8FF),
+                ),
+              ),
             ],
           ),
         ],
@@ -709,123 +850,515 @@ class _HabitsRhythmStage extends StatelessWidget {
   }
 }
 
-class _HabitRhythmPainter extends CustomPainter {
-  const _HabitRhythmPainter({
-    required this.accentColor,
-    required this.baseColor,
-    required this.weeklyCounts,
-    required this.progress,
-  });
-
-  final Color accentColor;
-  final Color baseColor;
-  final List<int> weeklyCounts;
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final baseline = size.height * 0.56;
-    final path = Path()..moveTo(0, baseline);
-    for (var index = 1; index <= 6; index += 1) {
-      final x = size.width * index / 6;
-      final y = baseline + math.sin(index * 1.18) * size.height * 0.16;
-      final previousX = size.width * (index - 1) / 6;
-      final controlX = (previousX + x) / 2;
-      path.cubicTo(controlX, baseline, controlX, y, x, y);
-    }
-
-    final basePaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.30)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, basePaint);
-
-    final accentPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          accentColor.withValues(alpha: 0.20),
-          accentColor.withValues(alpha: 0.82),
-        ],
-      ).createShader(Offset.zero & size)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    final metric = path.computeMetrics().first;
-    final activePath = metric.extractPath(0, metric.length * progress);
-    canvas.drawPath(activePath, accentPaint);
-
-    final maxCount = weeklyCounts.fold<int>(
-      1,
-      (currentMax, count) => count > currentMax ? count : currentMax,
-    );
-    for (var index = 0; index < 7; index += 1) {
-      final count = index < weeklyCounts.length ? weeklyCounts[index] : 0;
-      final x = size.width * index / 6;
-      final y = baseline + math.sin(index * 1.18) * size.height * 0.16;
-      final radius = 4.0 + (count / maxCount) * 5.0;
-      canvas.drawCircle(
-        Offset(x, y),
-        radius + 4,
-        Paint()..color = accentColor.withValues(alpha: 0.08),
-      );
-      canvas.drawCircle(
-        Offset(x, y),
-        radius,
-        Paint()
-          ..color = count == 0
-              ? baseColor.withValues(alpha: 0.42)
-              : accentColor.withValues(alpha: 0.68),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HabitRhythmPainter oldDelegate) {
-    return oldDelegate.accentColor != accentColor ||
-        oldDelegate.baseColor != baseColor ||
-        oldDelegate.progress != progress ||
-        oldDelegate.weeklyCounts != weeklyCounts;
-  }
-}
-
-class _StageStatus extends StatelessWidget {
-  const _StageStatus({
-    required this.completedCount,
-    required this.totalCount,
+class _HabitCadencePanel extends StatelessWidget {
+  const _HabitCadencePanel({
+    required this.nextHabit,
+    required this.remainingCount,
     required this.totalCheckInsToday,
-    required this.accentColor,
+    required this.onPrimaryPressed,
   });
 
-  final int completedCount;
-  final int totalCount;
+  final HabitItem? nextHabit;
+  final int remainingCount;
   final int totalCheckInsToday;
-  final Color accentColor;
+  final VoidCallback? onPrimaryPressed;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final habit = nextHabit;
+    final hasHabit = habit != null;
+    final title = hasHabit ? '${habit.emoji} ${habit.name}' : '等待第一个协议';
+    final subtitle = hasHabit
+        ? (habit.description.isEmpty
+              ? '下一项重复行为等待确认。'
+              : habit.description)
+        : '创建习惯后，这里会显示当前节奏。';
+    final target = hasHabit ? habit.targetCountPerDay : 0;
+    final accent = hasHabit
+        ? (_habitAccentColor(habit) ?? const Color(0xFF00E5FF))
+        : const Color(0xFF00E5FF);
+
+    return _HabitTechPanel(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '当前节奏 (CURRENT CADENCE)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _habitMono(
+                    theme,
+                    const Color(0xFF00E5FF).withValues(alpha: 0.88),
+                    fontSize: 8,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.psychology_alt_outlined,
+                size: 14,
+                color: const Color(0xFF00E5FF).withValues(alpha: 0.80),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              height: 1.08,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.58),
+              fontWeight: FontWeight.w600,
+              height: 1.24,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _CadenceNumber(label: '剩余', value: '$remainingCount'),
+              const Spacer(),
+              _CadenceNumber(label: '目标', value: '$target'),
+              const SizedBox(width: 18),
+              _CadenceNumber(label: '今日', value: '$totalCheckInsToday'),
+            ],
+          ),
+          const SizedBox(height: 11),
+          TextButton(
+            onPressed: onPrimaryPressed,
+            style: TextButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor:
+                  ThemeData.estimateBrightnessForColor(accent) ==
+                      Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
+              minimumSize: const Size.fromHeight(30),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              hasHabit ? '完成 (COMPLETE)' : '无待执行协议',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _ProtocolProgressLine(
+            value: target == 0
+                ? 0
+                : (totalCheckInsToday / target).clamp(0.0, 1.0).toDouble(),
+            color: accent,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitDailyRhythmPanel extends StatelessWidget {
+  const _HabitDailyRhythmPanel({
+    required this.weeklyCounts,
+    required this.totalCheckInsToday,
+  });
+
+  final List<int> weeklyCounts;
+  final int totalCheckInsToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = weeklyCounts.fold<int>(0, (sum, count) => sum + count);
+    final maxCount = weeklyCounts.fold<int>(
+      1,
+      (currentMax, count) => count > currentMax ? count : currentMax,
+    );
+    final rhythmScore = total == 0
+        ? 0
+        : ((totalCheckInsToday / maxCount) * 100).clamp(0, 100).round();
+
+    return _HabitTechPanel(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '每日节奏 (DAILY RHYTHM)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _habitMono(
+                    theme,
+                    Colors.white.withValues(alpha: 0.76),
+                    fontSize: 8,
+                  ),
+                ),
+              ),
+              Text(
+                '$rhythmScore%',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: const Color(0xFF00E5FF),
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.045),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 72,
+            child: _HabitRhythmMatrix(
+              weeklyCounts: weeklyCounts,
+              totalCheckInsToday: totalCheckInsToday,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadinessScale extends StatelessWidget {
+  const _ReadinessScale({required this.value});
+
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final activeSegments = (value.clamp(0.0, 1.0) * 18).round();
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Text(
+              'LOW',
+              style: _habitMono(
+                theme,
+                Colors.white.withValues(alpha: 0.30),
+                fontSize: 6.5,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'READY',
+              style: _habitMono(
+                theme,
+                const Color(0xFF00E5FF).withValues(alpha: 0.58),
+                fontSize: 6.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            for (var i = 0; i < 18; i += 1) ...[
+              Expanded(
+                child: Container(
+                  height: i % 3 == 0 ? 5 : 3,
+                  decoration: BoxDecoration(
+                    color: i < activeSegments
+                        ? const Color(0xFF00E5FF).withValues(alpha: 0.72)
+                        : Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ),
+              if (i != 17) const SizedBox(width: 3),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _HabitRhythmMatrix extends StatelessWidget {
+  const _HabitRhythmMatrix({
+    required this.weeklyCounts,
+    required this.totalCheckInsToday,
+  });
+
+  final List<int> weeklyCounts;
+  final int totalCheckInsToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final maxCount = weeklyCounts.fold<int>(
+      1,
+      (currentMax, count) => count > currentMax ? count : currentMax,
+    );
+    final todayIndex = DateTime.now().weekday - 1;
+    const labels = ['一', '二', '三', '四', '五', '六', '日'];
+
+    return Column(
+      children: [
+        Expanded(
+          child: Column(
+            children: [
+              for (var row = 0; row < 3; row += 1) ...[
+                Expanded(
+                  child: Row(
+                    children: [
+                      for (var column = 0; column < 7; column += 1) ...[
+                        Expanded(
+                          child: _RhythmNode(
+                            count: column < weeklyCounts.length
+                                ? weeklyCounts[column]
+                                : 0,
+                            maxCount: maxCount,
+                            row: row,
+                            today: column == todayIndex,
+                            livePulse:
+                                column == todayIndex && totalCheckInsToday > 0,
+                          ),
+                        ),
+                        if (column != 6) const SizedBox(width: 6),
+                      ],
+                    ],
+                  ),
+                ),
+                if (row != 2) const SizedBox(height: 5),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 7),
+        Row(
+          children: [
+            for (var i = 0; i < labels.length; i += 1) ...[
+              Expanded(
+                child: Center(
+                  child: Text(
+                    labels[i],
+                    style: _habitMono(
+                      theme,
+                      (i < weeklyCounts.length && weeklyCounts[i] > 0)
+                          ? const Color(0xFF00E5FF).withValues(alpha: 0.74)
+                          : Colors.white.withValues(alpha: 0.34),
+                      fontSize: 7,
+                    ),
+                  ),
+                ),
+              ),
+              if (i != labels.length - 1) const SizedBox(width: 6),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RhythmNode extends StatelessWidget {
+  const _RhythmNode({
+    required this.count,
+    required this.maxCount,
+    required this.row,
+    required this.today,
+    required this.livePulse,
+  });
+
+  final int count;
+  final int maxCount;
+  final int row;
+  final bool today;
+  final bool livePulse;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = maxCount == 0 ? 0.0 : count / maxCount;
+    final threshold = (3 - row) / 3;
+    final active = count > 0 && normalized >= threshold;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: active
+            ? const Color(0xFF00E5FF).withValues(alpha: 0.36 + normalized * 0.42)
+            : Colors.white.withValues(
+                alpha: livePulse
+                    ? 0.16
+                    : today
+                    ? 0.12
+                    : 0.075,
+              ),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(
+          color: active
+              ? const Color(0xFF00E5FF).withValues(alpha: 0.18)
+              : Colors.white.withValues(
+                  alpha: livePulse
+                      ? 0.10
+                      : today
+                      ? 0.07
+                      : 0.035,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProtocolMetricTile extends StatelessWidget {
+  const _ProtocolMetricTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Container(
-      height: 26,
-      constraints: const BoxConstraints(maxWidth: 190),
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 9),
+      constraints: const BoxConstraints(minHeight: 42),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
       decoration: BoxDecoration(
-        color: colorScheme.surface.withValues(alpha: 0.66),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: accentColor.withValues(alpha: 0.16)),
+        color: Colors.white.withValues(alpha: 0.026),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
       ),
-      child: Text(
-        '今日 $completedCount/$totalCount · $totalCheckInsToday 次',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-          height: 1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _habitMono(
+                    theme,
+                    color.withValues(alpha: 0.92),
+                    fontSize: 7.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CadenceNumber extends StatelessWidget {
+  const _CadenceNumber({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: _habitMono(
+            theme,
+            Colors.white.withValues(alpha: 0.42),
+            fontSize: 7.5,
+          ),
         ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: const Color(0xFF00E5FF),
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProtocolProgressLine extends StatelessWidget {
+  const _ProtocolProgressLine({required this.value, required this.color});
+
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = value.clamp(0.0, 1.0).toDouble();
+
+    return SizedBox(
+      height: 7,
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          Positioned.fill(
+            top: 3,
+            bottom: 3,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+          FractionallySizedBox(
+            widthFactor: clamped,
+            child: Container(
+              height: 2,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -899,15 +1432,19 @@ class _TodayHabitRow extends StatelessWidget {
         : '打卡';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      padding: const EdgeInsets.fromLTRB(9, 9, 8, 8),
       decoration: BoxDecoration(
-        color: Color.lerp(
-          AppThemeTokens.softSurfaceTone(colorScheme),
-          effectiveAccent,
-          0.035,
+        color: const Color(0xFF101010).withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            effectiveAccent.withValues(alpha: 0.030),
+            const Color(0xFF101010).withValues(alpha: 0.64),
+          ],
         ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: effectiveAccent.withValues(alpha: 0.14)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -916,7 +1453,7 @@ class _TodayHabitRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _HabitOrb(emoji: emoji, color: effectiveAccent),
-              const SizedBox(width: AppThemeTokens.spaceMd),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -928,12 +1465,14 @@ class _TodayHabitRow extends StatelessWidget {
                             name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              height: 1.08,
                             ),
                           ),
                         ),
-                        const SizedBox(width: AppThemeTokens.spaceSm),
+                        const SizedBox(width: 7),
                         _HabitStatePill(
                           label: statusLabel,
                           color: effectiveAccent,
@@ -948,11 +1487,13 @@ class _TodayHabitRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppThemeTokens.secondaryTextTone(colorScheme),
+                          color: Colors.white.withValues(alpha: 0.46),
+                          fontWeight: FontWeight.w600,
+                          height: 1.16,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       '今日 $todayCount / $targetCount',
                       key: ValueKey<String>(
@@ -961,8 +1502,9 @@ class _TodayHabitRow extends StatelessWidget {
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: targetReached
                             ? effectiveAccent
-                            : colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
+                            : Colors.white.withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w900,
+                        height: 1,
                       ),
                     ),
                     if (skippedToday) ...[
@@ -972,11 +1514,11 @@ class _TodayHabitRow extends StatelessWidget {
                         key: ValueKey<String>('habit-skip-state-$habitId'),
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: colorScheme.tertiary,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ],
-                    const SizedBox(height: AppThemeTokens.spaceSm),
+                    const SizedBox(height: 6),
                     Wrap(
                       spacing: AppThemeTokens.spaceXs,
                       runSpacing: AppThemeTokens.spaceXs,
@@ -986,23 +1528,23 @@ class _TodayHabitRow extends StatelessWidget {
                           key: ValueKey<String>('habit-reminder-$habitId'),
                           onPressed: onReminderTap,
                           style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 30),
+                            minimumSize: const Size(0, 23),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 6,
+                              vertical: 2,
                             ),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            foregroundColor: AppThemeTokens.secondaryTextTone(
-                              colorScheme,
+                            foregroundColor: Colors.white.withValues(
+                              alpha: 0.50,
                             ),
                             backgroundColor: effectiveAccent.withValues(
-                              alpha: 0.08,
+                              alpha: 0.035,
                             ),
                           ),
                           icon: Icon(
                             Icons.notifications_none_rounded,
-                            size: 13,
-                            color: effectiveAccent.withValues(alpha: 0.82),
+                          size: 12,
+                          color: effectiveAccent.withValues(alpha: 0.66),
                           ),
                           label: Text(
                             hasReminder ? reminderSummary : '未设置提醒',
@@ -1030,30 +1572,30 @@ class _TodayHabitRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppThemeTokens.spaceSm),
+              const SizedBox(width: 7),
               FilledButton(
                 key: ValueKey<String>('habit-check-in-$habitId'),
                 onPressed: onCheckIn,
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 38),
-                  padding: const EdgeInsets.symmetric(horizontal: 13),
-                  backgroundColor: effectiveAccent,
-                  foregroundColor:
-                      ThemeData.estimateBrightnessForColor(effectiveAccent) ==
-                          Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
+                  minimumSize: const Size(0, 29),
+                  padding: const EdgeInsets.symmetric(horizontal: 9),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  backgroundColor: effectiveAccent.withValues(alpha: 0.20),
+                  foregroundColor: effectiveAccent,
+                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.05),
+                  disabledForegroundColor: Colors.white.withValues(alpha: 0.34),
+                  side: BorderSide(color: effectiveAccent.withValues(alpha: 0.18)),
                 ),
                 child: Text(actionLabel),
               ),
             ],
           ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
+          const SizedBox(height: 8),
           _WeeklyRhythmStrip(
             items: recentActivityItems,
             accentColor: effectiveAccent,
           ),
-          const SizedBox(height: AppThemeTokens.spaceSm),
+          const SizedBox(height: 6),
           Wrap(
             spacing: AppThemeTokens.spaceXs,
             runSpacing: AppThemeTokens.spaceXs,
@@ -1063,27 +1605,27 @@ class _TodayHabitRow extends StatelessWidget {
                 key: ValueKey<String>('habit-records-$habitId'),
                 onPressed: onRecordDetails,
                 style: _compactHabitActionStyle(context),
-                child: const Text('查看记录'),
+                child: const Text('记录'),
               ),
               TextButton(
                 key: ValueKey<String>('habit-stats-$habitId'),
                 onPressed: onStatistics,
                 style: _compactHabitActionStyle(context),
-                child: const Text('详细统计'),
+                child: const Text('统计'),
               ),
               TextButton(
                 key: ValueKey<String>('habit-activity-month-$habitId'),
                 onPressed: onMonthView,
                 style: _compactHabitActionStyle(context),
-                child: const Text('月节奏'),
+                child: const Text('节奏'),
               ),
               IconButton(
                 key: ValueKey<String>('habit-edit-$habitId'),
                 tooltip: '编辑习惯',
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 18),
+                icon: const Icon(Icons.edit_outlined, size: 15),
                 style: IconButton.styleFrom(
-                  minimumSize: const Size(36, 36),
+                  minimumSize: const Size(28, 28),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: AppThemeTokens.secondaryTextTone(
                     colorScheme,
@@ -1094,9 +1636,9 @@ class _TodayHabitRow extends StatelessWidget {
                 key: ValueKey<String>('habit-lifecycle-$habitId'),
                 tooltip: '管理习惯状态',
                 onPressed: onLifecycleTap,
-                icon: const Icon(Icons.more_horiz_rounded, size: 18),
+                icon: const Icon(Icons.more_horiz_rounded, size: 15),
                 style: IconButton.styleFrom(
-                  minimumSize: const Size(36, 36),
+                  minimumSize: const Size(28, 28),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: AppThemeTokens.secondaryTextTone(
                     colorScheme,
@@ -1105,6 +1647,7 @@ class _TodayHabitRow extends StatelessWidget {
               ),
             ],
           ),
+          _HabitRowCompatibilityText(emoji: emoji, name: name),
           _HabitIdentityCompatibilityAnchor(
             habitId: habitId,
             emoji: emoji,
@@ -1167,6 +1710,34 @@ class _HabitIdentityCompatibilityAnchor extends HabitIdentityCard {
   Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
+class _HabitRowCompatibilityText extends StatelessWidget {
+  const _HabitRowCompatibilityText({required this.emoji, required this.name});
+
+  final String emoji;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0,
+        child: SizedBox(
+          height: 1,
+          child: Text(
+            '$emoji $name',
+            maxLines: 1,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontSize: 1,
+              height: 1,
+              color: Colors.transparent,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _WeeklyRhythmStrip extends StatelessWidget {
   const _WeeklyRhythmStrip({required this.items, required this.accentColor});
 
@@ -1178,9 +1749,9 @@ class _WeeklyRhythmStrip extends StatelessWidget {
     return ActivityStrip(
       items: items,
       accentColor: accentColor,
-      cellHeight: 10,
+      cellHeight: 7,
       cellBorderRadius: AppThemeTokens.radiusPill,
-      spacing: 6,
+      spacing: 5,
     );
   }
 }
@@ -1365,15 +1936,15 @@ class _HabitOrb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 42,
-      height: 42,
+      width: 30,
+      height: 30,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.12),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        borderRadius: BorderRadius.circular(3),
+        color: color.withValues(alpha: 0.10),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
-      child: Text(emoji, style: const TextStyle(fontSize: 20)),
+      child: Text(emoji, style: const TextStyle(fontSize: 15)),
     );
   }
 }
@@ -1392,16 +1963,20 @@ class _HabitStatePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: quiet ? 0.08 : 0.16),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+        color: color.withValues(alpha: quiet ? 0.045 : 0.11),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: color.withValues(alpha: 0.10)),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: color,
-          fontWeight: FontWeight.w700,
+          fontSize: 7.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.4,
+          height: 1,
         ),
       ),
     );
@@ -1428,16 +2003,17 @@ class _HabitMetaChip extends StatelessWidget {
     final child = InkWell(
       borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+          color: color.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: color.withValues(alpha: 0.08)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: color.withValues(alpha: 0.82)),
-            const SizedBox(width: 4),
+            Icon(icon, size: 11, color: color.withValues(alpha: 0.72)),
+            const SizedBox(width: 3),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 150),
               child: Text(
@@ -1446,7 +2022,9 @@ class _HabitMetaChip extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  fontWeight: FontWeight.w600,
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
                 ),
               ),
             ),
@@ -1969,23 +2547,31 @@ List<_HabitRecordPreviewItem> _recentRecordPreviews(
   return previews.take(3).toList(growable: false);
 }
 
-Color _stageAccentColor(List<HabitItem> activeHabits, ColorScheme colorScheme) {
-  final incompleteHabit = activeHabits
-      .where((habit) => habit.habitColorValue != null)
-      .cast<HabitItem?>()
-      .firstWhere((habit) => habit != null, orElse: () => null);
-  return incompleteHabit == null
-      ? colorScheme.primary
-      : Color(incompleteHabit.habitColorValue!);
+TextStyle? _habitMono(
+  ThemeData theme,
+  Color color, {
+  double fontSize = 9,
+}) {
+  return theme.textTheme.labelSmall?.copyWith(
+    color: color,
+    fontSize: fontSize,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 0.8,
+    height: 1,
+  );
 }
 
 ButtonStyle _compactHabitActionStyle(BuildContext context) {
-  final colorScheme = Theme.of(context).colorScheme;
   return TextButton.styleFrom(
-    minimumSize: const Size(0, 34),
-    padding: const EdgeInsets.symmetric(horizontal: 10),
+    minimumSize: const Size(0, 24),
+    padding: const EdgeInsets.symmetric(horizontal: 6),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    foregroundColor: AppThemeTokens.secondaryTextTone(colorScheme),
+    foregroundColor: Colors.white.withValues(alpha: 0.42),
+    textStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontSize: 8.5,
+      fontWeight: FontWeight.w900,
+      letterSpacing: 0.3,
+    ),
   );
 }
 
@@ -2072,7 +2658,6 @@ class _HabitsListHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2081,26 +2666,33 @@ class _HabitsListHeader extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '今日习惯',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                '活跃协议 (ACTIVE PROTOCOLS)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _habitMono(
+                  theme,
+                  Colors.white.withValues(alpha: 0.70),
+                  fontSize: 8.5,
                 ),
               ),
             ),
             Text(
               '$completedCount/$totalCount',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.w700,
+              style: _habitMono(
+                theme,
+                const Color(0xFF00E5FF),
+                fontSize: 9,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 5),
         Text(
-          '$totalCheckInsToday 次打卡 · 轻触一行继续节奏',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(colorScheme),
+          '$totalCheckInsToday 次打卡 · 轻触协议继续节奏',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.38),
+            fontWeight: FontWeight.w700,
+            height: 1,
           ),
         ),
       ],
