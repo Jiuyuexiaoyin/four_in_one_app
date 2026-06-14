@@ -32,8 +32,9 @@ class AppShell extends StatelessWidget {
         Color.lerp(colorScheme.surface, canvasColor, 0.26) ??
         colorScheme.surface;
     final selectedIndex = currentIndex.clamp(0, _routes.length - 1).toInt();
-    final isTodayTab = showBottomNavigation && selectedIndex == 0;
-    final showPageAppBar = !isTodayTab;
+    final usesInlineChrome =
+        showBottomNavigation && (selectedIndex == 0 || selectedIndex == 2);
+    final showPageAppBar = !usesInlineChrome;
 
     return Scaffold(
       extendBody: true,
@@ -113,7 +114,7 @@ class AppShell extends StatelessWidget {
               ),
             ),
           ),
-          if (isTodayTab)
+          if (usesInlineChrome)
             PositionedDirectional(
               top: 12,
               end: 18,

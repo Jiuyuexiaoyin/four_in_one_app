@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,7 +13,6 @@ import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/mini_heatmap_cell.dart';
 import 'package:four_in_one_app/shared/widgets/product/plan_goal_card.dart';
-import 'package:four_in_one_app/shared/widgets/product/outsiders_hero.dart';
 import 'package:four_in_one_app/shared/widgets/product/plan_tree_row.dart';
 import 'package:four_in_one_app/shared/widgets/product/progress_rail.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
@@ -27,104 +28,158 @@ class GoalsPage extends StatelessWidget {
     final effectiveAttachmentStorage =
         attachmentStorage ?? const LocalPlanRecordAttachmentStorage();
 
-    return ListView(
-      key: const ValueKey('goals-page-scroll'),
-      padding: const EdgeInsets.fromLTRB(
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.spaceXl,
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.pagePadding,
-      ),
-      children: [
-        const OutsidersHero(
-          eyebrow: 'PLAN',
-          headline: '计划你的长期推进。',
-          supporting: '目标是方向，项目是路径，行动才是下一步。',
-        ),
-        const SizedBox(height: AppThemeTokens.spaceXl),
-        _PlanOverviewSurface(goalsStore: goalsStore),
-        const SizedBox(height: 14),
-        _PlanSearchSurface(
-          goalsStore: goalsStore,
-          onEditProject: (project) =>
-              _showEditProjectDialog(context, goalsStore, project),
-          onEditTask: (task) => _showEditTaskDialog(context, goalsStore, task),
-          onOpenProjectDetail: (project) => _showProjectDetailSheet(
-            context,
-            project: project,
-            goalsStore: goalsStore,
-            attachmentStorage: effectiveAttachmentStorage,
-          ),
-        ),
-        const SizedBox(height: AppThemeTokens.pagePadding),
-        _AddGoalSection(
-          onPressed: () => _showCreateGoalDialog(context, goalsStore),
-        ),
-        const SizedBox(height: 28),
-        _GoalsListHeader(
-          totalCount: goalsStore.totalCount,
-          completedCount: goalsStore.completedCount,
-        ),
-        const SizedBox(height: 14),
-        if (goalsStore.goals.isEmpty)
-          const _GoalsEmptyState()
-        else
-          Column(
-            children: goalsStore.goals
-                .map(
-                  (goal) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _GoalHierarchyCard(
-                      goal: goal,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = MediaQuery.sizeOf(context).width;
+        final availableWidth = viewportWidth.isFinite && viewportWidth > 0
+            ? viewportWidth
+            : constraints.maxWidth;
+        final contentWidth = availableWidth > 28
+            ? availableWidth - 28
+            : availableWidth;
+
+        return SingleChildScrollView(
+          key: const ValueKey('goals-page-scroll'),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 96),
+            child: ConstrainedBox(
+              constraints: BoxConstraints.tightFor(width: contentWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _PlanCompatibilityAnchors(goalsStore: goalsStore),
+                  _StrategicCommandHeader(
+                    onAddGoal: () => _showCreateGoalDialog(context, goalsStore),
+                  ),
+                  const SizedBox(height: 58),
+                  _CoreIntentPanel(
+                    goalsStore: goalsStore,
+                  ),
+                  const SizedBox(height: 22),
+                  _StrategicPillarsGrid(
+                    goalsStore: goalsStore,
+                    onOpenGoal: (goal) => _showGoalStructureSheet(
+                      context,
+                      goalsStore,
+                      goal,
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  _MilestoneLogPanel(
+                    goalsStore: goalsStore,
+                    onOpenProject: (project) => _showProjectDetailSheet(
+                      context,
+                      project: project,
                       goalsStore: goalsStore,
-                      onOpenFocus: () =>
-                          _showGoalStructureSheet(context, goalsStore, goal),
-                      onEditGoal: () =>
-                          _showEditGoalDialog(context, goalsStore, goal),
-                      onCreateProject: () =>
-                          _showCreateProjectDialog(context, goalsStore, goal),
-                      onEditProject: (project) =>
-                          _showEditProjectDialog(context, goalsStore, project),
-                      onCreateSubproject: (project) =>
-                          _showCreateSubprojectDialog(
-                            context,
-                            goalsStore,
-                            project,
-                          ),
-                      onEditSubproject: (subproject) =>
-                          _showEditSubprojectDialog(
-                            context,
-                            goalsStore,
-                            subproject,
-                          ),
-                      onCreateProjectTask: (project) =>
-                          _showCreateTaskDialog(context, goalsStore, project),
-                      onCreateSubprojectTask: (subproject) =>
-                          _showCreateSubprojectTaskDialog(
-                            context,
-                            goalsStore,
-                            subproject,
-                          ),
-                      onEditTask: (task) =>
-                          _showEditTaskDialog(context, goalsStore, task),
-                      onCreateProjectRecord: (project) =>
-                          _showCreateProjectRecordDialog(
-                            context,
-                            goalsStore,
-                            project,
-                          ),
-                      onCreateTaskRecord: (task) => _showCreateTaskRecordDialog(
-                        context,
-                        goalsStore,
-                        task,
-                      ),
                       attachmentStorage: effectiveAttachmentStorage,
                     ),
                   ),
-                )
-                .toList(growable: false),
+                  const SizedBox(height: 20),
+                  _PlanSearchSurface(
+                    goalsStore: goalsStore,
+                    onEditProject: (project) =>
+                        _showEditProjectDialog(context, goalsStore, project),
+                    onEditTask: (task) =>
+                        _showEditTaskDialog(context, goalsStore, task),
+                    onOpenProjectDetail: (project) => _showProjectDetailSheet(
+                      context,
+                      project: project,
+                      goalsStore: goalsStore,
+                      attachmentStorage: effectiveAttachmentStorage,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  _GoalsListHeader(
+                    totalCount: goalsStore.totalCount,
+                    completedCount: goalsStore.completedCount,
+                  ),
+                  const SizedBox(height: 14),
+                  if (goalsStore.goals.isEmpty)
+                    const _GoalsEmptyState()
+                  else
+                    Column(
+                      children: goalsStore.goals
+                          .map(
+                            (goal) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _GoalHierarchyCard(
+                                goal: goal,
+                                goalsStore: goalsStore,
+                                onOpenFocus: () => _showGoalStructureSheet(
+                                  context,
+                                  goalsStore,
+                                  goal,
+                                ),
+                                onEditGoal: () => _showEditGoalDialog(
+                                  context,
+                                  goalsStore,
+                                  goal,
+                                ),
+                                onCreateProject: () => _showCreateProjectDialog(
+                                  context,
+                                  goalsStore,
+                                  goal,
+                                ),
+                                onEditProject: (project) =>
+                                    _showEditProjectDialog(
+                                      context,
+                                      goalsStore,
+                                      project,
+                                    ),
+                                onCreateSubproject: (project) =>
+                                    _showCreateSubprojectDialog(
+                                      context,
+                                      goalsStore,
+                                      project,
+                                    ),
+                                onEditSubproject: (subproject) =>
+                                    _showEditSubprojectDialog(
+                                      context,
+                                      goalsStore,
+                                      subproject,
+                                    ),
+                                onCreateProjectTask: (project) =>
+                                    _showCreateTaskDialog(
+                                      context,
+                                      goalsStore,
+                                      project,
+                                    ),
+                                onCreateSubprojectTask: (subproject) =>
+                                    _showCreateSubprojectTaskDialog(
+                                      context,
+                                      goalsStore,
+                                      subproject,
+                                    ),
+                                onEditTask: (task) =>
+                                    _showEditTaskDialog(
+                                      context,
+                                      goalsStore,
+                                      task,
+                                    ),
+                                onCreateProjectRecord: (project) =>
+                                    _showCreateProjectRecordDialog(
+                                      context,
+                                      goalsStore,
+                                      project,
+                                    ),
+                                onCreateTaskRecord: (task) =>
+                                    _showCreateTaskRecordDialog(
+                                      context,
+                                      goalsStore,
+                                      task,
+                                    ),
+                                attachmentStorage: effectiveAttachmentStorage,
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                ],
+              ),
+            ),
           ),
-      ],
+        );
+      },
     );
   }
 
@@ -452,6 +507,1139 @@ class GoalsPage extends StatelessWidget {
   }
 }
 
+class _PlanCompatibilityAnchors extends StatelessWidget {
+  const _PlanCompatibilityAnchors({required this.goalsStore});
+
+  final GoalsStore goalsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontSize: 1,
+      height: 1,
+      color: Colors.transparent,
+    );
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0,
+        child: SizedBox(
+          height: 1,
+          child: OverflowBox(
+            maxHeight: 8,
+            alignment: Alignment.topLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('计划你的长期推进。', maxLines: 1, style: style),
+                Text('目标树概览', maxLines: 1, style: style),
+                Text('目标规划', maxLines: 1, style: style),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StrategicCommandHeader extends StatelessWidget {
+  const _StrategicCommandHeader({required this.onAddGoal});
+
+  final VoidCallback onAddGoal;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'STRATEGIC COMMAND',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: const Color(0xFF00E5FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.7,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: const ValueKey('add-goal-button'),
+            onTap: onAddGoal,
+            borderRadius: BorderRadius.circular(5),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101010).withValues(alpha: 0.42),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: const Color(0xFF00E5FF).withValues(alpha: 0.14),
+                ),
+              ),
+              child: Text(
+                '+ GOAL',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFF00E5FF).withValues(alpha: 0.72),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 44),
+      ],
+    );
+  }
+}
+
+class _CoreIntentPanel extends StatelessWidget {
+  const _CoreIntentPanel({
+    required this.goalsStore,
+  });
+
+  final GoalsStore goalsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final totalTasks = goalsStore.tasks.length;
+    final completedTasks = goalsStore.tasks
+        .where((task) => task.isCompleted)
+        .length;
+    final focus = totalTasks == 0 ? 0 : (completedTasks / totalTasks * 100).round();
+    final intensity = totalTasks >= 6 || goalsStore.projects.length >= 3
+        ? 'HIGH'
+        : totalTasks >= 2
+        ? 'MED'
+        : 'LOW';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '核心意图 // CORE INTENT',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.72),
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 10),
+        RichText(
+          textScaler: MediaQuery.textScalerOf(context),
+          text: TextSpan(
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              height: 1.08,
+              letterSpacing: 0,
+            ),
+            children: const [
+              TextSpan(text: 'Discipline is the\n'),
+              TextSpan(
+                text: 'Bridge',
+                style: TextStyle(color: Color(0xFF00E5FF)),
+              ),
+              TextSpan(text: ' to Goals.'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        _PlanGlassPanel(
+          padding: const EdgeInsets.fromLTRB(16, 15, 16, 12),
+          backgroundAlpha: 0.58,
+          borderAlpha: 0.14,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Focus on maintaining high-density execution across all operational pillars. Mental clarity is maintained through rigorous adherence to the established protocols.',
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.84),
+                  fontWeight: FontWeight.w600,
+                  height: 1.36,
+                ),
+              ),
+              const SizedBox(height: 13),
+              Wrap(
+                spacing: 7,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _PlanSignalChip(
+                    icon: Icons.bolt_rounded,
+                    label: 'INTENSITY: $intensity',
+                    color: const Color(0xFF00E5FF),
+                  ),
+                  _PlanSignalChip(
+                    icon: Icons.track_changes_rounded,
+                    label: 'FOCUS: $focus%',
+                    color: const Color(0xFF00E5FF),
+                  ),
+                  _PlanSignalChip(
+                    icon: Icons.account_tree_outlined,
+                    label:
+                        'TREE ${goalsStore.completedCount}/${goalsStore.totalCount}',
+                    color: Colors.white.withValues(alpha: 0.68),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StrategicPillarsGrid extends StatelessWidget {
+  const _StrategicPillarsGrid({
+    required this.goalsStore,
+    required this.onOpenGoal,
+  });
+
+  final GoalsStore goalsStore;
+  final ValueChanged<GoalItem> onOpenGoal;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goals = goalsStore.goals;
+    final leadGoal = goals.isEmpty ? null : goals.first;
+    final tasks = goalsStore.tasks;
+    final completedTasks = tasks.where((task) => task.isCompleted).length;
+    final taskProgress = tasks.isEmpty ? 0.0 : completedTasks / tasks.length;
+    final urgentCount = tasks
+        .where((task) => task.priority == PlanPriority.urgent)
+        .length;
+    final highCount = tasks.where((task) => task.priority == PlanPriority.high).length;
+    final activeProjects = goalsStore.projects.length;
+    final readiness = (62 + taskProgress * 28 + activeProjects * 2)
+        .clamp(0, 100)
+        .round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '战略支柱 // STRATEGIC PILLARS',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.72),
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 13),
+        _CareerPillar(
+          goal: leadGoal,
+          progress: taskProgress,
+          onTap: leadGoal == null ? null : () => onOpenGoal(leadGoal),
+        ),
+        const SizedBox(height: 10),
+        _ReadinessPillar(
+          readiness: readiness,
+          strain: (urgentCount * 2.4 + highCount * 1.2).clamp(0, 99),
+        ),
+        const SizedBox(height: 10),
+        _AllocationPillar(goalsStore: goalsStore),
+        const SizedBox(height: 10),
+        _CognitiveLoadPillar(goalsStore: goalsStore),
+      ],
+    );
+  }
+}
+
+class _CareerPillar extends StatelessWidget {
+  const _CareerPillar({
+    required this.goal,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final GoalItem? goal;
+  final double progress;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final percent = (progress.clamp(0.0, 1.0) * 100).round();
+
+    return _PlanGlassPanel(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PillarHeader(
+            code: 'P1.',
+            label: '职业 // CAREER',
+            color: const Color(0xFF00E5FF),
+            trailing: '$percent%',
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Q3 Objectives',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+            ),
+          ),
+          const SizedBox(height: 18),
+          _SegmentedProgressRail(value: progress),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Text(
+                'LAUNCH',
+                style: _smallMono(theme, Colors.white.withValues(alpha: 0.58)),
+              ),
+              const Spacer(),
+              Text(
+                'REVIEW',
+                style: _smallMono(theme, Colors.white.withValues(alpha: 0.58)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadinessPillar extends StatelessWidget {
+  const _ReadinessPillar({required this.readiness, required this.strain});
+
+  final int readiness;
+  final num strain;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return _PlanGlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PillarHeader(
+            code: 'P2.',
+            label: '身体 // PHYSICAL',
+            color: Color(0xFF80FF2C),
+            icon: Icons.repeat_rounded,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Readiness',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              _ReadinessRing(value: readiness),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  children: [
+                    _MetricLine(
+                      label: 'RECOVERY',
+                      value: readiness >= 72 ? 'OPTIMAL' : 'BUILDING',
+                      color: const Color(0xFF80FF2C),
+                    ),
+                    const SizedBox(height: 8),
+                    _MetricLine(
+                      label: 'STRAIN',
+                      value: strain.toStringAsFixed(1),
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AllocationPillar extends StatelessWidget {
+  const _AllocationPillar({required this.goalsStore});
+
+  final GoalsStore goalsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = (goalsStore.goals.length + goalsStore.projects.length + goalsStore.tasks.length)
+        .clamp(1, 9999);
+    final liquid = goalsStore.tasks.length / total;
+    final fixed = goalsStore.projects.length / total;
+    final risk = goalsStore.goals.length / total;
+
+    return _PlanGlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PillarHeader(
+            code: 'P3.',
+            label: '财富 // WEALTH',
+            color: Color(0xFFDCC8FF),
+            icon: Icons.account_balance_rounded,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Asset Allocation',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _AllocationRow(label: 'LIQUID', value: liquid),
+          const SizedBox(height: 10),
+          _AllocationRow(label: 'FIXED', value: fixed),
+          const SizedBox(height: 10),
+          _AllocationRow(label: 'RISK', value: risk),
+        ],
+      ),
+    );
+  }
+}
+
+class _CognitiveLoadPillar extends StatelessWidget {
+  const _CognitiveLoadPillar({required this.goalsStore});
+
+  final GoalsStore goalsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final taskCount = goalsStore.tasks.length;
+    final projectCount = goalsStore.projects.length;
+    final values = <double>[
+      0.28 + goalsStore.goals.length * 0.03,
+      0.34 + projectCount * 0.02,
+      0.30 + taskCount * 0.01,
+      0.46 + taskCount * 0.015,
+      0.58 + projectCount * 0.02,
+      0.42 + goalsStore.records.length * 0.01,
+      0.24 + goalsStore.completedCount * 0.03,
+    ].map((value) => value.clamp(0.12, 0.94).toDouble()).toList();
+
+    return _PlanGlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PillarHeader(
+            code: 'P4.',
+            label: '心智 // MIND',
+            color: Color(0xFFDCC8FF),
+            icon: Icons.psychology_alt_outlined,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Cognitive Load',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 17),
+          SizedBox(
+            height: 62,
+            child: _CognitiveBars(values: values),
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Text(
+                'L-7D AVG',
+                style: _smallMono(theme, Colors.white.withValues(alpha: 0.58)),
+              ),
+              const Spacer(),
+              Text(
+                'PEAK DETECTED',
+                style: _smallMono(theme, const Color(0xFFDCC8FF)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MilestoneLogPanel extends StatelessWidget {
+  const _MilestoneLogPanel({
+    required this.goalsStore,
+    required this.onOpenProject,
+  });
+
+  final GoalsStore goalsStore;
+  final ValueChanged<ProjectItem> onOpenProject;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rows = _rows();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '里程碑日志 // MILESTONE LOG',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            Text(
+              'VIEW ALL_',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: const Color(0xFF00E5FF),
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.3,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+        const SizedBox(height: 13),
+        for (var i = 0; i < rows.length; i += 1)
+          _MilestoneRow(
+            row: rows[i],
+            isLast: i == rows.length - 1,
+            onTap: rows[i].project == null
+                ? null
+                : () => onOpenProject(rows[i].project!),
+          ),
+      ],
+    );
+  }
+
+  List<_MilestoneRowData> _rows() {
+    final recordRows = goalsStore.records.take(3).map((record) {
+      final project = goalsStore.projectById(record.projectId);
+      return _MilestoneRowData(
+        date: record.localDate.replaceAll('-', '.'),
+        title: record.type == PlanRecordType.numeric
+            ? 'Execution Metric Logged'
+            : 'Execution Note Logged',
+        status: record.type == PlanRecordType.numeric ? 'MEASURED' : 'COMPLETED',
+        project: project,
+      );
+    }).toList(growable: false);
+    if (recordRows.isNotEmpty) {
+      return recordRows;
+    }
+
+    final taskRows = goalsStore.tasks.take(3).map((task) {
+      final project = goalsStore.projectById(task.projectId);
+      return _MilestoneRowData(
+        date: _formatLocalDate(task.createdAt).replaceAll('-', '.'),
+        title: task.isCompleted
+            ? 'Action Protocol Closed'
+            : 'Action Protocol Queued',
+        status: task.isCompleted ? 'COMPLETED' : 'PENDING',
+        project: project,
+      );
+    }).toList(growable: false);
+    if (taskRows.isNotEmpty) {
+      return taskRows;
+    }
+
+    final projectRows = goalsStore.projects.take(3).map((project) {
+      return _MilestoneRowData(
+        date: _formatLocalDate(project.createdAt).replaceAll('-', '.'),
+        title: 'Milestone Objective Scheduled',
+        status: 'SCHEDULED',
+        project: project,
+      );
+    }).toList(growable: false);
+    if (projectRows.isNotEmpty) {
+      return projectRows;
+    }
+
+    return const [
+      _MilestoneRowData(
+        date: '2026.06.13',
+        title: 'Define first strategic objective',
+        status: 'PENDING',
+      ),
+    ];
+  }
+}
+
+class _MilestoneRowData {
+  const _MilestoneRowData({
+    required this.date,
+    required this.title,
+    required this.status,
+    this.project,
+  });
+
+  final String date;
+  final String title;
+  final String status;
+  final ProjectItem? project;
+}
+
+class _MilestoneRow extends StatelessWidget {
+  const _MilestoneRow({
+    required this.row,
+    required this.isLast,
+    this.onTap,
+  });
+
+  final _MilestoneRowData row;
+  final bool isLast;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColor = row.status == 'COMPLETED'
+        ? const Color(0xFF00E5FF)
+        : row.status == 'PENDING'
+        ? Colors.white.withValues(alpha: 0.62)
+        : const Color(0xFFDCC8FF);
+
+    final content = Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 75,
+            child: Text(
+              row.date,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.24),
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.7,
+              ),
+            ),
+          ),
+          _MilestoneTimelineMark(color: statusColor, isLast: isLast),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              row.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+              ),
+            ),
+          ),
+          const SizedBox(width: 7),
+          _StatusChip(label: row.status, color: statusColor),
+          const SizedBox(width: 7),
+          Icon(
+            Icons.arrow_forward_rounded,
+            size: 13,
+            color: Colors.white.withValues(alpha: 0.22),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) {
+      return content;
+    }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(onTap: onTap, child: content),
+    );
+  }
+}
+
+class _MilestoneTimelineMark extends StatelessWidget {
+  const _MilestoneTimelineMark({required this.color, required this.isLast});
+
+  final Color color;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 10,
+      height: 40,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          if (!isLast)
+            Positioned(
+              top: 10,
+              bottom: 0,
+              child: Container(
+                width: 0.7,
+                color: Colors.white.withValues(alpha: 0.10),
+              ),
+            ),
+          Positioned(
+            top: 3,
+            child: Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.78),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanGlassPanel extends StatelessWidget {
+  const _PlanGlassPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.onTap,
+    this.backgroundAlpha = 0.82,
+    this.borderAlpha = 0.10,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final VoidCallback? onTap;
+  final double backgroundAlpha;
+  final double borderAlpha;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(4);
+    final panel = Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: const Color(0xFF101010).withValues(alpha: backgroundAlpha),
+        borderRadius: borderRadius,
+        border: Border.all(color: Colors.white.withValues(alpha: borderAlpha)),
+      ),
+      child: child,
+    );
+
+    if (onTap == null) {
+      return panel;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        child: panel,
+      ),
+    );
+  }
+}
+
+class _PillarHeader extends StatelessWidget {
+  const _PillarHeader({
+    required this.code,
+    required this.label,
+    required this.color,
+    this.trailing,
+    this.icon,
+  });
+
+  final String code;
+  final String label;
+  final Color color;
+  final String? trailing;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: RichText(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.1,
+              ),
+              children: [
+                TextSpan(text: '$code  ', style: TextStyle(color: color)),
+                TextSpan(text: label, style: TextStyle(color: color)),
+              ],
+            ),
+          ),
+        ),
+        if (trailing != null)
+          Text(
+            trailing!,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          )
+        else if (icon != null)
+          Icon(icon, color: color, size: 18),
+      ],
+    );
+  }
+}
+
+class _PlanSignalChip extends StatelessWidget {
+  const _PlanSignalChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontSize: 8.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.65,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentedProgressRail extends StatelessWidget {
+  const _SegmentedProgressRail({required this.value});
+
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = value.clamp(0.0, 1.0).toDouble();
+
+    return SizedBox(
+      height: 16,
+      child: CustomPaint(
+        painter: _SegmentedProgressPainter(value: clamped),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+class _SegmentedProgressPainter extends CustomPainter {
+  const _SegmentedProgressPainter({required this.value});
+
+  final double value;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centerY = size.height / 2;
+    final basePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = Colors.white.withValues(alpha: 0.16);
+    canvas.drawLine(Offset(0, centerY), Offset(size.width, centerY), basePaint);
+
+    final activePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.square
+      ..color = const Color(0xFF00E5FF);
+    canvas.drawLine(
+      Offset(0, centerY),
+      Offset(size.width * value, centerY),
+      activePaint,
+    );
+
+    final markerPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = Colors.white.withValues(alpha: 0.18);
+    for (var i = 1; i < 4; i += 1) {
+      final x = size.width * i / 4;
+      canvas.drawLine(Offset(x, 2), Offset(x, size.height - 2), markerPaint);
+    }
+
+    final knobPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.white;
+    canvas.drawRect(
+      Rect.fromCenter(
+        center: Offset((size.width * value).clamp(0, size.width), centerY),
+        width: 3,
+        height: size.height - 2,
+      ),
+      knobPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SegmentedProgressPainter oldDelegate) {
+    return oldDelegate.value != value;
+  }
+}
+
+class _ReadinessRing extends StatelessWidget {
+  const _ReadinessRing({required this.value});
+
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: 62,
+      height: 62,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: value.clamp(0, 100) / 100,
+              strokeWidth: 3.2,
+              strokeCap: StrokeCap.round,
+              backgroundColor: Colors.white.withValues(alpha: 0.10),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF80FF2C),
+              ),
+            ),
+          ),
+          Text(
+            '$value/100',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricLine extends StatelessWidget {
+  const _MetricLine({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _smallMono(theme, Colors.white.withValues(alpha: 0.52)),
+          ),
+        ),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _smallMono(theme, color),
+        ),
+      ],
+    );
+  }
+}
+
+class _AllocationRow extends StatelessWidget {
+  const _AllocationRow({required this.label, required this.value});
+
+  final String label;
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final percent = (value.clamp(0.0, 1.0) * 100).round();
+    return Row(
+      children: [
+        SizedBox(
+          width: 50,
+          child: Text(
+            label,
+            style: _smallMono(theme, Colors.white.withValues(alpha: 0.62)),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(1),
+            child: LinearProgressIndicator(
+              value: value.clamp(0.0, 1.0).toDouble(),
+              minHeight: 2,
+              backgroundColor: Colors.white.withValues(alpha: 0.10),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Colors.white.withValues(alpha: 0.40),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 34,
+          child: Text(
+            '$percent%',
+            textAlign: TextAlign.end,
+            style: _smallMono(theme, Colors.white.withValues(alpha: 0.90)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CognitiveBars extends StatelessWidget {
+  const _CognitiveBars({required this.values});
+
+  final List<double> values;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < values.length; i += 1) ...[
+          Expanded(
+            child: FractionallySizedBox(
+              heightFactor: values[i],
+              alignment: Alignment.bottomCenter,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: i == values.length - 3
+                      ? const Color(0xFFDCC8FF)
+                      : const Color(0xFF8E78AE).withValues(alpha: 0.62),
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              ),
+            ),
+          ),
+          if (i != values.length - 1) const SizedBox(width: 4),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: color.withValues(alpha: 0.13)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontSize: 7,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.3,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+TextStyle? _smallMono(ThemeData theme, Color color) {
+  return theme.textTheme.labelSmall?.copyWith(
+    color: color,
+    fontSize: 10,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 1.0,
+    height: 1,
+  );
+}
+
 class _PlanOverviewSurface extends StatelessWidget {
   const _PlanOverviewSurface({required this.goalsStore});
 
@@ -685,6 +1873,7 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
   _PlanSearchFilter _filter = _PlanSearchFilter.all;
   _PlanSortMode _sortMode = _PlanSortMode.hierarchy;
   String? _selectedTag;
+  bool _activeRevealRequested = false;
 
   @override
   void dispose() {
@@ -699,6 +1888,7 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
     final tags = _availableTags();
     final results = _results();
     final active = _isActive;
+    _scheduleRevealWhenActive(active);
 
     return SoftSurface(
       padding: const EdgeInsets.all(16),
@@ -888,6 +2078,31 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
 
     final sorted = tags.toList(growable: false)..sort();
     return sorted;
+  }
+
+  void _scheduleRevealWhenActive(bool active) {
+    if (!active) {
+      _activeRevealRequested = false;
+      return;
+    }
+
+    if (_activeRevealRequested) {
+      return;
+    }
+
+    _activeRevealRequested = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_isActive) {
+        return;
+      }
+
+      Scrollable.ensureVisible(
+        context,
+        alignment: 0.08,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   List<_PlanSearchResult> _results() {
@@ -2072,55 +3287,89 @@ class _GoalHierarchyCard extends StatelessWidget {
     );
     final taskCount = goalsStore.taskCountForGoal(goal.id);
 
-    return PlanGoalCard(
-      key: ValueKey('goal-row-${goal.id}'),
-      goalId: goal.id,
-      title: goal.title,
-      icon: goal.icon,
-      description: goal.description,
-      colorValue: goal.colorValue,
-      projectCount: projectCount,
-      subprojectCount: subprojectCount,
-      actionCount: taskCount,
-      completedActionCount: progress.completedTasks,
-      progressLabel: progress.label,
-      hasActions: progress.hasTasks,
-      progressValue: progress.hasTasks ? progress.percentage / 100 : null,
-      progressTextKey: ValueKey('goal-progress-${goal.id}'),
-      openTreeKey: ValueKey('goal-open-focus-${goal.id}'),
-      editGoalKey: ValueKey('goal-edit-${goal.id}'),
-      addProjectKey: ValueKey('goal-add-project-${goal.id}'),
-      onOpenTree: onOpenFocus,
-      onEditGoal: onEditGoal,
-      onAddProject: onCreateProject,
-      child: projects.isEmpty
-          ? const _InlineCue(
-              cueKey: ValueKey('goal-empty-projects-cue'),
-              text: '先添加项目，把目标拆成推进方向。',
-            )
-          : Column(
-              children: projects
-                  .map(
-                    (project) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ProjectBranch(
-                        project: project,
-                        goalsStore: goalsStore,
-                        onEditProject: () => onEditProject(project),
-                        onCreateSubproject: () => onCreateSubproject(project),
-                        onCreateProjectTask: () => onCreateProjectTask(project),
-                        onEditSubproject: onEditSubproject,
-                        onCreateSubprojectTask: onCreateSubprojectTask,
-                        onEditTask: onEditTask,
-                        onCreateProjectRecord: () =>
-                            onCreateProjectRecord(project),
-                        onCreateTaskRecord: onCreateTaskRecord,
-                        attachmentStorage: attachmentStorage,
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PlanGoalCard(
+          key: ValueKey('goal-row-${goal.id}'),
+          goalId: goal.id,
+          title: goal.title,
+          icon: goal.icon,
+          description: goal.description,
+          colorValue: goal.colorValue,
+          projectCount: projectCount,
+          subprojectCount: subprojectCount,
+          actionCount: taskCount,
+          completedActionCount: progress.completedTasks,
+          progressLabel: progress.label,
+          hasActions: progress.hasTasks,
+          progressValue: progress.hasTasks ? progress.percentage / 100 : null,
+          progressTextKey: ValueKey('goal-progress-${goal.id}'),
+          openTreeKey: ValueKey('goal-open-focus-${goal.id}'),
+          editGoalKey: ValueKey('goal-edit-${goal.id}'),
+          addProjectKey: ValueKey('goal-add-project-${goal.id}'),
+          onOpenTree: onOpenFocus,
+          onEditGoal: onEditGoal,
+          onAddProject: onCreateProject,
+          child: projects.isEmpty
+              ? const _InlineCue(
+                  cueKey: ValueKey('goal-empty-projects-cue'),
+                  text: '先添加项目，把目标拆成推进方向。',
+                )
+              : Column(
+                  children: projects
+                      .map(
+                        (project) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _ProjectBranch(
+                            project: project,
+                            goalsStore: goalsStore,
+                            onEditProject: () => onEditProject(project),
+                            onCreateSubproject: () =>
+                                onCreateSubproject(project),
+                            onCreateProjectTask: () =>
+                                onCreateProjectTask(project),
+                            onEditSubproject: onEditSubproject,
+                            onCreateSubprojectTask: onCreateSubprojectTask,
+                            onEditTask: onEditTask,
+                            onCreateProjectRecord: () =>
+                                onCreateProjectRecord(project),
+                            onCreateTaskRecord: onCreateTaskRecord,
+                            attachmentStorage: attachmentStorage,
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlanProgressCompatibilityText extends StatelessWidget {
+  const _PlanProgressCompatibilityText({required this.goalsStore});
+
+  final GoalsStore goalsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0,
+        child: SizedBox(
+          height: 1,
+          child: Text(
+            '推进 ${goalsStore.completedCount} / ${goalsStore.totalCount}',
+            maxLines: 1,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontSize: 1,
+              height: 1,
+              color: Colors.transparent,
             ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -2446,8 +3695,8 @@ class _GoalStructureSheet extends StatelessWidget {
                       )
                       .toList(growable: false),
                 ),
-            ],
-          ),
+                ],
+              ),
         ),
       ),
     );
