@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/settings/application/app_settings_store.dart';
 import 'package:four_in_one_app/app/settings/presentation/app_settings_scope.dart';
@@ -7,9 +5,6 @@ import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
 import 'package:four_in_one_app/features/focus/presentation/focus_scope.dart';
 import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
 import 'package:four_in_one_app/features/habits/presentation/habits_scope.dart';
-import 'package:four_in_one_app/shared/widgets/product/app_quiet_badge.dart';
-import 'package:four_in_one_app/shared/widgets/product/my_settings_section.dart';
-import 'package:four_in_one_app/shared/widgets/product/product_page_header.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({this.showScaffold = true, super.key});
@@ -41,40 +36,31 @@ class _SettingsContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.spaceXl,
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.pagePadding,
+        20,
+        14,
+        20,
+        96,
       ),
       children: [
-        const ProductPageHeader(
-          eyebrow: '个人中心',
-          title: '我的',
-          subtitle: '外观、提醒与本地数据，慢慢集中到这里。',
-        ),
-        const SizedBox(height: AppThemeTokens.spaceXl),
-        _AppearanceSection(settingsStore: settingsStore),
-        const SizedBox(height: AppThemeTokens.spaceLg),
+        _ThemeStudio(settingsStore: settingsStore),
+        const SizedBox(height: 22),
         const _FutureSection(
-          title: '提醒',
           rowTitle: '提醒设置',
-          helper: '后续集中管理提醒设置',
+          helper: 'REMINDERS CONFIG',
           icon: Icons.notifications_none_rounded,
         ),
-        const SizedBox(height: AppThemeTokens.spaceLg),
+        const SizedBox(height: 6),
         const _FutureSection(
-          title: '隐私与权限',
-          rowTitle: '权限说明',
-          helper: '后续整理权限与隐私说明',
+          rowTitle: '隐私与安全',
+          helper: 'PRIVACY & SECURITY',
           icon: Icons.privacy_tip_outlined,
         ),
-        const SizedBox(height: AppThemeTokens.spaceLg),
+        const SizedBox(height: 6),
         const _DataSummarySection(),
-        const SizedBox(height: AppThemeTokens.spaceLg),
+        const SizedBox(height: 6),
         const _FutureSection(
-          title: '关于',
           rowTitle: '版本信息',
-          helper: '当前测试版本信息',
+          helper: 'CURRENT BUILD',
           icon: Icons.info_outline_rounded,
           badgeLabel: '测试中',
         ),
@@ -90,44 +76,36 @@ class _AppearanceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MySettingsSection(
-      title: '外观',
-      subtitle: '让界面跟随你的使用环境。Theme Studio 的颜色会驱动整体氛围。',
-      leadingIcon: Icons.palette_outlined,
-      rows: [
-        MySettingsRow(
-          title: '主题模式',
-          subtitle: '跟随系统、浅色或深色',
-          content: Column(
-            children: [
-              _ThemeModeTile(
-                key: const ValueKey('settings-theme-mode-system'),
-                title: '跟随系统',
-                value: AppThemeMode.system,
-                groupValue: settingsStore.themeMode,
-                onChanged: settingsStore.setThemeMode,
-              ),
-              _ThemeModeTile(
-                key: const ValueKey('settings-theme-mode-light'),
-                title: '浅色',
-                value: AppThemeMode.light,
-                groupValue: settingsStore.themeMode,
-                onChanged: settingsStore.setThemeMode,
-              ),
-              _ThemeModeTile(
-                key: const ValueKey('settings-theme-mode-dark'),
-                title: '深色',
-                value: AppThemeMode.dark,
-                groupValue: settingsStore.themeMode,
-                onChanged: settingsStore.setThemeMode,
-              ),
-            ],
+    return Row(
+      children: [
+        Expanded(
+          child: _ThemeModeTile(
+            key: const ValueKey('settings-theme-mode-system'),
+            title: '跟随系统',
+            value: AppThemeMode.system,
+            groupValue: settingsStore.themeMode,
+            onChanged: settingsStore.setThemeMode,
           ),
         ),
-        MySettingsRow(
-          title: '颜色工作室',
-          subtitle: '影响按钮、选中态和强调元素',
-          content: _ThemeStudio(settingsStore: settingsStore),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _ThemeModeTile(
+            key: const ValueKey('settings-theme-mode-light'),
+            title: '浅色',
+            value: AppThemeMode.light,
+            groupValue: settingsStore.themeMode,
+            onChanged: settingsStore.setThemeMode,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _ThemeModeTile(
+            key: const ValueKey('settings-theme-mode-dark'),
+            title: '深色',
+            value: AppThemeMode.dark,
+            groupValue: settingsStore.themeMode,
+            onChanged: settingsStore.setThemeMode,
+          ),
         ),
       ],
     );
@@ -180,22 +158,36 @@ class _ThemeStudioState extends State<_ThemeStudio> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _ThemePreview(settingsStore: store),
-        const SizedBox(height: AppThemeTokens.spaceMd),
+        const SizedBox(height: 28),
+        const _ColorLabHeader(),
+        const SizedBox(height: 14),
+        Text(
+          '颜色工作室',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.primary,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(height: 4),
         Text(
           '界面强调色',
           style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w900,
+            height: 1.0,
           ),
         ),
-        const SizedBox(height: AppThemeTokens.spaceXs),
+        const SizedBox(height: 3),
         Text(
-          '界面强调色影响按钮、选中态、芯片和强调元素。背景颜色影响页面底色，卡片颜色影响面板和底表。',
-          style: theme.textTheme.bodySmall?.copyWith(
+          '影响按钮、选中态和强调元素',
+          style: theme.textTheme.labelMedium?.copyWith(
             color: AppThemeTokens.secondaryTextTone(colorScheme),
-            height: 1.35,
+            height: 1.12,
+            letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: AppThemeTokens.spaceMd),
+        const SizedBox(height: 9),
         _ThemeTargetSelector(
           selectedTarget: _target,
           onSelected: (target) {
@@ -206,21 +198,22 @@ class _ThemeStudioState extends State<_ThemeStudio> {
             });
           },
         ),
-        const SizedBox(height: AppThemeTokens.spaceMd),
+        const SizedBox(height: 10),
         _VisualColorPickerPanel(
           key: const ValueKey('theme-studio-visual-picker'),
           color: _currentTargetColor(store),
           targetLabel: _target.label,
           onColorChanged: _applyVisualColor,
         ),
-        const SizedBox(height: AppThemeTokens.spaceSm),
+        const SizedBox(height: 10),
         Text(
-          '不会选色可以直接拖动色盘或点选色卡。',
-          style: theme.textTheme.bodySmall?.copyWith(
+          '拖动矩阵或色相轨道会实时更新当前目标色。',
+          style: theme.textTheme.labelSmall?.copyWith(
             color: AppThemeTokens.secondaryTextTone(colorScheme),
+            letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: AppThemeTokens.spaceLg),
+        const SizedBox(height: 20),
         _PaletteBoards(
           currentColor: _currentTargetColor(store),
           target: _target,
@@ -436,118 +429,381 @@ class _ThemePreview extends StatelessWidget {
     final surface =
         settingsStore.customSurfaceColor ??
         AppSettingsStore.defaultLightSurfaceColor;
-    final previewBackground = Color.lerp(background, Colors.white, 0.82)!;
-    final previewSurface = Color.lerp(surface, Colors.white, 0.7)!;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final heroHeight = constraints.maxWidth > 520
+            ? 300.0
+            : (constraints.maxWidth * 0.96).clamp(350.0, 386.0);
+        final heroSurface = Color.lerp(
+          const Color(0xFF0B0D0D),
+          surface,
+          0.08,
+        )!;
+        final heroBackground = Color.lerp(
+          const Color(0xFF0B0D0D),
+          background,
+          0.06,
+        )!;
+
+        return Container(
+          key: const ValueKey('theme-studio-preview'),
+          height: heroHeight,
+          decoration: BoxDecoration(
+            color: heroBackground,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Color.lerp(accent, colorScheme.onSurface, 0.76)!
+                  .withValues(alpha: 0.36),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.10),
+                blurRadius: 34,
+                spreadRadius: -24,
+                offset: const Offset(0, 18),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color.lerp(heroSurface, accent, 0.05)!,
+                        heroSurface.withValues(alpha: 0.92),
+                        const Color(0xFF070808),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _MineWavePainter(
+                    accent: accent,
+                    lineColor: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 15,
+                left: 22,
+                right: 22,
+                child: _HeroThemeModeDock(settingsStore: settingsStore),
+              ),
+              Positioned(
+                left: 24,
+                right: 24,
+                bottom: 28,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: accent,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: accent.withValues(alpha: 0.55),
+                                blurRadius: 12,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'EDITION 01',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'EDITION 01',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.18),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '主题工作室',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                        height: 0.94,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.72),
+                            blurRadius: 12,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'Theme Studio',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Curated visual environments for peak cognitive focus.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.82),
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HeroThemeModeDock extends StatelessWidget {
+  const _HeroThemeModeDock({required this.settingsStore});
+
+  final AppSettingsStore settingsStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Opacity(
+      opacity: 0.58,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '外观',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.70),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '主题模式',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.56),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          _AppearanceSection(settingsStore: settingsStore),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColorLabHeader extends StatelessWidget {
+  const _ColorLabHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'COLOR LAB',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.primary,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        FittedBox(
+          alignment: Alignment.centerLeft,
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'ACTIVE PALETTE CONFIGURATION',
+            maxLines: 1,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.86),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2.6,
+              height: 1,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MineWavePainter extends CustomPainter {
+  const _MineWavePainter({required this.accent, required this.lineColor});
+
+  final Color accent;
+  final Color lineColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.72, 0.42),
+        radius: 0.88,
+        colors: [
+          accent.withValues(alpha: 0.20),
+          accent.withValues(alpha: 0.04),
+          Colors.transparent,
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, glowPaint);
+
+    final baseY = size.height * 0.48;
+    for (var index = 0; index < 13; index += 1) {
+      final progress = index / 12;
+      final path = Path()..moveTo(-18, baseY + index * 9);
+      path.cubicTo(
+        size.width * 0.16,
+        baseY - 74 + index * 5,
+        size.width * 0.36,
+        baseY + 44 + index * 2,
+        size.width * 0.52,
+        baseY + 22 + index * 8,
+      );
+      path.cubicTo(
+        size.width * 0.68,
+        baseY + 2 + index * 10,
+        size.width * 0.78,
+        baseY - 82 + index * 7,
+        size.width + 28,
+        baseY - 30 + index * 4,
+      );
+
+      final paint = Paint()
+        ..color = Color.lerp(lineColor, accent, 0.18)!
+            .withValues(alpha: 0.11 - progress * 0.035)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawPath(path, paint);
+    }
+
+    final shadePaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.transparent,
+          Color(0xAA050606),
+          Color(0xEE050606),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, shadePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MineWavePainter oldDelegate) {
+    return oldDelegate.accent != accent || oldDelegate.lineColor != lineColor;
+  }
+}
+
+class _MineTechPanel extends StatelessWidget {
+  const _MineTechPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    super.key,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      key: const ValueKey('theme-studio-preview'),
-      padding: const EdgeInsets.all(AppThemeTokens.spaceMd),
+      padding: padding,
       decoration: BoxDecoration(
-        color: previewBackground,
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
+        color: const Color(0xFF181A1A).withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(
+          color: Color.lerp(colorScheme.primary, colorScheme.onSurface, 0.72)!
+              .withValues(alpha: 0.18),
+        ),
       ),
-      child: Container(
-        padding: const EdgeInsets.all(AppThemeTokens.spaceMd),
-        decoration: BoxDecoration(
-          color: previewSurface,
-          borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-          border: Border.all(color: accent.withValues(alpha: 0.24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: AppThemeTokens.spaceSm,
-              runSpacing: AppThemeTokens.spaceXs,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(
-                      AppThemeTokens.radiusMd,
-                    ),
-                  ),
-                ),
-                Text(
-                  '主题预览',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: Colors.black.withValues(alpha: 0.82),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppThemeTokens.spaceSm,
-                    vertical: AppThemeTokens.spaceXs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(
-                      AppThemeTokens.radiusPill,
-                    ),
-                  ),
-                  child: Text(
-                    '强调元素',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+      child: child,
+    );
+  }
+}
+
+class _MinePanelLabel extends StatelessWidget {
+  const _MinePanelLabel({required this.primary, required this.secondary});
+
+  final String primary;
+  final String secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return FittedBox(
+      alignment: Alignment.centerLeft,
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            primary,
+            maxLines: 1,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.0,
             ),
-            const SizedBox(height: AppThemeTokens.spaceSm),
-            Text(
-              '背景、卡片和按钮会保持克制的统一感。',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.black.withValues(alpha: 0.62),
-              ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '/ $secondary',
+            maxLines: 1,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.primary.withValues(alpha: 0.62),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.3,
             ),
-            const SizedBox(height: AppThemeTokens.spaceSm),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: previewBackground,
-                      borderRadius: BorderRadius.circular(
-                        AppThemeTokens.radiusPill,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppThemeTokens.spaceXs),
-                Expanded(
-                  child: Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: previewSurface,
-                      borderRadius: BorderRadius.circular(
-                        AppThemeTokens.radiusPill,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppThemeTokens.spaceXs),
-                Container(
-                  width: 44,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(
-                      AppThemeTokens.radiusPill,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -564,15 +820,38 @@ class _ThemeTargetSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Wrap(
-      spacing: AppThemeTokens.spaceSm,
-      runSpacing: AppThemeTokens.spaceSm,
+      spacing: 6,
+      runSpacing: 6,
       children: [
         for (final target in _ThemeColorTarget.values)
-          FilterChip(
+          ChoiceChip(
             key: ValueKey<String>('theme-studio-target-${target.key}'),
             label: Text(target.label),
             selected: selectedTarget == target,
+            labelStyle: TextStyle(
+              color: selectedTarget == target
+                  ? const Color(0xFF061214)
+                  : colorScheme.onSurface.withValues(alpha: 0.72),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+            visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            selectedColor: colorScheme.primary,
+            backgroundColor: const Color(0xFF121515).withValues(alpha: 0.82),
+            side: BorderSide(
+              color: selectedTarget == target
+                  ? colorScheme.primary.withValues(alpha: 0.85)
+                  : colorScheme.onSurface.withValues(alpha: 0.14),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
             onSelected: (_) => onSelected(target),
           ),
       ],
@@ -597,72 +876,267 @@ class _VisualColorPickerPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final hsv = HSVColor.fromColor(color.withValues(alpha: 1));
+    final rgbText =
+        '${(color.r * 255).round()}, ${(color.g * 255).round()}, ${(color.b * 255).round()}';
 
-    return Container(
-      padding: const EdgeInsets.all(AppThemeTokens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(
-          color: AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.72),
-        ),
-      ),
+    return _MineTechPanel(
+      padding: const EdgeInsets.fromLTRB(16, 13, 16, 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                key: const ValueKey('theme-studio-current-color'),
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-                  border: Border.all(
-                    color: colorScheme.onSurface.withValues(alpha: 0.16),
-                  ),
+              const Expanded(
+                child: _MinePanelLabel(
+                  primary: 'SAT / BRI MATRIX',
+                  secondary: 'VISUAL PICKER',
                 ),
               ),
-              const SizedBox(width: AppThemeTokens.spaceSm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      targetLabel,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _colorToHex(color),
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: AppThemeTokens.secondaryTextTone(colorScheme),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 8),
+              Text(
+                'H: ${hsv.hue.round()}°',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.3,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
+          const SizedBox(height: 11),
           _SaturationBrightnessPicker(
             hsv: hsv,
             onChanged: (nextHsv) {
               onColorChanged(nextHsv.toColor());
             },
           ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
+          const SizedBox(height: 16),
+          Text(
+            'GLOBAL CONTROLS',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.82),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.6,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _ControlReadoutRow(label: 'HUE', value: '${hsv.hue.round()}°'),
+          const SizedBox(height: 8),
           _HueSlider(
             hue: hsv.hue,
             onChanged: (hue) {
               onColorChanged(hsv.withHue(hue).toColor());
             },
           ),
+          const SizedBox(height: 12),
+          _ControlReadoutRow(
+            label: 'LUMINANCE',
+            value: '${(hsv.value * 100).round()}%',
+          ),
+          const SizedBox(height: 8),
+          _LuminanceMeter(value: hsv.value, color: color),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _ColorValueTile(
+                  label: 'HEX',
+                  value: _colorToHex(color),
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _ColorValueTile(
+                  label: 'RGB',
+                  value: rgbText,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                key: const ValueKey('theme-studio-current-color'),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: colorScheme.onSurface.withValues(alpha: 0.22),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  targetLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: AppThemeTokens.secondaryTextTone(colorScheme),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ControlReadoutRow extends StatelessWidget {
+  const _ControlReadoutRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurface.withValues(alpha: 0.72),
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ColorValueTile extends StatelessWidget {
+  const _ColorValueTile({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1010).withValues(alpha: 0.92),
+        border: Border.all(color: colorScheme.onSurface.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.70),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            alignment: Alignment.centerLeft,
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: label == 'HEX' ? color : colorScheme.onSurface,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LuminanceMeter extends StatelessWidget {
+  const _LuminanceMeter({required this.value, required this.color});
+
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final clamped = value.clamp(0.0, 1.0).toDouble();
+
+    return SizedBox(
+      height: 16,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurface.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              Container(
+                width: constraints.maxWidth * clamped,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Color.lerp(
+                    colorScheme.onSurface.withValues(alpha: 0.34),
+                    color,
+                    0.62,
+                  )!,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              Positioned(
+                left: (constraints.maxWidth * clamped - 8).clamp(
+                  0.0,
+                  constraints.maxWidth - 16,
+                ),
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.32),
+                        blurRadius: 12,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -683,11 +1157,12 @@ class _SaturationBrightnessPicker extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = math.min(constraints.maxWidth, 224.0);
+        final width = constraints.maxWidth;
+        final height = (width * 0.50).clamp(150.0, 178.0);
 
         void updateFromPosition(Offset localPosition) {
-          final saturation = (localPosition.dx / size).clamp(0.0, 1.0);
-          final value = (1 - localPosition.dy / size).clamp(0.0, 1.0);
+          final saturation = (localPosition.dx / width).clamp(0.0, 1.0);
+          final value = (1 - localPosition.dy / height).clamp(0.0, 1.0);
           onChanged(
             hsv
                 .withSaturation(saturation.toDouble())
@@ -702,18 +1177,19 @@ class _SaturationBrightnessPicker extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             onTapDown: (details) => updateFromPosition(details.localPosition),
             onPanUpdate: (details) => updateFromPosition(details.localPosition),
-            child: SizedBox.square(
-              dimension: size,
+            child: SizedBox(
+              width: width,
+              height: height,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   CustomPaint(
-                    size: Size.square(size),
+                    size: Size(width, height),
                     painter: _SaturationBrightnessPainter(hue: hsv.hue),
                   ),
                   Positioned(
-                    left: hsv.saturation * size - 9,
-                    top: (1 - hsv.value) * size - 9,
+                    left: hsv.saturation * width - 9,
+                    top: (1 - hsv.value) * height - 9,
                     child: Container(
                       width: 18,
                       height: 18,
@@ -755,7 +1231,7 @@ class _SaturationBrightnessPainter extends CustomPainter {
         colors: [Colors.white, hueColor],
       ).createShader(rect);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(18)),
+      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
       saturationPaint,
     );
 
@@ -766,7 +1242,7 @@ class _SaturationBrightnessPainter extends CustomPainter {
         colors: [Colors.transparent, Colors.black],
       ).createShader(rect);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(18)),
+      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
       valuePaint,
     );
   }
@@ -789,7 +1265,7 @@ class _HueSlider extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const height = 28.0;
+        const height = 10.0;
         final width = constraints.maxWidth;
 
         void updateFromPosition(Offset localPosition) {
@@ -803,7 +1279,7 @@ class _HueSlider extends StatelessWidget {
           onTapDown: (details) => updateFromPosition(details.localPosition),
           onPanUpdate: (details) => updateFromPosition(details.localPosition),
           child: SizedBox(
-            height: 42,
+            height: 28,
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -816,7 +1292,7 @@ class _HueSlider extends StatelessWidget {
                   left: (hue / 360 * width).clamp(0.0, width) - 6,
                   child: Container(
                     width: 12,
-                    height: 36,
+                    height: 26,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(
@@ -1311,45 +1787,38 @@ class _DataSummarySection extends StatelessWidget {
     final taskCount = goalsStore.tasks.length;
     final focusCount = focusStore.completedSessionCount;
 
-    return MySettingsSection(
+    return _MineTechPanel(
       key: const ValueKey('settings-data-summary'),
-      title: '本地数据',
-      subtitle: '当前设备存储的数据记录，数据只保留在本机。',
-      leadingIcon: Icons.storage_rounded,
-      rows: [
-        MySettingsRow(
-          title: '习惯与打卡',
-          subtitle: '$habitCount 个习惯',
-          leadingIcon: Icons.spa_rounded,
-          enabled: false,
-        ),
-        MySettingsRow(
-          title: '目标与行动',
-          subtitle: '$taskCount 条行动',
-          leadingIcon: Icons.account_tree_rounded,
-          enabled: false,
-        ),
-        MySettingsRow(
-          title: '专注记录',
-          subtitle: '$focusCount 次专注',
-          leadingIcon: Icons.timer_rounded,
-          enabled: false,
-        ),
-      ],
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _MineCommandRowHeader(
+            icon: Icons.storage_rounded,
+            title: '本地数据',
+            subtitle: 'LOCAL STORAGE',
+            badge: '1.2',
+          ),
+          const SizedBox(height: 10),
+          _DataMetricLine(label: '习惯与打卡', value: '$habitCount 个习惯'),
+          const SizedBox(height: 6),
+          _DataMetricLine(label: '目标与行动', value: '$taskCount 条行动'),
+          const SizedBox(height: 6),
+          _DataMetricLine(label: '专注记录', value: '$focusCount 次专注'),
+        ],
+      ),
     );
   }
 }
 
 class _FutureSection extends StatelessWidget {
   const _FutureSection({
-    required this.title,
     required this.rowTitle,
     required this.helper,
     required this.icon,
     this.badgeLabel = '后续',
   });
 
-  final String title;
   final String rowTitle;
   final String helper;
   final IconData icon;
@@ -1357,15 +1826,144 @@ class _FutureSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MySettingsSection(
-      title: title,
-      rows: [
-        MySettingsRow(
-          title: rowTitle,
-          subtitle: helper,
-          leadingIcon: icon,
-          enabled: false,
-          trailing: AppQuietBadge(label: badgeLabel),
+    return _MineTechPanel(
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      child: _MineCommandRowHeader(
+        icon: icon,
+        title: rowTitle,
+        subtitle: helper,
+        badge: badgeLabel == '后续' ? null : badgeLabel,
+        showChevron: true,
+      ),
+    );
+  }
+}
+
+class _MineCommandRowHeader extends StatelessWidget {
+  const _MineCommandRowHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.badge,
+    this.showChevron = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? badge;
+  final bool showChevron;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: colorScheme.onSurface.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: colorScheme.onSurface.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: colorScheme.onSurface.withValues(alpha: 0.86),
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                subtitle,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.66),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.35,
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (badge != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F1111).withValues(alpha: 0.90),
+              border: Border.all(
+                color: colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Text(
+              badge!,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.0,
+                height: 1.0,
+              ),
+            ),
+          ),
+        if (showChevron) ...[
+          const SizedBox(width: 10),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: colorScheme.onSurface.withValues(alpha: 0.56),
+            size: 20,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DataMetricLine extends StatelessWidget {
+  const _DataMetricLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppThemeTokens.secondaryTextTone(colorScheme),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ],
     );
@@ -1388,21 +1986,49 @@ class _ThemeModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final selected = value == groupValue;
 
     return Material(
       color: Colors.transparent,
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(title),
-        trailing: Icon(
-          selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-          color: selected ? colorScheme.primary : colorScheme.outline,
-        ),
+      child: InkWell(
         onTap: () {
           onChanged(value);
         },
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.check_circle_rounded
+                    : Icons.circle_outlined,
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurface.withValues(alpha: 0.38),
+                size: 14,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: selected
+                        ? colorScheme.onSurface
+                        : AppThemeTokens.secondaryTextTone(colorScheme),
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                    letterSpacing: 0.1,
+                    height: 1.0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

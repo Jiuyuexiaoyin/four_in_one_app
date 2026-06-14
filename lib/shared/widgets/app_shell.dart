@@ -39,12 +39,17 @@ class AppShell extends StatelessWidget {
             selectedIndex == 2 ||
             selectedIndex == 3);
     final showPageAppBar = !usesInlineChrome;
+    final usesSettingsCommandChrome = showPageAppBar &&
+        !showBottomNavigation &&
+        title == '我的';
 
     return Scaffold(
       extendBody: true,
       backgroundColor: canvasColor,
       appBar: showPageAppBar
-          ? AppBar(
+          ? usesSettingsCommandChrome
+                ? const _SettingsCommandAppBar()
+                : AppBar(
               title: Text(
                 title,
                 style: theme.textTheme.labelMedium?.copyWith(
@@ -155,6 +160,128 @@ class AppShell extends StatelessWidget {
               ),
             )
           : null,
+    );
+  }
+}
+
+class _SettingsCommandAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _SettingsCommandAppBar();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(72);
+
+  @override
+  Widget build(BuildContext context) {
+    const cyan = Color(0xFF00E5FF);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final canPop = Navigator.of(context).canPop();
+
+    return AppBar(
+      automaticallyImplyLeading: false,
+      toolbarHeight: preferredSize.height,
+      backgroundColor: const Color(0xFF0B0D0D).withValues(alpha: 0.94),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      leadingWidth: 78,
+      leading: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 20),
+          child: Tooltip(
+            message: canPop ? '返回' : 'Theme Studio',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: canPop ? Navigator.of(context).pop : null,
+                borderRadius: BorderRadius.circular(11),
+                child: Ink(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: colorScheme.onSurface.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'img',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: const Color(0xFF0A0C0C),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      title: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(
+            'STRATEGIC COMMAND',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cyan,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2.2,
+            ),
+          ),
+          Opacity(
+            opacity: 0,
+            child: Text(
+              '我的',
+              style: theme.textTheme.labelSmall,
+            ),
+          ),
+        ],
+      ),
+      centerTitle: true,
+      actions: [
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 20),
+          child: Tooltip(
+            message: 'Theme Studio',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: const ValueKey('shell-settings-entry'),
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {},
+                child: Ink(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.settings_outlined,
+                    size: 22,
+                    color: colorScheme.onSurface.withValues(alpha: 0.86),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+      flexibleSpace: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B0D0D).withValues(alpha: 0.94),
+          border: Border(
+            bottom: BorderSide(
+              color: colorScheme.onSurface.withValues(alpha: 0.09),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
