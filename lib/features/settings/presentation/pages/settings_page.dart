@@ -1356,27 +1356,57 @@ class _PaletteBoards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '色卡灵感',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppThemeTokens.softSurfaceTone(
+          colorScheme,
+        ).withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
+        border: Border.all(
+          color: AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.28),
         ),
-        const SizedBox(height: AppThemeTokens.spaceSm),
-        for (final board in _themePaletteBoards) ...[
-          _PaletteBoard(
-            board: board,
-            currentColor: currentColor,
-            target: target,
-            onColorSelected: onColorSelected,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '色卡灵感',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                target.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AppThemeTokens.secondaryTextTone(colorScheme),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
+          const SizedBox(height: AppThemeTokens.spaceSm),
+          for (var index = 0; index < _themePaletteBoards.length; index += 1)
+            ...[
+              if (index > 0) const SizedBox(height: 10),
+              _PaletteBoard(
+                board: _themePaletteBoards[index],
+                currentColor: currentColor,
+                target: target,
+                onColorSelected: onColorSelected,
+              ),
+            ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -1400,14 +1430,12 @@ class _PaletteBoard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.all(AppThemeTokens.spaceSm),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(
-          colorScheme,
-        ).withValues(alpha: 0.52),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
+        color: colorScheme.onSurface.withValues(alpha: 0.032),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
         border: Border.all(
-          color: AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.64),
+          color: AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.20),
         ),
       ),
       child: Column(
@@ -1416,14 +1444,14 @@ class _PaletteBoard extends StatelessWidget {
           Text(
             board.title,
             style: theme.textTheme.labelLarge?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface.withValues(alpha: 0.86),
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: AppThemeTokens.spaceSm),
+          const SizedBox(height: 9),
           Wrap(
-            spacing: AppThemeTokens.spaceSm,
-            runSpacing: AppThemeTokens.spaceSm,
+            spacing: 8,
+            runSpacing: 9,
             children: [
               for (final preset in board.colors)
                 _PresetColorOption(
@@ -1699,72 +1727,85 @@ class _PresetColorOption extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final swatchKey = color.toARGB32().toRadixString(16);
     final ringColor = selected
-        ? colorScheme.primary.withValues(alpha: 0.70)
-        : AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.72);
+        ? colorScheme.primary.withValues(alpha: 0.54)
+        : AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.28);
 
     return InkWell(
       key: ValueKey<String>('${target.optionKeyPrefix}-$swatchKey'),
-      borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(2),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+        width: 94,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.08)
+              : colorScheme.onSurface.withValues(alpha: 0.028),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ringColor, width: selected ? 1.2 : 1),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: colorScheme.primary.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : const [],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: colorScheme.surface.withValues(alpha: 0.72),
-                borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-                border: Border.all(color: ringColor, width: selected ? 1.5 : 1),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 82,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: colorScheme.onSurface.withValues(alpha: 0.12),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: colorScheme.onSurface.withValues(alpha: 0.10),
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      key: ValueKey<String>(
+                        '${target.selectedKeyPrefix}-$swatchKey',
+                      ),
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: colorScheme.surface),
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: colorScheme.onPrimary,
+                        size: 14,
                       ),
                     ),
                   ),
-                  if (selected)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        key: ValueKey<String>(
-                          '${target.selectedKeyPrefix}-$swatchKey',
-                        ),
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: colorScheme.surface),
-                        ),
-                        child: Icon(
-                          Icons.check_rounded,
-                          color: colorScheme.onPrimary,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
-            const SizedBox(height: AppThemeTokens.spaceXs),
+            const SizedBox(height: 6),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: selected
                     ? colorScheme.primary
                     : AppThemeTokens.secondaryTextTone(colorScheme),
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                 height: 1.1,
               ),
             ),

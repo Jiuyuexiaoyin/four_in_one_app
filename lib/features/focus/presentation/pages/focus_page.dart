@@ -1172,20 +1172,22 @@ class _FocusDurationSelector extends StatelessWidget {
             runSpacing: 8,
             children: [
               for (final seconds in FocusStore.durationChoicesSeconds)
-                ChoiceChip(
+                _FocusDurationOption(
                   key: ValueKey<String>('focus-duration-choice-$seconds'),
-                  label: Text('${seconds ~/ 60} 分钟'),
+                  label: '${seconds ~/ 60} 分钟',
                   selected: focusStore.selectedDurationSeconds == seconds,
-                  onSelected: focusStore.isIdle
-                      ? (_) => focusStore.selectDuration(seconds)
+                  enabled: focusStore.isIdle,
+                  onTap: focusStore.isIdle
+                      ? () => focusStore.selectDuration(seconds)
                       : null,
                 ),
-              ChoiceChip(
+              _FocusDurationOption(
                 key: const ValueKey('focus-duration-custom'),
-                label: const Text('自定义'),
+                label: '自定义',
                 selected: focusStore.hasCustomSelectedDuration,
-                onSelected: focusStore.isIdle
-                    ? (_) => _showCustomDurationDialog(context, focusStore)
+                enabled: focusStore.isIdle,
+                onTap: focusStore.isIdle
+                    ? () => _showCustomDurationDialog(context, focusStore)
                     : null,
               ),
             ],
@@ -1209,6 +1211,98 @@ class _FocusDurationSelector extends StatelessWidget {
     if (result != null) {
       focusStore.selectDuration(result * 60);
     }
+  }
+}
+
+class _FocusDurationOption extends StatelessWidget {
+  const _FocusDurationOption({
+    required this.label,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final accent = colorScheme.primary;
+    final effectiveSelected = selected;
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.58,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            decoration: BoxDecoration(
+              color: effectiveSelected
+                  ? accent.withValues(alpha: 0.16)
+                  : colorScheme.onSurface.withValues(alpha: 0.045),
+              borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+              border: Border.all(
+                color: effectiveSelected
+                    ? accent.withValues(alpha: 0.48)
+                    : colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+              boxShadow: effectiveSelected
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.16),
+                        blurRadius: 18,
+                        offset: const Offset(0, 9),
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (effectiveSelected) ...[
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                ],
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: effectiveSelected
+                        ? accent
+                        : AppThemeTokens.secondaryTextTone(
+                            colorScheme,
+                          ).withValues(alpha: 0.88),
+                    fontWeight: effectiveSelected
+                        ? FontWeight.w900
+                        : FontWeight.w700,
+                    letterSpacing: 0,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -133,6 +133,7 @@ class TodayPage extends StatelessWidget {
                 progress: stageProgress,
                 todayFocusMinutes: todayFocusMinutes,
                 sessionCount: todayFocusSessions.length,
+                hasData: todayFocusSessions.isNotEmpty,
               ),
               const SizedBox(height: 12),
               _ActionPlanTimeline(
@@ -227,21 +228,30 @@ class _TodayStage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final readiness = (progress.clamp(0, 1) * 100).round();
+    final hasHabitData = totalHabits > 0;
+    final hasPlanData = totalActions > 0;
+    final hasFocusData = todayFocusMinutes > 0;
+    final hasDashboardData = hasHabitData || hasPlanData || hasFocusData;
+    final readiness = hasFocusData
+        ? (progress.clamp(0, 1) * 100).round()
+        : null;
     final completionRatio = totalHabits == 0
         ? 0.0
         : (completedHabits / totalHabits).clamp(0.0, 1.0);
     final completionValue = totalHabits == 0
-        ? '0%'
+        ? '--'
         : '${(completionRatio * 100).round()}%';
-    final velocity = totalActions == 0
-        ? (progress * 1.2)
-        : (0.8 + completedActions / totalActions * 0.7 + progress * 0.35);
-    final velocityValue = '${velocity.clamp(0.0, 1.9).toStringAsFixed(1)}x';
-    final streakValue = totalCheckInsToday == 0 ? '0' : '$totalCheckInsToday';
+    final actionRatio = totalActions == 0
+        ? 0.0
+        : (completedActions / totalActions).clamp(0.0, 1.0);
+    final velocityValue = totalActions == 0
+        ? '--'
+        : '${(actionRatio * 100).round()}%';
+    final streakValue = hasFocusData ? '$todayFocusMinutes' : '--';
+    final priorityTitle = hasDashboardData ? '今天，先推进一件事' : '等待今日记录';
     final priorityDescription = totalActions == 0
-        ? '建立一个清晰下一步，再进入专注窗口。'
-        : '适合现在推进，完成后再进入专注 (Peak cognitive window identified. High focus expected.)';
+        ? '添加项目或行动后，这里会显示今日推进建议。'
+        : '下一项已就绪，完成后再进入专注。';
 
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: height),
@@ -295,11 +305,6 @@ class _TodayStage extends StatelessWidget {
                           const SizedBox(
                             width: 26,
                             height: 26,
-                            child: Icon(
-                              Icons.chevron_left_rounded,
-                              color: Colors.white,
-                              size: 26,
-                            ),
                           ),
                           Expanded(
                             child: Center(
@@ -355,9 +360,9 @@ class _TodayStage extends StatelessWidget {
                     Text.rich(
                       TextSpan(
                         children: [
-                          TextSpan(text: '$readiness'),
+                          TextSpan(text: readiness == null ? '--' : '$readiness'),
                           TextSpan(
-                            text: '%',
+                            text: readiness == null ? '' : '%',
                             style: theme.textTheme.titleLarge?.copyWith(
                               color: colorScheme.onSurface,
                               fontWeight: FontWeight.w900,
@@ -387,7 +392,10 @@ class _TodayStage extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: compact ? 20 : 24),
-                    _CognitiveLoadBar(progress: progress),
+                    _CognitiveLoadBar(
+                      progress: progress,
+                      hasData: hasDashboardData,
+                    ),
                     SizedBox(height: compact ? 28 : 34),
                     Text(
                       'MOMENTUM METRICS',
@@ -404,13 +412,25 @@ class _TodayStage extends StatelessWidget {
                       completionValue: completionValue,
                       velocityValue: velocityValue,
                       streakValue: streakValue,
+                      completionIndicator: completionRatio,
+                      velocityIndicator: actionRatio,
+                      streakIndicator: hasFocusData
+                          ? (todayFocusMinutes /
+                                    (focusStore.selectedDurationSeconds ~/ 60)
+                                        .clamp(1, 180))
+                                .clamp(0.0, 1.0)
+                                .toDouble()
+                          : 0.0,
+                      hasCompletionData: hasHabitData,
+                      hasVelocityData: hasPlanData,
+                      hasStreakData: hasFocusData,
                       completionLabel: totalHabits == 0
-                          ? '今日习惯'
+                          ? '等待习惯'
                           : '今日习惯 $habitSignal',
                       velocityLabel: totalActions == 0
-                          ? '计划推进'
+                          ? '等待计划'
                           : '计划推进 $planSignal',
-                      streakLabel: todayFocusMinutes == 0 ? '连续' : focusSignal,
+                      streakLabel: hasFocusData ? focusSignal : '等待专注',
                       compact: compact,
                       onHabitsAction: onHabitsAction,
                       onGoalsAction: onGoalsAction,
@@ -452,7 +472,7 @@ class _TodayStage extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'PRIORITY EXECUTE',
+                                    '今日推进',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.labelSmall?.copyWith(
@@ -474,7 +494,7 @@ class _TodayStage extends StatelessWidget {
                                         vertical: 2,
                                       ),
                                       child: Text(
-                                        '14:00',
+                                        '今日复盘',
                                         key: const ValueKey(
                                           'today-end-of-day-entry',
                                         ),
@@ -495,7 +515,7 @@ class _TodayStage extends StatelessWidget {
                             ),
                             const SizedBox(height: 13),
                             Text(
-                              '今天，先推进一件事',
+                              priorityTitle,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.titleLarge?.copyWith(
@@ -521,7 +541,10 @@ class _TodayStage extends StatelessWidget {
                             const SizedBox(height: 14),
                             Row(
                               children: [
-                                const _DurationChip(label: '120m'),
+                                _DurationChip(
+                                  label:
+                                      '${focusStore.selectedDurationSeconds ~/ 60}m',
+                                ),
                                 const SizedBox(width: 8),
                                 const Spacer(),
                                 SizedBox(
@@ -747,11 +770,13 @@ class _FocusFluxPanel extends StatelessWidget {
     required this.progress,
     required this.todayFocusMinutes,
     required this.sessionCount,
+    required this.hasData,
   });
 
   final double progress;
   final int todayFocusMinutes;
   final int sessionCount;
+  final bool hasData;
 
   @override
   Widget build(BuildContext context) {
@@ -779,7 +804,7 @@ class _FocusFluxPanel extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'OPTIMUM RANGE',
+                hasData ? '$sessionCount 次专注' : '等待记录',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -801,6 +826,7 @@ class _FocusFluxPanel extends StatelessWidget {
                 focusMinutes: todayFocusMinutes,
                 sessionCount: sessionCount,
                 colorScheme: colorScheme,
+                hasData: hasData,
               ),
             ),
           ),
@@ -816,12 +842,14 @@ class _FocusFluxPainter extends CustomPainter {
     required this.focusMinutes,
     required this.sessionCount,
     required this.colorScheme,
+    required this.hasData,
   });
 
   final double progress;
   final int focusMinutes;
   final int sessionCount;
   final ColorScheme colorScheme;
+  final bool hasData;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -858,6 +886,26 @@ class _FocusFluxPainter extends CustomPainter {
         thresholdPaint,
       );
       dashX += 14;
+    }
+
+    if (!hasData) {
+      labelPaint.text = TextSpan(
+        text: '等待专注记录',
+        style: TextStyle(
+          color: colorScheme.onSurface.withValues(alpha: 0.48),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      );
+      labelPaint.layout(maxWidth: size.width);
+      labelPaint.paint(
+        canvas,
+        Offset(
+          (size.width - labelPaint.width) / 2,
+          chartRect.center.dy - labelPaint.height / 2,
+        ),
+      );
+      return;
     }
 
     final normalized = progress.clamp(0.08, 0.96).toDouble();
@@ -979,7 +1027,8 @@ class _FocusFluxPainter extends CustomPainter {
     return oldDelegate.progress != progress ||
         oldDelegate.focusMinutes != focusMinutes ||
         oldDelegate.sessionCount != sessionCount ||
-        oldDelegate.colorScheme != colorScheme;
+        oldDelegate.colorScheme != colorScheme ||
+        oldDelegate.hasData != hasData;
   }
 }
 
@@ -1386,20 +1435,24 @@ class _DurationChip extends StatelessWidget {
 }
 
 class _CognitiveLoadBar extends StatelessWidget {
-  const _CognitiveLoadBar({required this.progress});
+  const _CognitiveLoadBar({required this.progress, required this.hasData});
 
   final double progress;
+  final bool hasData;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final clampedProgress = progress.clamp(0, 1).toDouble();
-    final rhythmCopy = clampedProgress >= 0.72
+    final rhythmCopy = !hasData
+        ? '完成习惯、计划或专注后，这里会生成今日节奏判断。'
+        : clampedProgress >= 0.72
         ? '今日认知能量充足，适合处理高难度逻辑任务。'
         : clampedProgress >= 0.36
         ? '今日节奏正在成形，适合先推进一个清晰动作。'
         : '今日处于预热状态，先用轻任务启动专注。';
+    final accent = hasData ? const Color(0xFF80FF2C) : const Color(0xFFBDEBFF);
 
     return Container(
       width: double.infinity,
@@ -1414,7 +1467,7 @@ class _CognitiveLoadBar extends StatelessWidget {
           children: [
             Container(
               width: 2,
-              decoration: const BoxDecoration(color: Color(0xFF80FF2C)),
+              decoration: BoxDecoration(color: accent),
             ),
             Expanded(
               child: Padding(
@@ -1428,19 +1481,19 @@ class _CognitiveLoadBar extends StatelessWidget {
                         Container(
                           width: 6,
                           height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF80FF2C),
+                          decoration: BoxDecoration(
+                            color: accent,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'PEAK RHYTHM',
+                            hasData ? '今日节奏' : '等待记录',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: const Color(0xFF80FF2C),
+                              color: accent,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.3,
                             ),
@@ -1688,6 +1741,12 @@ class _StageSignalRow extends StatelessWidget {
     required this.completionValue,
     required this.velocityValue,
     required this.streakValue,
+    required this.completionIndicator,
+    required this.velocityIndicator,
+    required this.streakIndicator,
+    required this.hasCompletionData,
+    required this.hasVelocityData,
+    required this.hasStreakData,
     required this.completionLabel,
     required this.velocityLabel,
     required this.streakLabel,
@@ -1700,6 +1759,12 @@ class _StageSignalRow extends StatelessWidget {
   final String completionValue;
   final String velocityValue;
   final String streakValue;
+  final double completionIndicator;
+  final double velocityIndicator;
+  final double streakIndicator;
+  final bool hasCompletionData;
+  final bool hasVelocityData;
+  final bool hasStreakData;
   final String completionLabel;
   final String velocityLabel;
   final String streakLabel;
@@ -1714,11 +1779,12 @@ class _StageSignalRow extends StatelessWidget {
       children: [
         Expanded(
           child: _StageSignal(
-            label: 'COMPLETION',
+            label: '习惯完成',
             value: completionValue,
             subLabel: completionLabel,
             accent: const Color(0xFF00E5FF),
-            indicatorValue: 0.92,
+            indicatorValue: completionIndicator,
+            hasData: hasCompletionData,
             tapKey: const ValueKey('today-habits-view-all'),
             onTap: onHabitsAction,
           ),
@@ -1726,11 +1792,12 @@ class _StageSignalRow extends StatelessWidget {
         SizedBox(width: compact ? 10 : 16),
         Expanded(
           child: _StageSignal(
-            label: 'VELOCITY',
+            label: '计划推进',
             value: velocityValue,
             subLabel: velocityLabel,
             accent: const Color(0xFF80FF2C),
-            indicatorValue: 0.74,
+            indicatorValue: velocityIndicator,
+            hasData: hasVelocityData,
             tapKey: const ValueKey('today-goals-view-all'),
             onTap: onGoalsAction,
           ),
@@ -1738,11 +1805,12 @@ class _StageSignalRow extends StatelessWidget {
         SizedBox(width: compact ? 10 : 16),
         Expanded(
           child: _StageSignal(
-            label: 'STREAK',
+            label: '专注记录',
             value: streakValue,
             subLabel: streakLabel,
             accent: const Color(0xFFDCC8FF),
-            indicatorValue: 0.58,
+            indicatorValue: streakIndicator,
+            hasData: hasStreakData,
             tapKey: const ValueKey('today-focus-view-all'),
             onTap: onFocusAction,
           ),
@@ -1759,6 +1827,7 @@ class _StageSignal extends StatelessWidget {
     required this.subLabel,
     required this.accent,
     required this.indicatorValue,
+    required this.hasData,
     this.tapKey,
     this.onTap,
   });
@@ -1768,6 +1837,7 @@ class _StageSignal extends StatelessWidget {
   final String subLabel;
   final Color accent;
   final double indicatorValue;
+  final bool hasData;
   final Key? tapKey;
   final VoidCallback? onTap;
 
@@ -1789,11 +1859,15 @@ class _StageSignal extends StatelessWidget {
               children: [
                 SizedBox.expand(
                   child: CircularProgressIndicator(
-                    value: indicatorValue,
+                    value: hasData
+                        ? indicatorValue.clamp(0.0, 1.0).toDouble()
+                        : 0.0,
                     strokeWidth: 3.1,
                     strokeCap: StrokeCap.round,
                     backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      hasData ? accent : Colors.white.withValues(alpha: 0.18),
+                    ),
                   ),
                 ),
                 SizedBox(

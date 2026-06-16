@@ -135,7 +135,9 @@ class AppShell extends StatelessWidget {
                 ),
               ),
             ),
-          if (usesInlineChrome && Navigator.of(context).canPop())
+          if (usesInlineChrome &&
+              selectedIndex != 0 &&
+              Navigator.of(context).canPop())
             PositionedDirectional(
               top: 12,
               start: 18,

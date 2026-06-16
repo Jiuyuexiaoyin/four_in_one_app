@@ -1926,24 +1926,40 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
             key: const ValueKey('plan-search-field'),
             controller: _queryController,
             textInputAction: TextInputAction.search,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search_rounded),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
               labelText: '搜索项目 / 行动 / 标签',
               isDense: true,
+              filled: true,
+              fillColor: AppThemeTokens.softSurfaceTone(
+                colorScheme,
+              ).withValues(alpha: 0.42),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
+                borderSide: BorderSide(
+                  color: AppThemeTokens.borderTone(
+                    colorScheme,
+                  ).withValues(alpha: 0.38),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
+                borderSide: BorderSide(
+                  color: colorScheme.primary.withValues(alpha: 0.54),
+                ),
+              ),
             ),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          _PlanChipCluster(
             children: _PlanSearchFilter.values
                 .map(
-                  (filter) => FilterChip(
+                  (filter) => _PlanPremiumChip(
                     key: ValueKey('plan-filter-${filter.name}'),
-                    label: Text(filter.label),
+                    label: filter.label,
                     selected: _filter == filter,
-                    onSelected: (_) {
+                    onTap: () {
                       setState(() {
                         _filter = filter;
                         if (filter != _PlanSearchFilter.tag) {
@@ -1951,7 +1967,6 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
                         }
                       });
                     },
-                    visualDensity: VisualDensity.compact,
                   ),
                 )
                 .toList(growable: false),
@@ -1971,26 +1986,22 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
                 runSpacing: 8,
                 children: tags
                     .map(
-                      (tag) => ChoiceChip(
+                      (tag) => _PlanPremiumChip(
                         key: ValueKey('plan-tag-$tag'),
-                        label: Text('#$tag'),
+                        label: '#$tag',
                         selected: _selectedTag == tag,
-                        onSelected: (_) {
+                        onTap: () {
                           setState(() {
                             _selectedTag = _selectedTag == tag ? null : tag;
                           });
                         },
-                        visualDensity: VisualDensity.compact,
                       ),
                     )
                     .toList(growable: false),
               ),
           ],
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          _PlanChipCluster(
             children: [
               Text(
                 '排序',
@@ -2000,16 +2011,16 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
                 ),
               ),
               ..._PlanSortMode.values.map(
-                (mode) => ChoiceChip(
+                (mode) => _PlanPremiumChip(
                   key: ValueKey('plan-sort-${mode.name}'),
-                  label: Text(mode.label),
+                  label: mode.label,
                   selected: _sortMode == mode,
-                  onSelected: (_) {
+                  dense: true,
+                  onTap: () {
                     setState(() {
                       _sortMode = mode;
                     });
                   },
-                  visualDensity: VisualDensity.compact,
                 ),
               ),
             ],
@@ -2224,6 +2235,127 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
     }
 
     return result.task?.isCompleted ?? false;
+  }
+}
+
+class _PlanChipCluster extends StatelessWidget {
+  const _PlanChipCluster({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppThemeTokens.softSurfaceTone(
+          colorScheme,
+        ).withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
+        border: Border.all(
+          color: AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.24),
+        ),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: children,
+      ),
+    );
+  }
+}
+
+class _PlanPremiumChip extends StatelessWidget {
+  const _PlanPremiumChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.dense = false,
+    super.key,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final accent = colorScheme.primary;
+    final foreground = selected
+        ? accent
+        : AppThemeTokens.secondaryTextTone(colorScheme).withValues(alpha: 0.86);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(
+            horizontal: dense ? 10 : 12,
+            vertical: dense ? 6 : 7,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? accent.withValues(alpha: 0.14)
+                : colorScheme.onSurface.withValues(alpha: 0.035),
+            borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+            border: Border.all(
+              color: selected
+                  ? accent.withValues(alpha: 0.42)
+                  : AppThemeTokens.borderTone(
+                      colorScheme,
+                    ).withValues(alpha: 0.32),
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.12),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : const [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: foreground,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                  letterSpacing: 0,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
