@@ -430,6 +430,8 @@ class HabitsPage extends StatelessWidget {
   }) {
     return showModalBottomSheet<void>(
       context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.64),
       isScrollControlled: true,
       builder: (_) => _HabitRecordSheet(
         habit: habit,
@@ -2789,6 +2791,7 @@ class _HabitRecordSheetState extends State<_HabitRecordSheet> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final selectedDateKey = _selectedDateKey;
+    final accentColor = _habitAccentColor(widget.habit) ?? colorScheme.primary;
     final activeTemplates = widget.habitsStore.templatesForHabit(widget.habit);
     _ensureMetricControllers(activeTemplates);
     final selectedDateRecords = widget.habitsStore.recordsForHabitDate(
@@ -2807,289 +2810,191 @@ class _HabitRecordSheetState extends State<_HabitRecordSheet> {
         isReadOnly ||
         isFuture ||
         (_selectedType == HabitRecordType.skip && hasEffectiveRecord);
+    final todayCount = widget.habitsStore.activityCountOn(
+      widget.habit,
+      widget.habitsStore.currentDayKey,
+    );
+    final targetCount = widget.habit.targetCountPerDay;
+    final completionRatio = targetCount <= 0
+        ? 0
+        : ((todayCount / targetCount) * 100).clamp(0, 100).round();
+    final primaryRecord = selectedDateRecords.isEmpty
+        ? null
+        : selectedDateRecords.first;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.spaceLg,
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.pagePadding + bottomInset,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          key: ValueKey<String>('habit-record-sheet-${widget.habit.id}'),
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Material(
+      color: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.94,
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFF070A0B),
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+            child: Stack(
               children: [
-                Text(widget.habit.emoji, style: theme.textTheme.headlineSmall),
-                const SizedBox(width: AppThemeTokens.spaceSm),
-                Expanded(
+                Positioned(
+                  top: -92,
+                  right: -70,
+                  child: _HabitRecordGlow(
+                    color: accentColor.withValues(alpha: 0.22),
+                    size: 190,
+                  ),
+                ),
+                Positioned(
+                  top: 170,
+                  left: -90,
+                  child: _HabitRecordGlow(
+                    color: const Color(0xFF7E6BFF).withValues(alpha: 0.12),
+                    size: 210,
+                  ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          accentColor.withValues(alpha: 0.10),
+                          const Color(0xFF0B0F10),
+                          const Color(0xFF050607),
+                        ],
+                        stops: const [0, 0.28, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    12,
+                    14,
+                    16 + bottomInset,
+                  ),
                   child: Column(
+                    key: ValueKey<String>('habit-record-sheet-${widget.habit.id}'),
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.habit.name,
-                        style: theme.textTheme.titleLarge,
+                      _HabitRecordTopBar(
+                        title: '习惯：日常表现仪式',
+                        onClose: () => Navigator.of(context).pop(),
                       ),
-                      const SizedBox(height: AppThemeTokens.spaceXs),
-                      Text(
-                        '先选择日期和类型，点击保存后才会新增记录。',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppThemeTokens.secondaryTextTone(colorScheme),
+                      const SizedBox(height: 10),
+                      _HabitRecordHero(
+                        habit: widget.habit,
+                        todayCount: todayCount,
+                        targetCount: targetCount,
+                        completionRatio: completionRatio,
+                        statusText: _heroStatusText,
+                        selectedDateKey: selectedDateKey,
+                        habitId: widget.habit.id,
+                        accentColor: accentColor,
+                        onDateTap: isFuture ? null : _pickRecordDate,
+                      ),
+                      const SizedBox(height: 12),
+                      _HabitRecordTypeSelector(
+                        habitId: widget.habit.id,
+                        selectedType: _selectedType,
+                        recordsEditable: widget.recordsEditable,
+                        isSelectedDateToday: _isSelectedDateToday,
+                        isFuture: isFuture,
+                        hasEffectiveRecord: hasEffectiveRecord,
+                        accentColor: accentColor,
+                        onSelected: _selectType,
+                      ),
+                      const SizedBox(height: 8),
+                      _HabitRecordGuidance(
+                        text: _recordGuidanceText,
+                        isWarning: isWarningState,
+                        habitId: widget.habit.id,
+                      ),
+                      if (_feedbackText != null) ...[
+                        const SizedBox(height: 8),
+                        _HabitRecordFeedback(
+                          text: _feedbackText!,
+                          habitId: widget.habit.id,
+                          accentColor: accentColor,
                         ),
+                      ],
+                      const SizedBox(height: 12),
+                      _HabitMetricInputSection(
+                        templates: activeTemplates,
+                        controllers: _metricControllers,
+                        enabled:
+                            widget.recordsEditable &&
+                            !isFuture &&
+                            _selectedType != HabitRecordType.skip,
+                        accentColor: accentColor,
+                      ),
+                      const SizedBox(height: 10),
+                      _HabitRecordNoteSection(
+                        controller: _noteController,
+                        enabled: widget.recordsEditable && !isFuture,
+                        habitId: widget.habit.id,
+                        accentColor: accentColor,
+                      ),
+                      const SizedBox(height: 10),
+                      _HabitRecordProofModule(
+                        record: primaryRecord,
+                        attachments: primaryRecord == null
+                            ? const <HabitRecordAttachment>[]
+                            : widget.habitsStore.attachmentsForRecord(
+                                primaryRecord.id,
+                              ),
+                        attachmentStorage: widget.attachmentStorage,
+                        onAttachmentTap: primaryRecord == null
+                            ? null
+                            : () => _showRecordAttachmentSheet(primaryRecord),
+                        accentColor: accentColor,
+                      ),
+                      const SizedBox(height: 10),
+                      _HabitPlanLinkModule(
+                        habit: widget.habit,
+                        accentColor: accentColor,
+                      ),
+                      const SizedBox(height: 12),
+                      _HabitSelectedDateRecordsSection(
+                        habitId: widget.habit.id,
+                        selectedDateKey: selectedDateKey,
+                        records: selectedDateRecords,
+                        habitsStore: widget.habitsStore,
+                        attachmentStorage: widget.attachmentStorage,
+                        isFuture: isFuture,
+                        onAttachmentTap: _showRecordAttachmentSheet,
+                      ),
+                      if (recentRecords.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _HabitRecentRecordsSection(
+                          records: recentRecords,
+                          habitsStore: widget.habitsStore,
+                          attachmentStorage: widget.attachmentStorage,
+                          onAttachmentTap: _showRecordAttachmentSheet,
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      _HabitRecordActionBar(
+                        habitId: widget.habit.id,
+                        canSave: _canSaveRecord,
+                        onSave: _saveRecord,
+                        onCancel: () => Navigator.of(context).pop(),
+                        accentColor: accentColor,
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppThemeTokens.spaceLg),
-            InkWell(
-              key: ValueKey<String>('habit-record-date-${widget.habit.id}'),
-              borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-              onTap: isFuture ? null : _pickRecordDate,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppThemeTokens.spaceLg,
-                  vertical: AppThemeTokens.spaceMd,
-                ),
-                decoration: BoxDecoration(
-                  color: AppThemeTokens.softSurfaceTone(colorScheme),
-                  borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-                  border: Border.all(
-                    color: AppThemeTokens.borderTone(colorScheme),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: 18,
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
-                    ),
-                    const SizedBox(width: AppThemeTokens.spaceSm),
-                    Expanded(
-                      child: Text(
-                        '选中日期 $selectedDateKey',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.expand_more_rounded,
-                      size: 18,
-                      color: AppThemeTokens.secondaryTextTone(colorScheme),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: AppThemeTokens.spaceMd),
-            Wrap(
-              spacing: AppThemeTokens.spaceSm,
-              runSpacing: AppThemeTokens.spaceSm,
-              children: [
-                _RecordTypeChoice(
-                  key: ValueKey<String>(
-                    'habit-detailed-check-in-${widget.habit.id}',
-                  ),
-                  label: '详细打卡',
-                  selected: _selectedType == HabitRecordType.checkIn,
-                  enabled: widget.recordsEditable && _isSelectedDateToday,
-                  onSelected: () => _selectType(HabitRecordType.checkIn),
-                ),
-                _RecordTypeChoice(
-                  key: ValueKey<String>('habit-makeup-${widget.habit.id}'),
-                  label: '补打',
-                  selected: _selectedType == HabitRecordType.makeup,
-                  enabled: widget.recordsEditable && !isFuture,
-                  onSelected: () => _selectType(HabitRecordType.makeup),
-                ),
-                _RecordTypeChoice(
-                  key: ValueKey<String>('habit-skip-${widget.habit.id}'),
-                  label: '跳过',
-                  selected: _selectedType == HabitRecordType.skip,
-                  enabled:
-                      widget.recordsEditable &&
-                      !isFuture &&
-                      !hasEffectiveRecord,
-                  onSelected: () => _selectType(HabitRecordType.skip),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppThemeTokens.spaceSm),
-            Text(
-              _recordGuidanceText,
-              key: ValueKey<String>('habit-record-guidance-${widget.habit.id}'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: isWarningState
-                    ? colorScheme.error
-                    : AppThemeTokens.secondaryTextTone(colorScheme),
-              ),
-            ),
-            if (_feedbackText != null) ...[
-              const SizedBox(height: AppThemeTokens.spaceXs),
-              Text(
-                _feedbackText!,
-                key: ValueKey<String>(
-                  'habit-record-feedback-${widget.habit.id}',
-                ),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-            const SizedBox(height: AppThemeTokens.spaceMd),
-            TextField(
-              key: ValueKey<String>(
-                'habit-record-note-field-${widget.habit.id}',
-              ),
-              controller: _noteController,
-              enabled: widget.recordsEditable && !isFuture,
-              minLines: 1,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: '备注（可选）',
-                hintText: '写下状态、原因或感受',
-              ),
-            ),
-            if (activeTemplates.isNotEmpty) ...[
-              const SizedBox(height: AppThemeTokens.spaceMd),
-              _HabitMetricInputSection(
-                templates: activeTemplates,
-                controllers: _metricControllers,
-                enabled:
-                    widget.recordsEditable &&
-                    !isFuture &&
-                    _selectedType != HabitRecordType.skip,
-              ),
-            ],
-            const SizedBox(height: AppThemeTokens.spaceMd),
-            Wrap(
-              spacing: AppThemeTokens.spaceSm,
-              runSpacing: AppThemeTokens.spaceSm,
-              children: [
-                FilledButton.icon(
-                  key: ValueKey<String>('habit-record-save-${widget.habit.id}'),
-                  onPressed: _canSaveRecord ? _saveRecord : null,
-                  icon: const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('保存记录'),
-                ),
-                TextButton.icon(
-                  key: ValueKey<String>(
-                    'habit-record-cancel-${widget.habit.id}',
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  label: const Text('取消'),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppThemeTokens.spaceXl),
-            Text(
-              '这一天',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppThemeTokens.spaceXs),
-            Text(
-              '$selectedDateKey 的记录',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppThemeTokens.secondaryTextTone(colorScheme),
-              ),
-            ),
-            const SizedBox(height: AppThemeTokens.spaceMd),
-            if (selectedDateRecords.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppThemeTokens.spaceLg),
-                decoration: BoxDecoration(
-                  color: AppThemeTokens.softSurfaceTone(colorScheme),
-                  borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-                  border: Border.all(
-                    color: AppThemeTokens.borderTone(colorScheme),
-                  ),
-                ),
-                child: Text(
-                  isFuture ? '未来日期暂不能记录。' : '这一天还没有记录。',
-                  key: ValueKey<String>(
-                    'habit-date-records-empty-${widget.habit.id}',
-                  ),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  ),
-                ),
-              )
-            else
-              Column(
-                children: selectedDateRecords
-                    .map(
-                      (record) => _HabitRecordRow(
-                        record: record,
-                        attachments: widget.habitsStore.attachmentsForRecord(
-                          record.id,
-                        ),
-                        metrics: widget.habitsStore.metricsForRecord(record.id),
-                        attachmentStorage: widget.attachmentStorage,
-                        onAttachmentTap: () =>
-                            _showRecordAttachmentSheet(record),
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            const SizedBox(height: AppThemeTokens.spaceXl),
-            Text(
-              '最近记录',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppThemeTokens.spaceMd),
-            if (recentRecords.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppThemeTokens.spaceLg),
-                decoration: BoxDecoration(
-                  color: AppThemeTokens.softSurfaceTone(colorScheme),
-                  borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-                  border: Border.all(
-                    color: AppThemeTokens.borderTone(colorScheme),
-                  ),
-                ),
-                child: Text(
-                  '还没有记录',
-                  key: ValueKey<String>(
-                    'habit-records-empty-${widget.habit.id}',
-                  ),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  ),
-                ),
-              )
-            else
-              Column(
-                children: recentRecords
-                    .map(
-                      (record) => _HabitRecordRow(
-                        record: record,
-                        attachments: widget.habitsStore.attachmentsForRecord(
-                          record.id,
-                        ),
-                        metrics: widget.habitsStore.metricsForRecord(record.id),
-                        attachmentStorage: widget.attachmentStorage,
-                        onAttachmentTap: () =>
-                            _showRecordAttachmentSheet(record),
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -3278,6 +3183,25 @@ class _HabitRecordSheetState extends State<_HabitRecordSheet> {
     return '详细打卡会在点击保存后创建记录；取消不会保存。';
   }
 
+  String get _heroStatusText {
+    if (!widget.recordsEditable) {
+      return '记录暂不可用';
+    }
+    if (_isSelectedDateFuture) {
+      return '未来日期暂不能记录';
+    }
+    if (_hasEffectiveRecordOnSelectedDate) {
+      return '本日已有记录';
+    }
+    if (_selectedType == HabitRecordType.makeup) {
+      return '补打已就绪';
+    }
+    if (_selectedType == HabitRecordType.skip) {
+      return '跳过记录已就绪';
+    }
+    return '等待今日记录';
+  }
+
   String get _blockedSaveText {
     if (!widget.recordsEditable) {
       return '恢复习惯后才能新增记录。';
@@ -3335,68 +3259,672 @@ class _HabitRecordSheetState extends State<_HabitRecordSheet> {
   }
 }
 
+class _HabitRecordGlow extends StatelessWidget {
+  const _HabitRecordGlow({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(color: color, blurRadius: size * 0.46, spreadRadius: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitRecordTopBar extends StatelessWidget {
+  const _HabitRecordTopBar({required this.title, required this.onClose});
+
+  final String title;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        IconButton(
+          onPressed: onClose,
+          icon: const Icon(Icons.close_rounded, size: 18),
+          color: Colors.white.withValues(alpha: 0.62),
+          visualDensity: VisualDensity.compact,
+          tooltip: '关闭',
+        ),
+        Expanded(
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.68),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 40),
+      ],
+    );
+  }
+}
+
+class _HabitRecordHero extends StatelessWidget {
+  const _HabitRecordHero({
+    required this.habit,
+    required this.todayCount,
+    required this.targetCount,
+    required this.completionRatio,
+    required this.statusText,
+    required this.selectedDateKey,
+    required this.habitId,
+    required this.accentColor,
+    required this.onDateTap,
+  });
+
+  final HabitItem habit;
+  final int todayCount;
+  final int targetCount;
+  final int completionRatio;
+  final String statusText;
+  final String selectedDateKey;
+  final String habitId;
+  final Color accentColor;
+  final VoidCallback? onDateTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.075)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accentColor.withValues(alpha: 0.13),
+            Colors.white.withValues(alpha: 0.034),
+            Colors.black.withValues(alpha: 0.20),
+          ],
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 86,
+            height: 86,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: accentColor.withValues(alpha: 0.54)),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.24),
+                  blurRadius: 30,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: CircularProgressIndicator(
+                    value: targetCount <= 0
+                        ? 0
+                        : (todayCount / targetCount).clamp(0, 1).toDouble(),
+                    strokeWidth: 2.6,
+                    backgroundColor: Colors.white.withValues(alpha: 0.07),
+                    color: accentColor,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      habit.emoji,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$completionRatio%',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                    Text(
+                      '今日进度',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            habit.name,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+            ),
+          ),
+          if (habit.description.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              habit.description,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.48),
+                height: 1.25,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _HabitRecordHeroMetric(
+                  label: '今日次数',
+                  value: '$todayCount / $targetCount',
+                  accentColor: accentColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _HabitRecordHeroMetric(
+                  label: '状态',
+                  value: statusText,
+                  accentColor: accentColor,
+                  compact: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _HabitRecordDatePill(
+            selectedDateKey: selectedDateKey,
+            habitId: habitId,
+            accentColor: accentColor,
+            onTap: onDateTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitRecordHeroMetric extends StatelessWidget {
+  const _HabitRecordHeroMetric({
+    required this.label,
+    required this.value,
+    required this.accentColor,
+    this.compact = false,
+  });
+
+  final String label;
+  final String value;
+  final Color accentColor;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.42),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            maxLines: compact ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: compact ? Colors.white.withValues(alpha: 0.82) : accentColor,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitRecordDatePill extends StatelessWidget {
+  const _HabitRecordDatePill({
+    required this.selectedDateKey,
+    required this.habitId,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String selectedDateKey;
+  final String habitId;
+  final Color accentColor;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      key: ValueKey<String>('habit-record-date-$habitId'),
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: accentColor.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: accentColor.withValues(alpha: 0.20)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 13,
+              color: accentColor.withValues(alpha: 0.86),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '选中日期 $selectedDateKey',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.expand_more_rounded,
+              size: 14,
+              color: Colors.white.withValues(alpha: 0.42),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitRecordTypeSelector extends StatelessWidget {
+  const _HabitRecordTypeSelector({
+    required this.habitId,
+    required this.selectedType,
+    required this.recordsEditable,
+    required this.isSelectedDateToday,
+    required this.isFuture,
+    required this.hasEffectiveRecord,
+    required this.accentColor,
+    required this.onSelected,
+  });
+
+  final String habitId;
+  final HabitRecordType selectedType;
+  final bool recordsEditable;
+  final bool isSelectedDateToday;
+  final bool isFuture;
+  final bool hasEffectiveRecord;
+  final Color accentColor;
+  final ValueChanged<HabitRecordType> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _RecordTypeChoice(
+            key: ValueKey<String>('habit-detailed-check-in-$habitId'),
+            label: '今日打卡',
+            selected: selectedType == HabitRecordType.checkIn,
+            enabled: recordsEditable && isSelectedDateToday,
+            icon: Icons.check_circle_outline_rounded,
+            accentColor: accentColor,
+            onSelected: () => onSelected(HabitRecordType.checkIn),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _RecordTypeChoice(
+            key: ValueKey<String>('habit-makeup-$habitId'),
+            label: '补打',
+            selected: selectedType == HabitRecordType.makeup,
+            enabled: recordsEditable && !isFuture,
+            icon: Icons.replay_rounded,
+            accentColor: accentColor,
+            onSelected: () => onSelected(HabitRecordType.makeup),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _RecordTypeChoice(
+            key: ValueKey<String>('habit-skip-$habitId'),
+            label: '跳过',
+            selected: selectedType == HabitRecordType.skip,
+            enabled: recordsEditable && !isFuture && !hasEffectiveRecord,
+            icon: Icons.remove_circle_outline_rounded,
+            accentColor: accentColor,
+            onSelected: () => onSelected(HabitRecordType.skip),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HabitRecordGuidance extends StatelessWidget {
+  const _HabitRecordGuidance({
+    required this.text,
+    required this.isWarning,
+    required this.habitId,
+  });
+
+  final String text;
+  final bool isWarning;
+  final String habitId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = isWarning
+        ? const Color(0xFFFF7C7C)
+        : Colors.white.withValues(alpha: 0.48);
+
+    return Text(
+      text,
+      key: ValueKey<String>('habit-record-guidance-$habitId'),
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: color,
+        height: 1.25,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+class _HabitRecordFeedback extends StatelessWidget {
+  const _HabitRecordFeedback({
+    required this.text,
+    required this.habitId,
+    required this.accentColor,
+  });
+
+  final String text;
+  final String habitId;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      key: ValueKey<String>('habit-record-feedback-$habitId'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: Colors.white.withValues(alpha: 0.74),
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitRecordSection extends StatelessWidget {
+  const _HabitRecordSection({
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.trailing,
+    this.padding = const EdgeInsets.all(12),
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.065)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.38),
+                          fontWeight: FontWeight.w600,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+            ],
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
 class _HabitMetricInputSection extends StatelessWidget {
   const _HabitMetricInputSection({
     required this.templates,
     required this.controllers,
     required this.enabled,
+    required this.accentColor,
   });
 
   final List<HabitCheckInTemplate> templates;
   final Map<String, TextEditingController> controllers;
   final bool enabled;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     if (!enabled) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppThemeTokens.spaceMd),
-        decoration: BoxDecoration(
-          color: AppThemeTokens.softSurfaceTone(colorScheme),
-          borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-          border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-        ),
-        child: Text(
-          '跳过不会记录项目数值。',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(colorScheme),
-          ),
+      return _HabitRecordSection(
+        title: '表现指标',
+        subtitle: '跳过不会写入指标数据',
+        child: Row(
+          children: [
+            Icon(
+              Icons.remove_circle_outline_rounded,
+              size: 17,
+              color: Colors.white.withValues(alpha: 0.46),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '跳过不会记录项目数值。',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.54),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '数值项目',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
+    return _HabitRecordSection(
+      title: '表现指标',
+      subtitle: templates.isEmpty ? '未设置指标，保存时不会写入数值' : '填写真实完成量，留空不会保存',
+      trailing: Text(
+        templates.isEmpty ? '--' : '${templates.length} 项',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: accentColor,
+          fontWeight: FontWeight.w900,
         ),
-        const SizedBox(height: AppThemeTokens.spaceXs),
-        Text(
-          '可选填写，空着不会保存。',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(colorScheme),
-          ),
-        ),
-        const SizedBox(height: AppThemeTokens.spaceSm),
-        ...templates.map(
-          (template) => Padding(
-            padding: const EdgeInsets.only(bottom: AppThemeTokens.spaceSm),
-            child: _HabitMetricInputRow(
-              template: template,
-              controller: controllers[template.id]!,
+      ),
+      child: templates.isEmpty
+          ? _HabitRecordEmptyLine(
+              icon: Icons.functions_rounded,
+              text: '暂无指标',
+              accentColor: accentColor,
+            )
+          : Column(
+              children: [
+                for (var index = 0; index < templates.length; index++) ...[
+                  _HabitMetricInputRow(
+                    template: templates[index],
+                    controller: controllers[templates[index].id]!,
+                    accentColor: accentColor,
+                  ),
+                  if (index != templates.length - 1)
+                    Divider(
+                      height: 14,
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _HabitRecordEmptyLine extends StatelessWidget {
+  const _HabitRecordEmptyLine({
+    required this.icon,
+    required this.text,
+    required this.accentColor,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.045)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 17, color: accentColor.withValues(alpha: 0.78)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.58),
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-        ),
-      ],
+          Text(
+            '--',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.42),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -3405,68 +3933,99 @@ class _HabitMetricInputRow extends StatelessWidget {
   const _HabitMetricInputRow({
     required this.template,
     required this.controller,
+    required this.accentColor,
   });
 
   final HabitCheckInTemplate template;
   final TextEditingController controller;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(AppThemeTokens.spaceMd),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              template.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                template.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.86),
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '单位 ${template.unit}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.38),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 116,
+          child: TextField(
+            key: ValueKey<String>('habit-metric-input-${template.id}'),
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.next,
+            textAlign: TextAlign.right,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+            decoration: InputDecoration(
+              hintText: template.defaultValue == null
+                  ? '--'
+                  : _formatMetricValue(template.defaultValue!),
+              hintStyle: theme.textTheme.titleMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.34),
+                fontWeight: FontWeight.w900,
+              ),
+              suffixText: template.unit,
+              suffixStyle: theme.textTheme.labelSmall?.copyWith(
+                color: accentColor.withValues(alpha: 0.86),
+                fontWeight: FontWeight.w900,
+              ),
+              filled: true,
+              fillColor: Colors.black.withValues(alpha: 0.18),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: BorderSide(color: accentColor.withValues(alpha: 0.55)),
               ),
             ),
           ),
-          const SizedBox(width: AppThemeTokens.spaceSm),
-          SizedBox(
-            width: 96,
-            child: TextField(
-              key: ValueKey<String>('habit-metric-input-${template.id}'),
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                hintText: template.defaultValue == null
-                    ? '0'
-                    : _formatMetricValue(template.defaultValue!),
-                isDense: true,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppThemeTokens.spaceSm),
-          Flexible(
-            child: Text(
-              template.unit,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppThemeTokens.secondaryTextTone(colorScheme),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -3476,6 +4035,8 @@ class _RecordTypeChoice extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.enabled,
+    required this.icon,
+    required this.accentColor,
     required this.onSelected,
     super.key,
   });
@@ -3483,15 +4044,589 @@ class _RecordTypeChoice extends StatelessWidget {
   final String label;
   final bool selected;
   final bool enabled;
+  final IconData icon;
+  final Color accentColor;
   final VoidCallback onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: enabled ? (_) => onSelected() : null,
-      showCheckmark: false,
+    final theme = Theme.of(context);
+    final foreground = selected
+        ? Colors.white
+        : Colors.white.withValues(alpha: enabled ? 0.62 : 0.28);
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(13),
+        onTap: enabled ? onSelected : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? accentColor.withValues(alpha: 0.24)
+                : Colors.white.withValues(alpha: 0.045),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+              color: selected
+                  ? accentColor.withValues(alpha: 0.52)
+                  : Colors.white.withValues(alpha: 0.065),
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.18),
+                      blurRadius: 22,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: foreground),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitRecordNoteSection extends StatelessWidget {
+  const _HabitRecordNoteSection({
+    required this.controller,
+    required this.enabled,
+    required this.habitId,
+    required this.accentColor,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final String habitId;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return _HabitRecordSection(
+      title: '备注（可选）',
+      subtitle: '写下状态、原因或感受',
+      child: TextField(
+        key: ValueKey<String>('habit-record-note-field-$habitId'),
+        controller: controller,
+        enabled: enabled,
+        minLines: 2,
+        maxLines: 4,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: Colors.white.withValues(alpha: 0.88),
+          height: 1.25,
+        ),
+        decoration: InputDecoration(
+          hintText: '写下状态、原因或感受...',
+          hintStyle: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.30),
+          ),
+          filled: true,
+          fillColor: Colors.black.withValues(alpha: 0.18),
+          contentPadding: const EdgeInsets.all(12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: accentColor.withValues(alpha: 0.48)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitRecordProofModule extends StatelessWidget {
+  const _HabitRecordProofModule({
+    required this.record,
+    required this.attachments,
+    required this.attachmentStorage,
+    required this.onAttachmentTap,
+    required this.accentColor,
+  });
+
+  final HabitRecord? record;
+  final List<HabitRecordAttachment> attachments;
+  final HabitRecordAttachmentStorage attachmentStorage;
+  final VoidCallback? onAttachmentTap;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasRecord = record != null;
+
+    return _HabitRecordSection(
+      title: '图片证明',
+      subtitle: hasRecord ? '最多 3 张，来自真实记录' : '保存记录后可添加图片证明',
+      trailing: Text(
+        hasRecord ? '${attachments.length}/3' : '--',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: accentColor,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 48,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: hasRecord ? 3 : 4,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                if (index < attachments.length) {
+                  return _HabitProofThumb(
+                    attachment: attachments[index],
+                    attachmentStorage: attachmentStorage,
+                    accentColor: accentColor,
+                  );
+                }
+                return _HabitProofEmptySlot(
+                  enabled: hasRecord,
+                  onTap: onAttachmentTap,
+                  accentColor: accentColor,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _HabitProofAction(
+                  icon: Icons.photo_library_outlined,
+                  label: '从相册选择',
+                  enabled: hasRecord,
+                  onTap: onAttachmentTap,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _HabitProofAction(
+                  icon: Icons.photo_camera_outlined,
+                  label: '拍照',
+                  enabled: hasRecord,
+                  onTap: onAttachmentTap,
+                ),
+              ),
+            ],
+          ),
+          if (!hasRecord) ...[
+            const SizedBox(height: 8),
+            Text(
+              '暂无图片',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.36),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitProofThumb extends StatelessWidget {
+  const _HabitProofThumb({
+    required this.attachment,
+    required this.attachmentStorage,
+    required this.accentColor,
+  });
+
+  final HabitRecordAttachment attachment;
+  final HabitRecordAttachmentStorage attachmentStorage;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<File?>(
+      future: attachmentStorage.resolveImage(attachment.relativePath),
+      builder: (context, snapshot) {
+        final file = snapshot.data;
+        final hasFile = file != null;
+
+        return Container(
+          width: 48,
+          height: 48,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.22),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accentColor.withValues(alpha: 0.22)),
+          ),
+          child: hasFile
+              ? Image.file(file, fit: BoxFit.cover)
+              : Icon(
+                  Icons.broken_image_outlined,
+                  size: 18,
+                  color: Colors.white.withValues(alpha: 0.44),
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _HabitProofEmptySlot extends StatelessWidget {
+  const _HabitProofEmptySlot({
+    required this.enabled,
+    required this.onTap,
+    required this.accentColor,
+  });
+
+  final bool enabled;
+  final VoidCallback? onTap;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: enabled
+                ? accentColor.withValues(alpha: 0.22)
+                : Colors.white.withValues(alpha: 0.055),
+          ),
+        ),
+        child: Icon(
+          Icons.add_rounded,
+          size: 18,
+          color: enabled
+              ? accentColor.withValues(alpha: 0.82)
+              : Colors.white.withValues(alpha: 0.22),
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitProofAction extends StatelessWidget {
+  const _HabitProofAction({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(11),
+      onTap: enabled ? onTap : null,
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: Colors.white.withValues(alpha: enabled ? 0.64 : 0.26),
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: enabled ? 0.70 : 0.30),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitPlanLinkModule extends StatelessWidget {
+  const _HabitPlanLinkModule({
+    required this.habit,
+    required this.accentColor,
+  });
+
+  final HabitItem habit;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final link = habit.planLink;
+    final typeLabel = link == null
+        ? null
+        : link.targetType == HabitPlanLinkTargetType.project
+        ? '项目'
+        : '行动';
+
+    return _HabitRecordSection(
+      title: '计划关联',
+      subtitle: '达标后同步计划记录',
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 12),
+      trailing: Icon(
+        Icons.link_rounded,
+        size: 17,
+        color: link == null
+            ? Colors.white.withValues(alpha: 0.32)
+            : accentColor.withValues(alpha: 0.82),
+      ),
+      child: Text(
+        link == null ? '未关联 / 达标后同步计划记录' : '关联$typeLabel：${link.titleSnapshot}',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: Colors.white.withValues(alpha: link == null ? 0.44 : 0.72),
+          fontWeight: FontWeight.w700,
+          height: 1.25,
+        ),
+      ),
+    );
+  }
+}
+
+class _HabitSelectedDateRecordsSection extends StatelessWidget {
+  const _HabitSelectedDateRecordsSection({
+    required this.habitId,
+    required this.selectedDateKey,
+    required this.records,
+    required this.habitsStore,
+    required this.attachmentStorage,
+    required this.isFuture,
+    required this.onAttachmentTap,
+  });
+
+  final String habitId;
+  final String selectedDateKey;
+  final List<HabitRecord> records;
+  final HabitsStore habitsStore;
+  final HabitRecordAttachmentStorage attachmentStorage;
+  final bool isFuture;
+  final ValueChanged<HabitRecord> onAttachmentTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HabitRecordSection(
+      title: '本次记录预览',
+      subtitle: '$selectedDateKey 的真实记录',
+      child: records.isEmpty
+          ? _HabitSelectedDateEmptyState(habitId: habitId, isFuture: isFuture)
+          : Column(
+              children: [
+                for (final record in records)
+                  _HabitRecordRow(
+                    record: record,
+                    attachments: habitsStore.attachmentsForRecord(record.id),
+                    metrics: habitsStore.metricsForRecord(record.id),
+                    attachmentStorage: attachmentStorage,
+                    onAttachmentTap: () => onAttachmentTap(record),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class _HabitSelectedDateEmptyState extends StatelessWidget {
+  const _HabitSelectedDateEmptyState({
+    required this.habitId,
+    required this.isFuture,
+  });
+
+  final String habitId;
+  final bool isFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final message = isFuture ? '未来日期暂不能记录。' : '等待今日记录';
+
+    return Container(
+      key: ValueKey<String>('habit-date-records-empty-$habitId'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.045)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.hourglass_empty_rounded,
+            size: 17,
+            color: Colors.white.withValues(alpha: 0.42),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.58),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          Text(
+            '--',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.34),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitRecentRecordsSection extends StatelessWidget {
+  const _HabitRecentRecordsSection({
+    required this.records,
+    required this.habitsStore,
+    required this.attachmentStorage,
+    required this.onAttachmentTap,
+  });
+
+  final List<HabitRecord> records;
+  final HabitsStore habitsStore;
+  final HabitRecordAttachmentStorage attachmentStorage;
+  final ValueChanged<HabitRecord> onAttachmentTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HabitRecordSection(
+      title: '最近记录',
+      subtitle: '只显示真实保存记录',
+      child: Column(
+        children: [
+          for (final record in records)
+            _HabitRecordRow(
+              record: record,
+              attachments: habitsStore.attachmentsForRecord(record.id),
+              metrics: habitsStore.metricsForRecord(record.id),
+              attachmentStorage: attachmentStorage,
+              onAttachmentTap: () => onAttachmentTap(record),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitRecordActionBar extends StatelessWidget {
+  const _HabitRecordActionBar({
+    required this.habitId,
+    required this.canSave,
+    required this.onSave,
+    required this.onCancel,
+    required this.accentColor,
+  });
+
+  final String habitId;
+  final bool canSave;
+  final VoidCallback onSave;
+  final VoidCallback onCancel;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            key: ValueKey<String>('habit-record-cancel-$habitId'),
+            onPressed: onCancel,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white.withValues(alpha: 0.72),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.09)),
+              backgroundColor: Colors.white.withValues(alpha: 0.045),
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            child: const Text('取消'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 2,
+          child: FilledButton(
+            key: ValueKey<String>('habit-record-save-$habitId'),
+            onPressed: canSave ? onSave : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: accentColor,
+              foregroundColor: Colors.black,
+              disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+              disabledForegroundColor: Colors.white.withValues(alpha: 0.30),
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            child: const Text('保存记录'),
+          ),
+        ),
+      ],
     );
   }
 }
