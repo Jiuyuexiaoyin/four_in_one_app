@@ -1,7 +1,7 @@
 name: four_in_one_app
 description: "Four-in-one productivity growth app."
 publish_to: 'none'
-version: 1.1.5+17
+version: 2.1.0+210
 
 environment:
   sdk: ^3.11.5
