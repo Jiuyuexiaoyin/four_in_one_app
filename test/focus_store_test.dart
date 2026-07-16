@@ -1,4 +1,6 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:four_in_one_app/core/notifications/app_local_notification_service.dart';
 import 'package:four_in_one_app/features/focus/application/focus_store.dart';
 import 'package:four_in_one_app/features/focus/data/focus_notification_service.dart';
 import 'package:four_in_one_app/features/focus/domain/models/focus_target_snapshot.dart';
@@ -44,6 +46,65 @@ void main() {
     },
   );
 
+  test('pause at the target end records the completed session', () async {
+    var fakeNow = DateTime(2026, 4, 23, 9);
+    final timerFactory = _FakeTimerFactory();
+    final store = FocusStore.inMemory(
+      defaultDurationSeconds: 3,
+      nowProvider: () => fakeNow,
+      timerFactory: timerFactory.call,
+    );
+    addTearDown(store.dispose);
+
+    store.start();
+    final expectedCompletedAt = fakeNow.add(const Duration(seconds: 3));
+    fakeNow = fakeNow.add(const Duration(seconds: 4));
+
+    store.pause();
+
+    expect(store.status, FocusStatus.idle);
+    expect(store.remainingSeconds, 0);
+    expect(store.completedSessionCount, 1);
+    expect(store.sessions.single.completedAt, expectedCompletedAt.toUtc());
+    expect(store.sessions.single.durationSeconds, 3);
+    expect(timerFactory.records.single.cancelled, isTrue);
+
+    await _flushAsyncWork();
+    expect(store.completedSessionCount, 1);
+  });
+
+  test(
+    'idle completion notification already includes completed history',
+    () async {
+      var fakeNow = DateTime(2026, 4, 23, 9);
+      final timerFactory = _FakeTimerFactory();
+      final store = FocusStore.inMemory(
+        defaultDurationSeconds: 3,
+        nowProvider: () => fakeNow,
+        timerFactory: timerFactory.call,
+      );
+      addTearDown(store.dispose);
+      final idleHistoryCounts = <int>[];
+      store.addListener(() {
+        if (store.isIdle && store.remainingSeconds == 0) {
+          idleHistoryCounts.add(store.completedSessionCount);
+        }
+      });
+
+      store.start();
+      fakeNow = fakeNow.add(const Duration(seconds: 4));
+      timerFactory.records.single.tick();
+
+      expect(store.status, FocusStatus.idle);
+      expect(store.completedSessionCount, 1);
+      expect(idleHistoryCounts, <int>[1]);
+
+      await _flushAsyncWork();
+      expect(store.completedSessionCount, 1);
+      expect(idleHistoryCounts, <int>[1]);
+    },
+  );
+
   test('selected duration changes remaining time while idle', () {
     final store = FocusStore.inMemory();
 
@@ -52,6 +113,47 @@ void main() {
     expect(store.selectedDurationSeconds, 15 * 60);
     expect(store.activeDurationSeconds, 15 * 60);
     expect(store.remainingSeconds, 15 * 60);
+  });
+
+  test('reconciles an idle selected target with current Plan options', () {
+    final store = FocusStore.inMemory();
+    addTearDown(store.dispose);
+    const original = FocusTargetSnapshot(
+      taskId: 'task-1',
+      title: '旧标题',
+      context: '旧计划',
+    );
+    const refreshed = FocusTargetSnapshot(
+      taskId: 'task-1',
+      title: '新标题',
+      context: '新计划 / 新项目',
+    );
+
+    store.selectTarget(original);
+    store.reconcileSelectedTarget(const [refreshed]);
+
+    expect(store.selectedTarget?.title, '新标题');
+    expect(store.selectedTarget?.context, '新计划 / 新项目');
+
+    store.reconcileSelectedTarget(const <FocusTargetSnapshot>[]);
+    expect(store.selectedTarget, isNull);
+  });
+
+  test('keeps an active target snapshot when Plan options change', () {
+    final store = FocusStore.inMemory(defaultDurationSeconds: 60);
+    addTearDown(store.dispose);
+    const target = FocusTargetSnapshot(
+      taskId: 'task-1',
+      title: '本轮行动',
+      context: '计划 / 项目',
+    );
+
+    store.selectTarget(target);
+    store.start();
+    store.reconcileSelectedTarget(const <FocusTargetSnapshot>[]);
+
+    expect(store.activeTarget?.taskId, 'task-1');
+    expect(store.currentTarget?.title, '本轮行动');
   });
 
   test('custom duration changes remaining time while idle', () {
@@ -148,18 +250,28 @@ void main() {
     expect(store.currentTarget, isNull);
   });
 
-  test('Android running notification uses target end time countdown', () {
-    final targetEndAt = DateTime.utc(2026, 4, 24, 9, 25);
-
-    final details = FocusLocalNotificationService.buildRunningAndroidDetails(
-      targetEndAt,
+  test('Android Focus completion uses ordinary inexact scheduling', () {
+    expect(
+      AppLocalNotificationService.scheduleMode,
+      AndroidScheduleMode.inexactAllowWhileIdle,
     );
-
-    expect(details.when, targetEndAt.millisecondsSinceEpoch);
-    expect(details.showWhen, isTrue);
-    expect(details.usesChronometer, isTrue);
-    expect(details.chronometerCountDown, isTrue);
-    expect(details.ongoing, isTrue);
+    expect(FocusLocalNotificationService.activeNotificationId, 4101);
+    expect(FocusLocalNotificationService.legacyCompletionReminderId, 4102);
+    final firstId = FocusLocalNotificationService.completionReminderIdForTarget(
+      DateTime.utc(2026, 7, 13, 9, 25),
+    );
+    final secondId =
+        FocusLocalNotificationService.completionReminderIdForTarget(
+          DateTime.utc(2026, 7, 13, 9, 50),
+        );
+    expect(firstId, isNot(secondId));
+    expect(
+      FocusLocalNotificationService.completionReminderIdForTarget(
+        DateTime.utc(2026, 7, 13, 9, 25),
+      ),
+      firstId,
+    );
+    expect(firstId, greaterThan(4102));
   });
 }
 
@@ -171,6 +283,12 @@ class _FakeTimerFactory {
     records.add(record);
     return record;
   }
+}
+
+Future<void> _flushAsyncWork() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
 }
 
 class _FakeTimerRecord implements FocusTimerHandle {

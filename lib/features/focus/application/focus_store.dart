@@ -279,6 +279,31 @@ class FocusStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reconcileSelectedTarget(Iterable<FocusTargetSnapshot> availableTargets) {
+    if (!isIdle || _selectedTarget == null) {
+      return;
+    }
+
+    FocusTargetSnapshot? refreshedTarget;
+    for (final target in availableTargets) {
+      if (target.taskId == _selectedTarget!.taskId) {
+        refreshedTarget = target;
+        break;
+      }
+    }
+
+    final selectedTarget = _selectedTarget!;
+    if (refreshedTarget != null &&
+        refreshedTarget.taskId == selectedTarget.taskId &&
+        refreshedTarget.title == selectedTarget.title &&
+        refreshedTarget.context == selectedTarget.context) {
+      return;
+    }
+
+    _selectedTarget = refreshedTarget;
+    notifyListeners();
+  }
+
   void start() {
     if (isRunning) {
       return;
@@ -313,7 +338,7 @@ class FocusStore extends ChangeNotifier {
 
     final computedRemaining = _computeRemainingSeconds();
     if (computedRemaining == 0) {
-      _finishCountdown(recordSession: false);
+      _finishCountdown(recordSession: true);
       return;
     }
 
@@ -417,37 +442,35 @@ class FocusStore extends ChangeNotifier {
     _activeTarget = null;
     _remainingSeconds = 0;
     _status = FocusStatus.idle;
+
+    var didRecordSession = false;
+    if (recordSession && completedAt != null) {
+      _insertCompletedSession(
+        completedAt,
+        completedDurationSeconds,
+        completedTarget,
+      );
+      didRecordSession = true;
+    }
     notifyListeners();
 
-    unawaited(
-      _completeFinishedRound(
-        recordSession: recordSession,
-        completedAt: completedAt,
-        durationSeconds: completedDurationSeconds,
-        target: completedTarget,
-      ),
-    );
+    unawaited(_completeFinishedRound(persistHistory: didRecordSession));
   }
 
-  Future<void> _completeFinishedRound({
-    required bool recordSession,
-    required DateTime? completedAt,
-    required int durationSeconds,
-    required FocusTargetSnapshot? target,
-  }) async {
+  Future<void> _completeFinishedRound({required bool persistHistory}) async {
     await _clearActiveSnapshot();
     await _clearFocusNotifications();
 
-    if (recordSession && completedAt != null) {
-      await _recordCompletedSession(completedAt, durationSeconds, target);
+    if (persistHistory) {
+      await _persistHistorySnapshot();
     }
   }
 
-  Future<void> _recordCompletedSession(
+  void _insertCompletedSession(
     DateTime completedAt,
     int durationSeconds,
     FocusTargetSnapshot? target,
-  ) async {
+  ) {
     _sessions.insert(
       0,
       FocusSessionItem(
@@ -458,9 +481,6 @@ class FocusStore extends ChangeNotifier {
       ),
     );
     _normalizeSessions();
-    notifyListeners();
-
-    await _persistHistorySnapshot();
   }
 
   Future<void> _persistHistorySnapshot() async {

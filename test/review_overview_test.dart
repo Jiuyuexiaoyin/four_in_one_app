@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:four_in_one_app/app/app.dart';
+import 'package:four_in_one_app/app/router/app_router.dart';
 import 'package:four_in_one_app/features/focus/application/focus_store.dart';
 import 'package:four_in_one_app/features/focus/domain/models/focus_session_item.dart';
 import 'package:four_in_one_app/features/focus/domain/models/focus_target_snapshot.dart';
@@ -305,7 +306,9 @@ void main() {
 }
 
 Future<void> _openReview(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.insights_outlined));
+  tester
+      .state<NavigatorState>(find.byType(Navigator))
+      .pushNamed(AppRoute.review);
   await tester.pumpAndSettle();
 }
 

@@ -17,4 +17,6 @@
 - `1.1.0+12`: Benchmark Polish phone-test build: Theme Studio, Today command center, Plan project detail/records table, Habit/Plan analytics visual upgrade, and responsive UI polish.
 - `1.1.1+13`: V5H Benchmark Visual System Reset phone-test build: global visual rhythm reset, Today/Habits/Plan visual polish, Theme Studio polish, and responsive UI refinement.
 - `1.1.2+14`: Theme Studio real visual color picker repair phone-test build: visual color picker, hue slider, grouped palette boards, collapsed advanced HEX/RGB/ARGB input, and live preview refinement.
-- Future phone test builds continue as `1.2.0+15`, `1.3.0+16`, etc.
+- `1.1.5+17`: previous known application build before the Get Ready identity consolidation.
+- `2.6.0+18`: Get Ready identity, Android brand assets, repository documentation, and P8/P9/P10 application-work consolidation for device review.
+- Future builds must keep the user-visible version intentional and increment the Android build number monotonically above `18`.

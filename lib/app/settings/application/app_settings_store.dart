@@ -119,11 +119,11 @@ class AppSettingsStore extends ChangeNotifier {
     );
   }
 
-  static const defaultAccentColor = Color(0xFF2E6B5A);
+  static const defaultAccentColor = Color(0xFF00E5FF);
   static const Color defaultLightBackgroundColor = Color(0xFFFBFAF7);
-  static const Color defaultDarkBackgroundColor = Color(0xFF101311);
+  static const Color defaultDarkBackgroundColor = Color(0xFF0A0A0A);
   static const Color defaultLightSurfaceColor = Color(0xFFF7F5EF);
-  static const Color defaultDarkSurfaceColor = Color(0xFF171A18);
+  static const Color defaultDarkSurfaceColor = Color(0xFF131313);
 
   static const accentColorPresets = <Color>[
     Color(0xFF2E6B5A),

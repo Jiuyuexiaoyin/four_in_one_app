@@ -1,11 +1,8 @@
-// ignore_for_file: depend_on_referenced_packages
-
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:four_in_one_app/core/notifications/app_local_notification_service.dart';
+import 'package:four_in_one_app/core/notifications/app_notification_payload.dart';
 import 'package:four_in_one_app/features/habits/domain/models/habit_item.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 abstract interface class HabitReminderNotificationService {
@@ -24,12 +21,10 @@ abstract interface class HabitReminderNotificationService {
 class HabitReminderLocalNotificationService
     implements HabitReminderNotificationService {
   HabitReminderLocalNotificationService({
-    FlutterLocalNotificationsPlugin? notificationsPlugin,
-  }) : _notificationsPlugin =
-           notificationsPlugin ?? FlutterLocalNotificationsPlugin();
+    AppLocalNotificationService? appNotificationService,
+  }) : _appNotifications =
+           appNotificationService ?? AppLocalNotificationService();
 
-  static const _channelId = 'habit_daily_reminders';
-  static const _channelName = 'Habit reminders';
   static const _numericIdBase = 720000;
   static const _hashIdBase = 920000;
   static const _idRange = 90000;
@@ -37,45 +32,55 @@ class HabitReminderLocalNotificationService
   static const _ruleHabitSlotRange = 20000;
   static const _ruleSlotStride = 8;
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin;
-  bool _initialized = false;
+  final AppLocalNotificationService _appNotifications;
 
   @override
-  Future<void> initialize() async {
-    if (_initialized) {
-      return;
-    }
-
-    _configureLocalTimezone();
-
-    const initializationSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
-      ),
-    );
-
-    await _notificationsPlugin.initialize(settings: initializationSettings);
-    _initialized = true;
-  }
+  Future<void> initialize() => _appNotifications.initialize();
 
   @override
   Future<void> resyncReminders(List<HabitItem> habits) async {
+    if (kIsWeb) {
+      return;
+    }
+
     await initialize();
-    final canSchedule = await _ensurePermissions(requestPermission: false);
-
+    final baselineRevision = _appNotifications.schedulingErrorRevision;
+    final pending = await _appNotifications.pendingRequests(
+      recordSchedulingFailure: true,
+    );
+    var completedWithoutError =
+        _appNotifications.schedulingErrorRevision == baselineRevision;
+    final desiredById = <int, _HabitReminderSchedule>{};
     for (final habit in habits) {
-      await _cancelAllReminderIdsForHabit(habit.id);
-
-      if (!habit.isActive ||
-          habit.enabledReminderRules.isEmpty ||
-          !canSchedule) {
-        continue;
+      for (final schedule in _desiredSchedulesForHabit(habit)) {
+        desiredById[schedule.id] = schedule;
       }
+    }
 
-      await _scheduleRules(habit);
+    if (completedWithoutError) {
+      for (final request in pending) {
+        if (!_isAppOwnedHabitRequest(request) ||
+            desiredById.containsKey(request.id)) {
+          continue;
+        }
+        final result = await _appNotifications.cancel(request.id);
+        completedWithoutError &= result.isCompleted;
+      }
+    } else {
+      for (final habit in habits) {
+        completedWithoutError &= await _cancelIds(
+          _allReminderIdsForHabit(habit.id),
+        );
+      }
+    }
+
+    for (final schedule in desiredById.values) {
+      final result = await _schedule(schedule);
+      completedWithoutError &= result.isCompleted;
+    }
+
+    if (completedWithoutError) {
+      _appNotifications.markSchedulingHealthy(baselineRevision);
     }
   }
 
@@ -84,48 +89,91 @@ class HabitReminderLocalNotificationService
     HabitItem habit, {
     required bool requestPermission,
   }) async {
-    await initialize();
-    await _cancelAllReminderIdsForHabit(habit.id);
-
-    if (!habit.isActive ||
-        habit.enabledReminderRules.isEmpty ||
-        !await _ensurePermissions(requestPermission: requestPermission)) {
+    if (kIsWeb) {
       return;
     }
 
-    await _scheduleRules(habit);
+    // Permission prompting belongs to the user-facing Habit flow. Scheduling
+    // is intentionally preserved after denial so a later grant can take effect.
+    await initialize();
+    final baselineRevision = _appNotifications.schedulingErrorRevision;
+    final pending = await _appNotifications.pendingRequests(
+      recordSchedulingFailure: true,
+    );
+    var completedWithoutError =
+        _appNotifications.schedulingErrorRevision == baselineRevision;
+    final desiredById = <int, _HabitReminderSchedule>{
+      for (final schedule in _desiredSchedulesForHabit(habit))
+        schedule.id: schedule,
+    };
+
+    if (completedWithoutError) {
+      final ownedIds = _allReminderIdsForHabit(habit.id);
+      for (final request in pending) {
+        if (!_requestBelongsToHabit(request, habit.id, ownedIds) ||
+            desiredById.containsKey(request.id)) {
+          continue;
+        }
+        final result = await _appNotifications.cancel(request.id);
+        completedWithoutError &= result.isCompleted;
+      }
+    } else {
+      completedWithoutError &= await _cancelIds(
+        _allReminderIdsForHabit(habit.id),
+      );
+    }
+
+    for (final schedule in desiredById.values) {
+      final result = await _schedule(schedule);
+      completedWithoutError &= result.isCompleted;
+    }
+
+    if (completedWithoutError) {
+      _appNotifications.markSchedulingHealthy(baselineRevision);
+    }
   }
 
   @override
   Future<void> cancelReminder(String habitId) async {
+    if (kIsWeb) {
+      return;
+    }
+
     await initialize();
-    await _cancelAllReminderIdsForHabit(habitId);
-  }
+    final baselineRevision = _appNotifications.schedulingErrorRevision;
+    final pending = await _appNotifications.pendingRequests(
+      recordSchedulingFailure: true,
+    );
+    var completedWithoutError =
+        _appNotifications.schedulingErrorRevision == baselineRevision;
+    final ownedIds = _allReminderIdsForHabit(habitId);
 
-  Future<void> _cancelAllReminderIdsForHabit(String habitId) async {
-    await _notificationsPlugin.cancel(id: reminderIdForHabitId(habitId));
-
-    for (
-      var ruleIndex = 0;
-      ruleIndex < HabitReminderRule.maxRulesPerHabit;
-      ruleIndex += 1
-    ) {
-      for (var weekdaySlot = 0; weekdaySlot <= 7; weekdaySlot += 1) {
-        await _notificationsPlugin.cancel(
-          id: reminderRuleIdForHabitSlot(
-            habitId: habitId,
-            ruleIndex: ruleIndex,
-            weekday: weekdaySlot,
-          ),
-        );
+    if (completedWithoutError) {
+      for (final request in pending) {
+        if (!_requestBelongsToHabit(request, habitId, ownedIds)) {
+          continue;
+        }
+        final result = await _appNotifications.cancel(request.id);
+        completedWithoutError &= result.isCompleted;
       }
+    } else {
+      completedWithoutError &= await _cancelIds(ownedIds);
+    }
+
+    if (completedWithoutError) {
+      _appNotifications.markSchedulingHealthy(baselineRevision);
     }
   }
 
-  Future<void> _scheduleRules(HabitItem habit) async {
+  List<_HabitReminderSchedule> _desiredSchedulesForHabit(HabitItem habit) {
+    if (!habit.isActive || habit.enabledReminderRules.isEmpty) {
+      return const <_HabitReminderSchedule>[];
+    }
+
     final enabledRules = habit.enabledReminderRules
         .take(HabitReminderRule.maxRulesPerHabit)
         .toList(growable: false);
+    final schedules = <_HabitReminderSchedule>[];
 
     for (var ruleIndex = 0; ruleIndex < enabledRules.length; ruleIndex += 1) {
       final rule = enabledRules[ruleIndex];
@@ -135,112 +183,114 @@ class HabitReminderLocalNotificationService
       }
 
       if (rule.isEveryDay) {
-        await _schedule(
-          id: reminderRuleIdForHabitSlot(
-            habitId: habit.id,
-            ruleIndex: ruleIndex,
-            weekday: 0,
+        schedules.add(
+          _HabitReminderSchedule(
+            id: reminderRuleIdForHabitSlot(
+              habitId: habit.id,
+              ruleIndex: ruleIndex,
+              weekday: 0,
+            ),
+            habit: habit,
+            scheduledDate: nextReminderDate(reminderTime),
+            matchDateTimeComponents: DateTimeComponents.time,
           ),
-          habit: habit,
-          scheduledDate: nextReminderDate(reminderTime),
-          matchDateTimeComponents: DateTimeComponents.time,
         );
         continue;
       }
 
       for (final weekday in rule.weekdays) {
-        await _schedule(
-          id: reminderRuleIdForHabitSlot(
-            habitId: habit.id,
-            ruleIndex: ruleIndex,
-            weekday: weekday,
+        schedules.add(
+          _HabitReminderSchedule(
+            id: reminderRuleIdForHabitSlot(
+              habitId: habit.id,
+              ruleIndex: ruleIndex,
+              weekday: weekday,
+            ),
+            habit: habit,
+            scheduledDate: nextWeeklyReminderDate(reminderTime, weekday),
+            matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
           ),
-          habit: habit,
-          scheduledDate: nextWeeklyReminderDate(reminderTime, weekday),
-          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         );
       }
     }
+
+    return schedules;
   }
 
-  Future<void> _schedule({
-    required int id,
-    required HabitItem habit,
-    required tz.TZDateTime scheduledDate,
-    required DateTimeComponents matchDateTimeComponents,
-  }) async {
-    await _notificationsPlugin.zonedSchedule(
-      id: id,
-      title: '涔犳儻鎻愰啋',
-      body: reminderBodyForHabit(habit),
-      scheduledDate: scheduledDate,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: 'Habit reminder notifications.',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          onlyAlertOnce: true,
-        ),
-        iOS: DarwinNotificationDetails(presentSound: true),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexact,
-      matchDateTimeComponents: matchDateTimeComponents,
+  Future<NotificationOperationResult> _schedule(
+    _HabitReminderSchedule schedule,
+  ) async {
+    final habit = schedule.habit;
+    final payload = AppNotificationPayload(
+      type: AppNotificationType.habitReminder,
+      entityId: habit.id,
+      route: AppNotificationPayload.habitsRoute,
+    );
+
+    return _appNotifications.scheduleHabitReminder(
+      id: schedule.id,
+      habitName: habit.name,
+      scheduledDate: schedule.scheduledDate,
+      matchDateTimeComponents: schedule.matchDateTimeComponents,
+      payload: payload.encode(),
     );
   }
 
-  Future<bool> _ensurePermissions({required bool requestPermission}) async {
-    if (Platform.isAndroid) {
-      final androidImplementation = _notificationsPlugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
-      if (androidImplementation == null) {
-        return true;
-      }
-
-      final enabled = await androidImplementation.areNotificationsEnabled();
-      if (enabled ?? true) {
-        return true;
-      }
-
-      if (!requestPermission) {
-        return false;
-      }
-
-      return await androidImplementation.requestNotificationsPermission() ??
-          false;
+  Future<bool> _cancelIds(Iterable<int> ids) async {
+    var completedWithoutError = true;
+    for (final id in ids) {
+      final result = await _appNotifications.cancel(id);
+      completedWithoutError &= result.isCompleted;
     }
+    return completedWithoutError;
+  }
 
-    if (Platform.isIOS) {
-      final iosImplementation = _notificationsPlugin
-          .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >();
-      if (iosImplementation == null) {
-        return true;
+  static Set<int> _allReminderIdsForHabit(String habitId) {
+    final ids = <int>{reminderIdForHabitId(habitId)};
+    for (
+      var ruleIndex = 0;
+      ruleIndex < HabitReminderRule.maxRulesPerHabit;
+      ruleIndex += 1
+    ) {
+      for (var weekdaySlot = 0; weekdaySlot <= 7; weekdaySlot += 1) {
+        ids.add(
+          reminderRuleIdForHabitSlot(
+            habitId: habitId,
+            ruleIndex: ruleIndex,
+            weekday: weekdaySlot,
+          ),
+        );
       }
-
-      final permissions = await iosImplementation.checkPermissions();
-      if ((permissions?.isEnabled ?? false) ||
-          (permissions?.isProvisionalEnabled ?? false)) {
-        return true;
-      }
-
-      if (!requestPermission) {
-        return false;
-      }
-
-      return await iosImplementation.requestPermissions(
-            alert: true,
-            badge: false,
-            sound: true,
-          ) ??
-          false;
     }
+    return ids;
+  }
 
-    return true;
+  static bool _requestBelongsToHabit(
+    PendingNotificationRequest request,
+    String habitId,
+    Set<int> ownedIds,
+  ) {
+    final payload = AppNotificationPayload.tryParse(request.payload);
+    return ownedIds.contains(request.id) ||
+        (payload?.type == AppNotificationType.habitReminder &&
+            payload?.entityId == habitId);
+  }
+
+  static bool _isAppOwnedHabitRequest(PendingNotificationRequest request) {
+    final payload = AppNotificationPayload.tryParse(request.payload);
+    return payload?.type == AppNotificationType.habitReminder ||
+        _isLegacyOrRuleReminderId(request.id);
+  }
+
+  static bool _isLegacyOrRuleReminderId(int id) {
+    final ruleIdEndExclusive =
+        _ruleIdBase +
+        (_ruleHabitSlotRange *
+            HabitReminderRule.maxRulesPerHabit *
+            _ruleSlotStride);
+    return (id >= _numericIdBase && id < _numericIdBase + _idRange) ||
+        (id >= _hashIdBase && id < _hashIdBase + _idRange) ||
+        (id >= _ruleIdBase && id < ruleIdEndExclusive);
   }
 
   @visibleForTesting
@@ -275,7 +325,8 @@ class HabitReminderLocalNotificationService
 
   @visibleForTesting
   static String reminderBodyForHabit(HabitItem habit) {
-    return '该打卡了：${habit.emoji} ${habit.name}';
+    final name = habit.name.trim();
+    return name.isEmpty ? '今天还有一个习惯等待完成' : '今天的「$name」还未完成';
   }
 
   @visibleForTesting
@@ -302,19 +353,29 @@ class HabitReminderLocalNotificationService
   }
 
   @visibleForTesting
-  static tz.TZDateTime nextReminderDate(HabitReminderTime reminderTime) {
-    final now = tz.TZDateTime.now(tz.local);
+  static tz.TZDateTime nextReminderDate(
+    HabitReminderTime reminderTime, {
+    tz.TZDateTime? now,
+  }) {
+    final current = now ?? tz.TZDateTime.now(tz.local);
     var scheduledDate = tz.TZDateTime(
       tz.local,
-      now.year,
-      now.month,
-      now.day,
+      current.year,
+      current.month,
+      current.day,
       reminderTime.hour,
       reminderTime.minute,
     );
 
-    if (!scheduledDate.isAfter(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    if (!scheduledDate.isAfter(current)) {
+      scheduledDate = tz.TZDateTime(
+        tz.local,
+        current.year,
+        current.month,
+        current.day + 1,
+        reminderTime.hour,
+        reminderTime.minute,
+      );
     }
 
     return scheduledDate;
@@ -323,39 +384,34 @@ class HabitReminderLocalNotificationService
   @visibleForTesting
   static tz.TZDateTime nextWeeklyReminderDate(
     HabitReminderTime reminderTime,
-    int weekday,
-  ) {
-    final now = tz.TZDateTime.now(tz.local);
+    int weekday, {
+    tz.TZDateTime? now,
+  }) {
+    final current = now ?? tz.TZDateTime.now(tz.local);
+    final normalizedWeekday = weekday.clamp(1, 7).toInt();
+    var daysUntilWeekday = (normalizedWeekday - current.weekday) % 7;
     var scheduledDate = tz.TZDateTime(
       tz.local,
-      now.year,
-      now.month,
-      now.day,
+      current.year,
+      current.month,
+      current.day + daysUntilWeekday,
       reminderTime.hour,
       reminderTime.minute,
     );
-    final normalizedWeekday = weekday.clamp(1, 7).toInt();
-    final daysUntilWeekday = (normalizedWeekday - scheduledDate.weekday) % 7;
-    scheduledDate = scheduledDate.add(Duration(days: daysUntilWeekday));
 
-    if (!scheduledDate.isAfter(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 7));
+    if (!scheduledDate.isAfter(current)) {
+      daysUntilWeekday += 7;
+      scheduledDate = tz.TZDateTime(
+        tz.local,
+        current.year,
+        current.month,
+        current.day + daysUntilWeekday,
+        reminderTime.hour,
+        reminderTime.minute,
+      );
     }
 
     return scheduledDate;
-  }
-
-  static void _configureLocalTimezone() {
-    tzdata.initializeTimeZones();
-
-    final now = DateTime.now();
-    final localOffset = now.timeZoneOffset;
-    final localName = now.timeZoneName.isEmpty ? 'Local' : now.timeZoneName;
-    tz.setLocalLocation(
-      tz.Location('device-local', [tz.minTime], [0], [
-        tz.TimeZone(localOffset, isDst: false, abbreviation: localName),
-      ]),
-    );
   }
 
   static int _stableHash(String value) {
@@ -377,6 +433,20 @@ class HabitReminderLocalNotificationService
 
     return _stableHash(habitId) % _ruleHabitSlotRange;
   }
+}
+
+class _HabitReminderSchedule {
+  const _HabitReminderSchedule({
+    required this.id,
+    required this.habit,
+    required this.scheduledDate,
+    required this.matchDateTimeComponents,
+  });
+
+  final int id;
+  final HabitItem habit;
+  final tz.TZDateTime scheduledDate;
+  final DateTimeComponents matchDateTimeComponents;
 }
 
 class HabitReminderTime {

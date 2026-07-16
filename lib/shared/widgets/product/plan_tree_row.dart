@@ -207,16 +207,25 @@ class _BranchPlanTreeRow extends StatelessWidget {
       padding: EdgeInsets.all(isProject ? 14 : 12),
       decoration: BoxDecoration(
         color: isProject
-            ? Theme.of(context).scaffoldBackgroundColor.withValues(
-                alpha: colorScheme.brightness == Brightness.dark ? 0.18 : 0.48,
+            ? Color.lerp(
+                colorScheme.surfaceContainerLowest,
+                identityColor,
+                0.035,
               )
-            : AppThemeTokens.softSurfaceTone(colorScheme),
+            : colorScheme.surfaceContainerLow.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
         border: Border.all(
           color: hasProgress
-              ? identityColor.withValues(alpha: isProject ? 0.12 : 0.10)
+              ? identityColor.withValues(alpha: isProject ? 0.22 : 0.16)
               : AppThemeTokens.borderTone(colorScheme),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: identityColor.withValues(alpha: isProject ? 0.07 : 0.035),
+            blurRadius: 16,
+            spreadRadius: -12,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,7 +237,7 @@ class _BranchPlanTreeRow extends StatelessWidget {
               color: identityColor.withValues(
                 alpha: hasProgress ? (isProject ? 0.34 : 0.30) : 0.12,
               ),
-              borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 10),
@@ -254,8 +263,8 @@ class _BranchPlanTreeRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
                       ),
                     ),
                     if (description.trim().isNotEmpty) ...[
@@ -429,13 +438,13 @@ class _TaskPlanTreeRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
         decoration: BoxDecoration(
           color: completed
-              ? colorScheme.primary.withValues(alpha: 0.08)
-              : colorScheme.surface.withValues(alpha: 0.62),
+              ? colorScheme.tertiary.withValues(alpha: 0.10)
+              : colorScheme.surfaceContainerLowest.withValues(alpha: 0.74),
           borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
           border: Border.all(
             color: completed
-                ? colorScheme.primary.withValues(alpha: 0.18)
-                : AppThemeTokens.borderTone(colorScheme),
+                ? colorScheme.tertiary.withValues(alpha: 0.24)
+                : colorScheme.primary.withValues(alpha: 0.10),
           ),
         ),
         child: Column(
@@ -641,10 +650,11 @@ class _PlanIdentityPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
       child: Text(
-        label,
+        label.toUpperCase(),
         style: theme.textTheme.labelSmall?.copyWith(
-          color: AppThemeTokens.secondaryTextTone(colorScheme),
-          fontWeight: FontWeight.w600,
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.9,
         ),
       ),
     );
@@ -711,9 +721,9 @@ class _PlanVisualMarker extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: identityColor.withValues(alpha: 0.14),
+        color: identityColor.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-        border: Border.all(color: identityColor.withValues(alpha: 0.14)),
+        border: Border.all(color: identityColor.withValues(alpha: 0.24)),
       ),
       child: Text(
         String.fromCharCodes(markerText.runes.take(2)),

@@ -56,20 +56,27 @@ class PlanGoalCard extends StatelessWidget {
     final identityColor = Color(colorValue);
 
     return SoftSurface(
-      tone: SoftSurfaceTone.flat,
-      padding: const EdgeInsets.all(18),
+      tone: SoftSurfaceTone.accent,
+      padding: const EdgeInsets.all(16),
       borderColor: hasActions
-          ? identityColor.withValues(alpha: 0.10)
+          ? identityColor.withValues(alpha: 0.24)
           : AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 54,
-            height: 5,
+            width: 64,
+            height: 4,
             decoration: BoxDecoration(
-              color: identityColor.withValues(alpha: hasActions ? 0.42 : 0.16),
-              borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
+              color: identityColor.withValues(alpha: hasActions ? 0.72 : 0.22),
+              borderRadius: BorderRadius.circular(2),
+              boxShadow: [
+                BoxShadow(
+                  color: identityColor.withValues(alpha: 0.18),
+                  blurRadius: 12,
+                  spreadRadius: -4,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
@@ -96,8 +103,8 @@ class PlanGoalCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleMedium?.copyWith(
                               color: colorScheme.onSurface,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.3,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0,
                             ),
                           ),
                         ),
@@ -127,9 +134,9 @@ class PlanGoalCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: hasActions
-                            ? identityColor
+                            ? identityColor.withValues(alpha: 0.92)
                             : AppThemeTokens.secondaryTextTone(colorScheme),
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
@@ -176,8 +183,8 @@ class PlanGoalCard extends StatelessWidget {
           const SizedBox(height: 12),
           ProgressRail(
             value: hasActions ? progressValue : null,
-            height: 6,
-            fillColor: identityColor.withValues(alpha: 0.72),
+            height: 7,
+            fillColor: identityColor.withValues(alpha: 0.86),
             backgroundColor: AppThemeTokens.borderTone(
               colorScheme,
             ).withValues(alpha: 0.42),
@@ -236,7 +243,7 @@ class _PlanCountBadge extends StatelessWidget {
             value,
             style: theme.textTheme.labelLarge?.copyWith(
               color: colorScheme.onSurface,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(width: AppThemeTokens.spaceXs),
@@ -266,10 +273,11 @@ class _PlanIdentityPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
       child: Text(
-        label,
+        label.toUpperCase(),
         style: theme.textTheme.labelSmall?.copyWith(
-          color: AppThemeTokens.secondaryTextTone(colorScheme),
-          fontWeight: FontWeight.w600,
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.0,
         ),
       ),
     );
@@ -336,9 +344,16 @@ class _PlanVisualMarker extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: identityColor.withValues(alpha: 0.14),
+        color: identityColor.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: identityColor.withValues(alpha: 0.14)),
+        border: Border.all(color: identityColor.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: identityColor.withValues(alpha: 0.10),
+            blurRadius: 14,
+            spreadRadius: -8,
+          ),
+        ],
       ),
       child: Text(
         String.fromCharCodes(markerText.runes.take(2)),

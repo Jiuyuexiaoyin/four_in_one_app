@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
-import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
+import 'package:four_in_one_app/shared/widgets/visual_dna/visual_dna_widgets.dart';
 
 class MySettingsSection extends StatelessWidget {
   const MySettingsSection({
@@ -51,17 +51,16 @@ class MySettingsSection extends StatelessWidget {
           ),
         ],
         const SizedBox(height: AppThemeTokens.spaceSm),
-        SoftSurface(
+        VisualDnaPanel(
           padding: EdgeInsets.zero,
           borderRadius: AppThemeTokens.radiusXl,
-          tone: SoftSurfaceTone.plain,
           child: Column(
             children: [
               for (var index = 0; index < rows.length; index += 1) ...[
                 if (index > 0)
                   Divider(
                     height: 1,
-                    color: AppThemeTokens.borderTone(colorScheme),
+                    color: colorScheme.primary.withValues(alpha: 0.08),
                   ),
                 rows[index],
               ],

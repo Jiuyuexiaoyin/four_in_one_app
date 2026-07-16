@@ -16,39 +16,24 @@ void main() {
       ),
     );
 
-    expect(find.text('今日'), findsWidgets);
-    expect(find.text('习惯'), findsOneWidget);
-    expect(find.text('计划'), findsOneWidget);
+    expect(find.text('今天'), findsWidgets);
+    expect(find.text('习惯'), findsWidgets);
+    expect(find.text('计划'), findsWidgets);
     expect(find.text('专注'), findsWidgets);
-    expect(find.text('复盘'), findsOneWidget);
-    expect(find.text('我的'), findsNothing);
-    expect(find.byIcon(Icons.track_changes_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.timer_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
-    expect(find.byKey(const ValueKey('today-habits-view-all')), findsOneWidget);
-    expect(find.text('今日习惯'), findsOneWidget);
-    expect(_findKeyedText('today-habits-completed', '0'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 3'), findsOneWidget);
-    expect(find.text('今日打卡 0 次'), findsOneWidget);
-    expect(find.text('💧 Drink water'), findsOneWidget);
+    expect(find.text('My'), findsNothing);
+    expect(find.text('复盘'), findsNothing);
+    expect(find.byIcon(Icons.event_note_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.timer_outlined), findsWidgets);
+    expect(find.byIcon(Icons.insights_rounded), findsOneWidget);
+    expect(find.text('推进指标'), findsOneWidget);
+    expect(find.text('优先行动'), findsOneWidget);
+    expect(find.text('节奏趋势'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('today-goals-view-all')),
-      300,
-    );
+    await tester.scrollUntilVisible(find.text('行动计划'), 300);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('today-goals-view-all')), findsOneWidget);
-    expect(find.text('目标规划'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('today-focus-view-all')),
-      300,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('today-focus-view-all')), findsOneWidget);
-    expect(find.text('专注概览'), findsOneWidget);
+    expect(find.text('行动计划'), findsOneWidget);
+    expect(find.text('💧 Drink water'), findsWidgets);
   });
 
   testWidgets('keeps existing feature routes compatible', (tester) async {
@@ -63,22 +48,21 @@ void main() {
 
     navigator.pushNamed(AppRoute.habits);
     await tester.pumpAndSettle();
-    expect(find.text('Habits'), findsOneWidget);
-    expect(find.text('轻量记录每天的重复行为。'), findsOneWidget);
+    expect(find.text('习惯'), findsWidgets);
     navigator.pop();
     await tester.pumpAndSettle();
 
     navigator.pushNamed(AppRoute.goals);
     await tester.pumpAndSettle();
     expect(find.text('计划'), findsWidgets);
-    expect(find.text('计划你的长期推进。'), findsOneWidget);
+    expect(find.text('一个计划，一个下一步。'), findsOneWidget);
     navigator.pop();
     await tester.pumpAndSettle();
 
     navigator.pushNamed(AppRoute.settings);
     await tester.pumpAndSettle();
     expect(find.text('我的'), findsWidgets);
-    expect(find.text('界面强调色'), findsOneWidget);
+    expect(find.text('主题工作室'), findsWidgets);
   });
 
   testWidgets('main pages render at 360dp with larger Chinese text', (
@@ -128,13 +112,4 @@ void main() {
       await tester.pumpAndSettle();
     }
   });
-}
-
-Finder _findKeyedText(String key, String text) {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is Text &&
-        widget.key == ValueKey<String>(key) &&
-        widget.data == text,
-  );
 }

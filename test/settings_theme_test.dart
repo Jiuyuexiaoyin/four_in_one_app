@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:four_in_one_app/app/app.dart';
+import 'package:four_in_one_app/app/router/app_router.dart';
 import 'package:four_in_one_app/app/settings/application/app_settings_store.dart';
 import 'package:four_in_one_app/features/focus/application/focus_store.dart';
 import 'package:four_in_one_app/features/focus/domain/models/focus_session_item.dart';
@@ -15,8 +16,8 @@ void main() {
 
     await _pumpApp(tester, settingsStore);
     await _openSettings(tester);
+    await _ensureVisible(tester, const ValueKey('settings-theme-mode-dark'));
 
-    expect(find.text('我的'), findsWidgets);
     expect(find.text('外观'), findsOneWidget);
     expect(find.text('主题模式'), findsOneWidget);
 
@@ -42,16 +43,37 @@ void main() {
 
     await _pumpApp(tester, settingsStore);
     await _openSettings(tester);
+    await _ensureVisible(tester, const ValueKey('theme-studio-more-palettes'));
 
     expect(find.text('界面强调色'), findsOneWidget);
     expect(find.text('影响按钮、选中态和强调元素'), findsOneWidget);
     expect(find.text('主题色'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('theme-studio-current-palette')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('theme-studio-more-palettes')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text('更多色卡'),
+      ),
+      findsOneWidget,
+    );
 
     for (final accentOption in accentOptions) {
       final optionFinder = find.byKey(ValueKey<String>(accentOption.optionKey));
       await tester.ensureVisible(optionFinder);
       await tester.pumpAndSettle();
-      expect(find.text(accentOption.label), findsOneWidget);
+      expect(
+        find.descendant(
+          of: optionFinder,
+          matching: find.text(accentOption.label),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(optionFinder);
       await tester.pumpAndSettle();
 
@@ -64,6 +86,19 @@ void main() {
         findsOneWidget,
       );
     }
+
+    await tester.tap(
+      find.byKey(const ValueKey('theme-studio-more-palettes-close')),
+    );
+    await tester.pumpAndSettle();
+    await _ensureVisible(tester, const ValueKey('theme-studio-reset-accent'));
+    await tester.tap(find.byKey(const ValueKey('theme-studio-reset-accent')));
+    await tester.pumpAndSettle();
+
+    expect(
+      settingsStore.accentColor.toARGB32(),
+      AppSettingsStore.defaultAccentColor.toARGB32(),
+    );
   });
 
   testWidgets('Theme Studio accepts HEX, RGB, ARGB, and reset inputs', (
@@ -73,6 +108,7 @@ void main() {
 
     await _pumpApp(tester, settingsStore);
     await _openSettings(tester);
+    await _ensureVisible(tester, const ValueKey('theme-studio-visual-picker'));
 
     expect(find.text('颜色工作室'), findsOneWidget);
     expect(find.text('背景颜色'), findsWidgets);
@@ -271,6 +307,7 @@ void main() {
       await _pumpApp(tester, settingsStore);
       await _openSettings(tester);
 
+      await _ensureVisible(tester, const ValueKey('theme-studio-preview'));
       expect(find.text('颜色工作室'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('theme-studio-preview')),
@@ -278,7 +315,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
 
-      await tester.drag(find.byType(ListView), const Offset(0, -900));
+      await tester.drag(find.byType(ListView).first, const Offset(0, -900));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -313,7 +350,8 @@ Future<void> _pumpApp(
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.settings_outlined));
+  final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+  navigator.pushNamed(AppRoute.settings);
   await tester.pumpAndSettle();
 }
 

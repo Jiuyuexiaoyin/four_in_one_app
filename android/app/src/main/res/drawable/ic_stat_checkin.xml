@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Android uses this drawable as an alpha mask for the status-bar icon. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2A10,10 0,1 1,12,22A10,10 0,0 1,12,2ZM12,5A7,7 0,1 0,12,19A7,7 0,0 0,12,5Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.7,11.8L9.9,15L17.3,7.6L19,9.3L9.9,18.4L5,13.5Z" />
+</vector>

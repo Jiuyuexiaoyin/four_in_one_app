@@ -1,11 +1,6 @@
-// ignore_for_file: depend_on_referenced_packages
-
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
-import 'package:timezone/timezone.dart' as tz;
+import 'package:four_in_one_app/core/notifications/app_local_notification_service.dart';
+import 'package:four_in_one_app/core/notifications/app_notification_payload.dart';
 
 abstract interface class FocusNotificationService {
   Future<void> initialize();
@@ -26,196 +21,233 @@ abstract interface class FocusNotificationService {
   Future<void> clearFocusNotifications();
 }
 
+/// Schedules only the completion event. The running countdown remains an
+/// in-app concern reconstructed from FocusStore's persisted end timestamp.
 class FocusLocalNotificationService implements FocusNotificationService {
   FocusLocalNotificationService({
-    FlutterLocalNotificationsPlugin? notificationsPlugin,
-  }) : _notificationsPlugin =
-           notificationsPlugin ?? FlutterLocalNotificationsPlugin();
+    AppLocalNotificationService? appNotificationService,
+    DateTime Function()? nowProvider,
+  }) : _appNotifications =
+           appNotificationService ?? AppLocalNotificationService(),
+       _nowProvider = nowProvider ?? DateTime.now;
 
-  static const _activeNotificationId = 4101;
-  static const _completionReminderId = 4102;
-  static const _channelId = 'focus_reliability';
-  static const _channelName = 'Focus timer';
+  static const activeNotificationId = 4101;
+  static const legacyCompletionReminderId = 4102;
+  static const _completionIdBase = 1500000000;
+  static const _completionIdRange = 400000000;
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin;
-  bool _initialized = false;
-  bool? _permissionsGranted;
+  final AppLocalNotificationService _appNotifications;
+  final DateTime Function() _nowProvider;
+  Future<void> _operationTail = Future<void>.value();
+  DateTime? _desiredTargetEndAt;
+  int _desiredBaselineRevision = 0;
+  bool _desiredOperationFailed = false;
+  final List<int> _dueCleanupPreserveIds = <int>[];
 
   @override
-  Future<void> initialize() async {
-    if (_initialized) {
-      return;
-    }
-
-    tzdata.initializeTimeZones();
-
-    const initializationSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
-      ),
-    );
-
-    await _notificationsPlugin.initialize(settings: initializationSettings);
-    _initialized = true;
-  }
+  Future<void> initialize() => _appNotifications.initialize();
 
   @override
   Future<void> showRunning({
     required int remainingSeconds,
     required DateTime targetEndAt,
   }) async {
-    await initialize();
-    if (!Platform.isAndroid || !await _ensurePermissions()) {
-      return;
+    final normalizedTarget = targetEndAt.toUtc();
+    final previousTarget = _desiredTargetEndAt;
+    if (previousTarget != null &&
+        !previousTarget.isAtSameMomentAs(normalizedTarget) &&
+        !_nowProvider().toUtc().isBefore(previousTarget)) {
+      final previousId = completionReminderIdForTarget(previousTarget);
+      if (!_dueCleanupPreserveIds.contains(previousId)) {
+        _dueCleanupPreserveIds.add(previousId);
+      }
     }
+    _desiredTargetEndAt = normalizedTarget;
+    _desiredBaselineRevision = _appNotifications.schedulingErrorRevision;
+    _desiredOperationFailed = false;
 
-    await _notificationsPlugin.show(
-      id: _activeNotificationId,
-      title: '专注进行中',
-      body: '系统会在完成时提醒你',
-      notificationDetails: NotificationDetails(
-        android: buildRunningAndroidDetails(targetEndAt),
-      ),
-    );
+    // Remove a stale notification left by versions that displayed an ongoing
+    // drawer countdown. No foreground service or replacement is created.
+    await _enqueue(() async {
+      final result = await _appNotifications.cancel(activeNotificationId);
+      if (_isDesiredTarget(normalizedTarget) && !result.isCompleted) {
+        _desiredOperationFailed = true;
+      }
+    });
   }
 
   @override
   Future<void> showPaused({required int remainingSeconds}) async {
-    await initialize();
-    if (!Platform.isAndroid || !await _ensurePermissions()) {
-      return;
-    }
-
-    await _notificationsPlugin.show(
-      id: _activeNotificationId,
-      title: '专注已暂停',
-      body: '剩余 ${_formatDuration(remainingSeconds)}',
-      notificationDetails: const NotificationDetails(
-        android: _pausedAndroidDetails,
-      ),
-    );
+    _desiredTargetEndAt = null;
+    await _enqueue(() async {
+      await _appNotifications.cancel(activeNotificationId);
+    });
   }
 
   @override
   Future<void> scheduleCompletionReminder({
     required DateTime targetEndAt,
   }) async {
-    await initialize();
-    if (!await _ensurePermissions()) {
+    final normalizedTarget = targetEndAt.toUtc();
+    if (!_isDesiredTarget(normalizedTarget)) {
       return;
     }
 
-    await _notificationsPlugin.zonedSchedule(
-      id: _completionReminderId,
-      title: '专注完成',
-      body: '这一轮专注已经结束。',
-      scheduledDate: tz.TZDateTime.from(targetEndAt.toUtc(), tz.UTC),
-      notificationDetails: const NotificationDetails(
-        android: _completionAndroidDetails,
-        iOS: DarwinNotificationDetails(presentSound: true),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexact,
-    );
+    await _enqueue(() async {
+      if (!_isDesiredTarget(normalizedTarget)) {
+        return;
+      }
+
+      final payload = AppNotificationPayload(
+        type: AppNotificationType.focusCompletion,
+        entityId: 'focus-${normalizedTarget.millisecondsSinceEpoch}',
+        route: AppNotificationPayload.focusRoute,
+      );
+      final result = await _appNotifications.scheduleFocusCompletion(
+        id: completionReminderIdForTarget(normalizedTarget),
+        targetEndAt: normalizedTarget,
+        payload: payload.encode(),
+      );
+      if (!_isDesiredTarget(normalizedTarget)) {
+        return;
+      }
+      if (!result.isCompleted) {
+        _desiredOperationFailed = true;
+      }
+      final currentId = completionReminderIdForTarget(normalizedTarget);
+      final reconciled = await _cancelCompletionRequests(
+        preserveIds: <int>{currentId, ..._dueCleanupPreserveIds},
+      );
+      if (!reconciled) {
+        _desiredOperationFailed = true;
+      }
+      if (!_desiredOperationFailed) {
+        _appNotifications.markSchedulingHealthy(_desiredBaselineRevision);
+      }
+    });
   }
 
   @override
   Future<void> cancelActiveNotification() async {
-    await initialize();
-    await _notificationsPlugin.cancel(id: _activeNotificationId);
+    await _enqueue(() async {
+      await _appNotifications.cancel(activeNotificationId);
+    });
   }
 
   @override
   Future<void> cancelCompletionReminder() async {
-    await initialize();
-    await _notificationsPlugin.cancel(id: _completionReminderId);
+    final baselineRevision = _appNotifications.schedulingErrorRevision;
+    final target = _desiredTargetEndAt;
+    _desiredTargetEndAt = null;
+    _dueCleanupPreserveIds.clear();
+    await _enqueue(() async {
+      final completedWithoutError = await _cancelCompletionRequests(
+        explicitIds: <int>{
+          if (target != null) completionReminderIdForTarget(target),
+        },
+      );
+      if (completedWithoutError) {
+        _appNotifications.markSchedulingHealthy(baselineRevision);
+      }
+    });
   }
 
   @override
   Future<void> clearFocusNotifications() async {
-    await initialize();
-    await Future.wait<void>([
-      _notificationsPlugin.cancel(id: _activeNotificationId),
-      _notificationsPlugin.cancel(id: _completionReminderId),
-    ]);
-  }
-
-  Future<bool> _ensurePermissions() async {
-    if (_permissionsGranted != null) {
-      return _permissionsGranted!;
+    final baselineRevision = _appNotifications.schedulingErrorRevision;
+    final target = _desiredTargetEndAt;
+    final now = _nowProvider().toUtc();
+    if (target != null &&
+        now.isBefore(target) &&
+        _dueCleanupPreserveIds.isNotEmpty) {
+      _dueCleanupPreserveIds.removeAt(0);
+      await _enqueue(() async {
+        await _appNotifications.cancel(activeNotificationId);
+      });
+      return;
     }
 
-    if (Platform.isAndroid) {
-      _permissionsGranted =
-          await _notificationsPlugin
-              .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin
-              >()
-              ?.requestNotificationsPermission() ??
-          true;
-      return _permissionsGranted!;
-    }
+    final preserveId = target != null && !now.isBefore(target)
+        ? completionReminderIdForTarget(target)
+        : null;
+    _desiredTargetEndAt = null;
+    _dueCleanupPreserveIds.clear();
 
-    if (Platform.isIOS) {
-      _permissionsGranted =
-          await _notificationsPlugin
-              .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin
-              >()
-              ?.requestPermissions(alert: true, badge: false, sound: true) ??
-          true;
-      return _permissionsGranted!;
-    }
-
-    _permissionsGranted = true;
-    return true;
-  }
-
-  String _formatDuration(int seconds) {
-    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
-    final remainingSeconds = (seconds % 60).toString().padLeft(2, '0');
-
-    return '$minutes:$remainingSeconds';
+    await _enqueue(() async {
+      var completedWithoutError = true;
+      final activeResult = await _appNotifications.cancel(activeNotificationId);
+      completedWithoutError &= activeResult.isCompleted;
+      completedWithoutError &= await _cancelCompletionRequests(
+        preserveIds: <int>{?preserveId},
+        explicitIds: <int>{
+          if (target != null && preserveId == null)
+            completionReminderIdForTarget(target),
+        },
+      );
+      if (completedWithoutError) {
+        _appNotifications.markSchedulingHealthy(baselineRevision);
+      }
+    });
+    // At/after the target, leave that round's completion alarm intact. Each
+    // round has a target-derived ID, so a new round cannot be cancelled by
+    // cleanup from the previous one.
   }
 
   @visibleForTesting
-  static AndroidNotificationDetails buildRunningAndroidDetails(
-    DateTime targetEndAt,
-  ) {
-    return AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: 'Shows the current focus timer state.',
-      importance: Importance.low,
-      priority: Priority.low,
-      ongoing: true,
-      onlyAlertOnce: true,
-      showWhen: true,
-      when: targetEndAt.toUtc().millisecondsSinceEpoch,
-      usesChronometer: true,
-      chronometerCountDown: true,
-    );
+  static int completionReminderIdForTarget(DateTime targetEndAt) {
+    final entityId = 'focus-${targetEndAt.toUtc().millisecondsSinceEpoch}';
+    return _completionIdBase + (_stableHash(entityId) % _completionIdRange);
   }
 
-  static const _pausedAndroidDetails = AndroidNotificationDetails(
-    _channelId,
-    _channelName,
-    channelDescription: 'Shows the current focus timer state.',
-    importance: Importance.low,
-    priority: Priority.low,
-    ongoing: false,
-    onlyAlertOnce: true,
-    showWhen: false,
-  );
+  Future<bool> _cancelCompletionRequests({
+    Set<int> preserveIds = const <int>{},
+    Set<int> explicitIds = const <int>{},
+  }) async {
+    final baselineRevision = _appNotifications.schedulingErrorRevision;
+    final pending = await _appNotifications.pendingRequests(
+      recordSchedulingFailure: true,
+    );
+    var completedWithoutError =
+        _appNotifications.schedulingErrorRevision == baselineRevision;
+    final idsToCancel = <int>{legacyCompletionReminderId, ...explicitIds};
 
-  static const _completionAndroidDetails = AndroidNotificationDetails(
-    _channelId,
-    _channelName,
-    channelDescription: 'Shows the current focus timer state.',
-    importance: Importance.defaultImportance,
-    priority: Priority.defaultPriority,
-    onlyAlertOnce: true,
-  );
+    for (final request in pending) {
+      final payload = AppNotificationPayload.tryParse(request.payload);
+      final isOwnedFocusRequest =
+          payload?.type == AppNotificationType.focusCompletion ||
+          request.id == legacyCompletionReminderId ||
+          (request.id >= _completionIdBase &&
+              request.id < _completionIdBase + _completionIdRange);
+      if (isOwnedFocusRequest) {
+        idsToCancel.add(request.id);
+      }
+    }
+    idsToCancel.removeAll(preserveIds);
+
+    for (final id in idsToCancel) {
+      final result = await _appNotifications.cancel(id);
+      completedWithoutError &= result.isCompleted;
+    }
+    return completedWithoutError;
+  }
+
+  Future<void> _enqueue(Future<void> Function() operation) {
+    final next = _operationTail.then((_) => operation());
+    _operationTail = next.catchError((Object _) {});
+    return next;
+  }
+
+  bool _isDesiredTarget(DateTime target) {
+    final desired = _desiredTargetEndAt;
+    return desired != null && desired.isAtSameMomentAs(target);
+  }
+
+  static int _stableHash(String value) {
+    var hash = 0x811C9DC5;
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0x7FFFFFFF;
+    }
+    return hash;
+  }
 }

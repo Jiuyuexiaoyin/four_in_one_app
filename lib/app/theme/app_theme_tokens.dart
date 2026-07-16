@@ -12,22 +12,23 @@ abstract final class AppThemeTokens {
   static const double spaceXl = 20;
   static const double pagePadding = 22;
 
-  static const double radiusMd = 16;
-  static const double radiusLg = 20;
-  static const double radiusXl = 24;
+  static const double radiusMd = 6;
+  static const double radiusLg = 8;
+  static const double radiusXl = 8;
   static const double radiusPill = 999;
 
-  static const Color premiumGraphite = Color(0xFF06080B);
-  static const Color premiumCanvas = Color(0xFF090D11);
-  static const Color premiumSurface = Color(0xFF11161C);
-  static const Color premiumSurfaceHigh = Color(0xFF171D24);
-  static const Color premiumSurfacePeak = Color(0xFF202832);
-  static const Color premiumAccent = Color(0xFF8FE6D3);
-  static const Color premiumSecondary = Color(0xFFE5F477);
+  static const Color premiumGraphite = Color(0xFF000000);
+  static const Color premiumCanvas = Color(0xFF0A0A0A);
+  static const Color premiumSurface = Color(0xFF131313);
+  static const Color premiumSurfaceHigh = Color(0xFF1C1B1B);
+  static const Color premiumSurfacePeak = Color(0xFF201F1F);
+  static const Color premiumAccent = Color(0xFF00E5FF);
+  static const Color premiumSecondary = Color(0xFFDDB8FF);
+  static const Color premiumTertiary = Color(0xFFBCFF90);
 
   static Color borderTone(ColorScheme colorScheme) {
     if (colorScheme.brightness == Brightness.dark) {
-      return Colors.white.withValues(alpha: 0.105);
+      return Colors.white.withValues(alpha: 0.08);
     }
 
     return colorScheme.outlineVariant.withValues(alpha: 0.48);
@@ -41,7 +42,7 @@ abstract final class AppThemeTokens {
 
   static Color selectedStateTone(ColorScheme colorScheme) {
     if (colorScheme.brightness == Brightness.dark) {
-      return colorScheme.primary.withValues(alpha: 0.16);
+      return colorScheme.primary.withValues(alpha: 0.11);
     }
 
     return colorScheme.primaryContainer.withValues(alpha: 0.34);
@@ -83,7 +84,7 @@ abstract final class AppThemeTokens {
         Color.lerp(
               colorScheme.surfaceContainerLowest,
               colorScheme.primary,
-              0.08,
+              0.035,
             ) ??
             colorScheme.surfaceContainerLowest,
         colorScheme.surfaceContainerLowest,
@@ -106,11 +107,17 @@ abstract final class AppThemeTokens {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        colorScheme.surfaceContainerHigh,
-        colorScheme.surface,
+        Color.lerp(
+              colorScheme.surfaceContainerHigh,
+              colorScheme.primary,
+              0.055,
+            ) ??
+            colorScheme.surfaceContainerHigh,
+        Color.lerp(colorScheme.surface, colorScheme.secondary, 0.025) ??
+            colorScheme.surface,
         colorScheme.surfaceContainerLowest,
       ],
-      stops: const [0.0, 0.62, 1.0],
+      stops: const [0.0, 0.58, 1.0],
     );
   }
 

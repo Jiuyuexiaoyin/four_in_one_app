@@ -109,10 +109,7 @@ class HabitMetricRecordEntry {
 }
 
 class HabitMetricSummary {
-  const HabitMetricSummary({
-    required this.totals,
-    required this.recentEntries,
-  });
+  const HabitMetricSummary({required this.totals, required this.recentEntries});
 
   final List<HabitMetricTotal> totals;
   final List<HabitMetricRecordEntry> recentEntries;
@@ -183,9 +180,7 @@ class HabitsStore extends ChangeNotifier {
         nextHabitId: _deriveNextId(savedSnapshot.habits),
         nextRecordId: _deriveNextRecordId(savedSnapshot.records),
         nextAttachmentId: _deriveNextAttachmentId(savedSnapshot.attachments),
-        nextTemplateId: _deriveNextTemplateId(
-          savedSnapshot.checkInTemplates,
-        ),
+        nextTemplateId: _deriveNextTemplateId(savedSnapshot.checkInTemplates),
         nextMetricId: _deriveNextMetricId(savedSnapshot.recordMetrics),
         nowProvider: effectiveNowProvider,
         reminderNotificationService: effectiveReminderNotificationService,
@@ -505,10 +500,10 @@ class HabitsStore extends ChangeNotifier {
   }
 
   int metricEntryCountOn(HabitItem habit, String localDate) {
-    final recordIds = recordsForHabitDate(habit, localDate)
-        .where(_countsTowardCompletion)
-        .map((record) => record.id)
-        .toSet();
+    final recordIds = recordsForHabitDate(
+      habit,
+      localDate,
+    ).where(_countsTowardCompletion).map((record) => record.id).toSet();
     return _recordMetrics
         .where(
           (metric) =>
@@ -546,47 +541,49 @@ class HabitsStore extends ChangeNotifier {
       accumulator.add(metric.numericValue);
     }
 
-    final totals = totalsByKey.values
-        .map(
-          (accumulator) => HabitMetricTotal(
-            title: accumulator.title,
-            unit: accumulator.unit,
-            total: accumulator.total,
-            entryCount: accumulator.entryCount,
-          ),
-        )
-        .toList(growable: false)
-      ..sort((a, b) {
-        final titleComparison = a.title.compareTo(b.title);
-        if (titleComparison != 0) {
-          return titleComparison;
-        }
-        return a.unit.compareTo(b.unit);
-      });
+    final totals =
+        totalsByKey.values
+            .map(
+              (accumulator) => HabitMetricTotal(
+                title: accumulator.title,
+                unit: accumulator.unit,
+                total: accumulator.total,
+                entryCount: accumulator.entryCount,
+              ),
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            final titleComparison = a.title.compareTo(b.title);
+            if (titleComparison != 0) {
+              return titleComparison;
+            }
+            return a.unit.compareTo(b.unit);
+          });
 
-    final recentEntries = metrics
-        .map(
-          (metric) => HabitMetricRecordEntry(
-            record: recordById[metric.recordId]!,
-            metric: metric,
-          ),
-        )
-        .toList(growable: false)
-      ..sort((a, b) {
-        final dateComparison = b.record.localDate.compareTo(
-          a.record.localDate,
-        );
-        if (dateComparison != 0) {
-          return dateComparison;
-        }
-        final recordComparison = b.record.createdAt.compareTo(
-          a.record.createdAt,
-        );
-        if (recordComparison != 0) {
-          return recordComparison;
-        }
-        return b.metric.createdAt.compareTo(a.metric.createdAt);
-      });
+    final recentEntries =
+        metrics
+            .map(
+              (metric) => HabitMetricRecordEntry(
+                record: recordById[metric.recordId]!,
+                metric: metric,
+              ),
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            final dateComparison = b.record.localDate.compareTo(
+              a.record.localDate,
+            );
+            if (dateComparison != 0) {
+              return dateComparison;
+            }
+            final recordComparison = b.record.createdAt.compareTo(
+              a.record.createdAt,
+            );
+            if (recordComparison != 0) {
+              return recordComparison;
+            }
+            return b.metric.createdAt.compareTo(a.metric.createdAt);
+          });
 
     return HabitMetricSummary(
       totals: totals,

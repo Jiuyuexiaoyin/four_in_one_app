@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="2560" viewBox="0 0 1440 2560" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">Get Ready splash composition</title>
+  <desc id="desc">Dark and light splash compositions with the readiness mark, exact Get Ready wordmark, and approved Chinese tagline.</desc>
+  <rect id="background" x="0" y="0" width="1440" height="2560" fill="#111111" data-light-fill="#F6F7F8" />
+  <path id="open-arc" d="M776.187 860.213 C708.985 907.269 621.184 913.023 548.415 875.142 C475.647 837.261 430 762.038 430 680 C430 597.962 475.647 522.739 548.415 484.858 C621.184 446.977 708.985 452.731 776.187 499.787" fill="none" stroke="#F6F7F8" data-light-stroke="#111111" stroke-width="80" stroke-linecap="round" />
+  <rect id="status-bar" x="795" y="585" width="230" height="80" rx="40" fill="#16A34A" />
+  <circle id="readiness-dot" cx="860" cy="790" r="44" fill="#16A34A" />
+  <text id="word-get" x="270" y="1110" fill="#F6F7F8" data-light-fill="#111111" font-family="Segoe UI, Arial, sans-serif" font-size="220" font-weight="600" dominant-baseline="hanging">Get</text>
+  <text id="word-ready" x="660" y="1110" fill="#16A34A" font-family="Segoe UI, Arial, sans-serif" font-size="220" font-weight="600" dominant-baseline="hanging">Ready</text>
+  <text id="tagline" x="720" y="1500" fill="#E5E7EB" data-light-fill="#6B7280" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="64" font-weight="500" text-anchor="middle" dominant-baseline="hanging">随时准备，迎接每一次机会。</text>
+</svg>

@@ -6,7 +6,7 @@ Project path:
 D:\AI\Projects\four_in_one_app
 
 Current version:
-1.1.2+14
+2.6.0+18
 
 Do not bump version unless the user explicitly starts a phone-test APK release process.
 Do not prepare APK unless the user explicitly asks.

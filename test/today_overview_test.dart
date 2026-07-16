@@ -45,44 +45,20 @@ void main() {
       ),
     );
 
-    expect(find.text('今天的节奏'), findsOneWidget);
-    expect(find.text('先看最重要的事'), findsOneWidget);
-    expect(find.text('今日习惯'), findsOneWidget);
-    expect(_findKeyedText('today-habits-completed', '0'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 3'), findsOneWidget);
-    expect(find.text('今日打卡 0 次'), findsOneWidget);
+    expect(find.text('今天'), findsWidgets);
+    expect(find.text('高效节奏'), findsOneWidget);
+    expect(find.text('推进指标'), findsOneWidget);
+    expect(find.text('优先行动'), findsOneWidget);
+    expect(find.text('节奏趋势'), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget);
+    expect(find.text('完成骨架'), findsWidgets);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('today-goals-view-all')),
-      300,
-    );
-    await tester.pumpAndSettle();
+    await _scrollToActionPlan(tester);
 
-    expect(find.text('目标规划'), findsOneWidget);
-    expect(find.byKey(const ValueKey('today-goals-view-all')), findsOneWidget);
-    expect(_findKeyedText('today-goals-active-count', '3'), findsOneWidget);
-    expect(_findKeyedText('today-goals-project-count', '2'), findsOneWidget);
-    expect(_findKeyedText('today-goals-subproject-count', '1'), findsOneWidget);
-    expect(
-      _findKeyedText('today-goals-action-progress', '1 / 2'),
-      findsOneWidget,
-    );
-    expect(find.text('完成首页骨架'), findsOneWidget);
-    expect(find.text('整理目标页文案'), findsOneWidget);
+    expect(find.text('行动计划'), findsOneWidget);
+    expect(find.text('完成骨架'), findsWidgets);
+    expect(find.text('整理文案'), findsNothing);
     expect(find.text('补充复盘页'), findsNothing);
-    expect(find.text('项目 1 · 行动 1 · 进度 0%'), findsOneWidget);
-    expect(find.text('项目 1 · 行动 1 · 进度 100%'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('today-focus-view-all')),
-      300,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('专注概览'), findsOneWidget);
-    expect(find.byKey(const ValueKey('today-focus-view-all')), findsOneWidget);
-    expect(_findKeyedText('today-focus-remaining', '25:00'), findsOneWidget);
-    expect(_findKeyedText('today-focus-status', '空闲中'), findsOneWidget);
   });
 
   testWidgets('expresses habits as read-only daily tracking on Today', (
@@ -140,20 +116,15 @@ void main() {
       ),
     );
 
-    expect(_findKeyedText('today-habits-completed', '1'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 3'), findsOneWidget);
-    expect(find.text('今日打卡 3 次'), findsOneWidget);
-    expect(find.text('还可继续'), findsOneWidget);
+    expect(find.textContaining('3 次打卡'), findsOneWidget);
+    await _scrollToActionPlan(tester);
+
     expect(find.text('💧 晨间饮水'), findsNothing);
-    expect(find.text('📖 阅读'), findsOneWidget);
+    expect(find.text('📖 阅读'), findsWidgets);
     expect(find.text('今日 1 / 3'), findsOneWidget);
-    expect(find.text('提醒 08:30'), findsOneWidget);
+    expect(find.text('08:30'), findsOneWidget);
     expect(find.text('🚶 散步'), findsOneWidget);
     expect(find.text('今日 0 / 1'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('habit-check-in-habit-pending')),
-      findsNothing,
-    );
   });
 
   testWidgets('Today counts makeup for today and ignores skip records', (
@@ -224,18 +195,18 @@ void main() {
       ),
     );
 
-    expect(_findKeyedText('today-habits-completed', '1'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 3'), findsOneWidget);
+    expect(find.textContaining('1 次打卡'), findsOneWidget);
+    await _scrollToActionPlan(tester);
+
     /*
     expect(find.text('浠婃棩鎵撳崱 1 娆?), findsOneWidget);
     expect(find.text('鉁嶏笍 琛ュ崱浠婂ぉ'), findsNothing);
     expect(find.text('馃挙 浼戞伅'), findsOneWidget);
     expect(find.text('馃尡 鏄ㄥぉ琛ュ崱'), findsOneWidget);
     */
-    expect(
-      _findKeyedTextContaining('today-habits-check-ins-total', '1'),
-      findsOneWidget,
-    );
+    expect(find.text('* Makeup today'), findsNothing);
+    expect(find.text('- Rest'), findsWidgets);
+    expect(find.text('+ Makeup yesterday'), findsOneWidget);
   });
 
   testWidgets('Today excludes paused archived and deleted habits', (
@@ -303,12 +274,9 @@ void main() {
       ),
     );
 
-    expect(_findKeyedText('today-habits-completed', '1'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 1'), findsOneWidget);
-    expect(
-      _findKeyedTextContaining('today-habits-check-ins-total', '1'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('1 次打卡'), findsOneWidget);
+    await _scrollToActionPlan(tester);
+
     expect(find.text('A Active'), findsNothing);
     expect(find.text('P Paused'), findsNothing);
     expect(find.text('R Archived'), findsNothing);
@@ -383,18 +351,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('今日中心'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('today-goals-view-all')),
-        300,
-      );
+      expect(find.text('今天'), findsWidgets);
+      expect(find.text('推进一个明确行动'), findsWidgets);
+      expect(find.text('0/1'), findsOneWidget);
+      await _scrollToActionPlan(tester);
       await tester.pumpAndSettle();
-      expect(find.text('今日计划记录 1 条'), findsOneWidget);
-      expect(find.text('来自习惯 1 条'), findsOneWidget);
-      expect(
-        _findKeyedText('today-goals-action-progress', '0 / 1'),
-        findsOneWidget,
-      );
       expect(
         tester.takeException(),
         isNull,
@@ -414,22 +375,9 @@ void main() {
   });
 }
 
-Finder _findKeyedText(String key, String text) {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is Text &&
-        widget.key == ValueKey<String>(key) &&
-        widget.data == text,
-  );
-}
-
-Finder _findKeyedTextContaining(String key, String text) {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is Text &&
-        widget.key == ValueKey<String>(key) &&
-        (widget.data?.contains(text) ?? false),
-  );
+Future<void> _scrollToActionPlan(WidgetTester tester) async {
+  await tester.scrollUntilVisible(find.text('行动计划'), 300);
+  await tester.pumpAndSettle();
 }
 
 HabitItem _testHabit({

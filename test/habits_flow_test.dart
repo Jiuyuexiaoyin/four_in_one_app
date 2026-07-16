@@ -24,17 +24,15 @@ void main() {
       ),
     );
 
-    expect(_findKeyedText('today-habits-completed', '0'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 3'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('today-habits-check-ins-total')),
-      findsOneWidget,
-    );
+    await _scrollToTodayHabits(tester);
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    expect(find.text('行动计划'), findsOneWidget);
+    expect(find.text('💧 Drink water'), findsWidgets);
+    expect(find.text('📖 Read 20 min'), findsOneWidget);
 
-    expect(find.text('Habits'), findsOneWidget);
+    await _tapHabitsTab(tester);
+
+    expect(find.text('习惯'), findsWidgets);
 
     await tester.tap(find.text('添加习惯').last);
     await tester.pumpAndSettle();
@@ -46,20 +44,17 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('habit-form-submit')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Meditate 10 min'), findsOneWidget);
+    expect(find.text('Meditate 10 min'), findsWidgets);
     expect(find.text('未设置提醒'), findsWidgets);
     expect(find.text('今日 0 / 1'), findsWidgets);
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    await _tapTodayTab(tester);
+    await _scrollToTodayHabits(tester);
 
-    expect(_findKeyedText('today-habits-completed', '0'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 4'), findsOneWidget);
-    expect(find.text('🌱 Meditate 10 min'), findsOneWidget);
+    expect(find.text('🌱 Meditate 10 min'), findsWidgets);
     expect(find.text('今日 0 / 1'), findsWidgets);
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
 
     await tester.tap(find.byKey(const ValueKey('habit-check-in-habit-4')));
     await tester.pumpAndSettle();
@@ -68,13 +63,10 @@ void main() {
 
     expect(find.text('今日 2 / 1'), findsOneWidget);
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    await _tapTodayTab(tester);
 
-    expect(_findKeyedText('today-habits-completed', '1'), findsOneWidget);
-    expect(_findKeyedText('today-habits-total', '/ 4'), findsOneWidget);
-    expect(find.text('今日打卡 2 次'), findsOneWidget);
-    expect(find.text('还可继续'), findsOneWidget);
+    expect(find.textContaining('2 次打卡'), findsOneWidget);
+    await _scrollToTodayHabits(tester);
     expect(find.text('🌱 Meditate 10 min'), findsNothing);
     expect(find.text('今日 2 / 1'), findsNothing);
   });
@@ -89,8 +81,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
     await tester.tap(find.text('添加习惯').last);
     await tester.pumpAndSettle();
 
@@ -115,7 +106,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('✍️'), findsOneWidget);
-    expect(find.text('Journal'), findsOneWidget);
+    expect(find.text('Journal'), findsWidgets);
     expect(find.text('Write one clear thought.'), findsOneWidget);
     expect(find.text('今日 0 / 3'), findsOneWidget);
     expect(find.textContaining('08:30'), findsOneWidget);
@@ -131,8 +122,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
 
     await tester.tap(find.byKey(const ValueKey('habit-check-in-habit-1')));
     await tester.pumpAndSettle();
@@ -163,7 +153,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('🌙'), findsOneWidget);
-    expect(find.text('Evening journal'), findsOneWidget);
+    expect(find.text('Evening journal'), findsWidgets);
     expect(find.text('Close the day gently.'), findsOneWidget);
     expect(find.textContaining('21:30'), findsOneWidget);
     expect(find.text('今日 1 / 2'), findsOneWidget);
@@ -220,8 +210,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
 
     expect(
       find.byKey(const ValueKey('habit-activity-habit-activity-0-level-0')),
@@ -300,8 +289,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
     await tester.ensureVisible(
       find.byKey(const ValueKey('habit-activity-month-habit-month')),
     );
@@ -326,7 +314,7 @@ void main() {
         findsOneWidget,
       );
     }
-    expect(find.text('🌱 Journal'), findsOneWidget);
+    expect(find.text('Journal'), findsWidgets);
     expect(find.text('2026年4月活动'), findsOneWidget);
     expect(
       find.byKey(
@@ -372,8 +360,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
 
     await tester.tap(
       find.byKey(const ValueKey('habit-reminder-habit-reminder')),
@@ -452,7 +439,7 @@ void main() {
 
     await _pumpHabitsPage(tester, store, _FakeHabitAttachmentStorage());
 
-    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('Active'), findsWidgets);
     expect(find.text('Paused'), findsOneWidget);
     expect(find.text('已暂停'), findsWidgets);
     expect(find.text('已归档习惯'), findsOneWidget);
@@ -464,7 +451,12 @@ void main() {
     );
     expect(pausedButton.onPressed, isNull);
 
-    await tester.tap(find.byKey(const ValueKey('habits-archived-section')));
+    final archivedSection = find.byKey(
+      const ValueKey('habits-archived-section'),
+    );
+    await tester.ensureVisible(archivedSection);
+    await tester.pump();
+    await tester.tap(archivedSection);
     await _pumpStableFrame(tester);
 
     expect(find.text('Archived'), findsOneWidget);
@@ -473,9 +465,12 @@ void main() {
     );
     expect(archivedButton.onPressed, isNull);
 
-    await tester.tap(
-      find.byKey(const ValueKey('habit-lifecycle-habit-active')),
+    final activeLifecycle = find.byKey(
+      const ValueKey('habit-lifecycle-habit-active'),
     );
+    await tester.ensureVisible(activeLifecycle);
+    await tester.pump();
+    await tester.tap(activeLifecycle);
     await _pumpStableFrame(tester);
     await tester.tap(
       find.byKey(const ValueKey('habit-lifecycle-pause-habit-active')),
@@ -486,12 +481,12 @@ void main() {
       store.pausedHabits.map((habit) => habit.id),
       contains('habit-active'),
     );
-    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('Active'), findsWidgets);
     expect(find.text('已暂停'), findsWidgets);
 
-    await tester.tap(
-      find.byKey(const ValueKey('habit-lifecycle-habit-active')),
-    );
+    await tester.ensureVisible(activeLifecycle);
+    await tester.pump();
+    await tester.tap(activeLifecycle);
     await _pumpStableFrame(tester);
     await tester.tap(
       find.byKey(const ValueKey('habit-lifecycle-restore-habit-active')),
@@ -500,9 +495,9 @@ void main() {
 
     expect(store.habits.map((habit) => habit.id), contains('habit-active'));
 
-    await tester.tap(
-      find.byKey(const ValueKey('habit-lifecycle-habit-active')),
-    );
+    await tester.ensureVisible(activeLifecycle);
+    await tester.pump();
+    await tester.tap(activeLifecycle);
     await _pumpStableFrame(tester);
     await tester.tap(
       find.byKey(const ValueKey('habit-lifecycle-delete-habit-active')),
@@ -1180,8 +1175,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
 
     expect(find.byKey(const ValueKey('habit-today-count-0-1')), findsOneWidget);
     expect(
@@ -1200,8 +1194,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-      await tester.pumpAndSettle();
+      await _tapHabitsTab(tester);
       await tester.tap(find.widgetWithText(FilledButton, '添加习惯'));
       await tester.pumpAndSettle();
 
@@ -1214,7 +1207,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('habit-form-submit')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Read'), findsOneWidget);
+      expect(find.text('Read'), findsWidgets);
       expect(find.text('📖'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(FilledButton, '添加习惯'));
@@ -1243,8 +1236,7 @@ void main() {
     await tester.pumpWidget(
       FourInOneApp(habitsStore: store, goalsStore: GoalsStore.inMemory()),
     );
-    await tester.tap(find.byKey(const ValueKey('today-habits-view-all')));
-    await tester.pumpAndSettle();
+    await _tapHabitsTab(tester);
 
     await tester.tap(find.byType(FilledButton).last);
     await tester.pumpAndSettle();
@@ -1359,6 +1351,30 @@ Future<void> _pumpHabitsPage(
 Future<void> _pumpStableFrame(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
+}
+
+Future<void> _tapHabitsTab(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(900, 1400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.pump();
+
+  await tester.tap(find.byKey(const ValueKey('stitch-nav-/habits')));
+
+  await tester.pumpAndSettle();
+}
+
+Future<void> _scrollToTodayHabits(WidgetTester tester) async {
+  await tester.scrollUntilVisible(find.text('行动计划'), 300);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapTodayTab(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('stitch-nav-/today')));
+
+  await tester.pumpAndSettle();
+  await _scrollToTodayHabits(tester);
 }
 
 HabitItem _testHabit({

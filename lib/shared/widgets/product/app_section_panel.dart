@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
+import 'package:four_in_one_app/shared/widgets/visual_dna/visual_dna_widgets.dart';
 
 /// Shared section panel used by Review-style sectional content.
 ///
@@ -32,8 +33,8 @@ class AppSectionPanel extends StatelessWidget {
     final icon = this.icon;
     final trailing = this.trailing;
 
-    return SoftSurface(
-      tone: tone,
+    return VisualDnaPanel(
+      glow: tone == SoftSurfaceTone.accent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -45,13 +46,20 @@ class AppSectionPanel extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppThemeTokens.selectedStateTone(colorScheme),
+                    color: colorScheme.primary.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(
                       AppThemeTokens.radiusMd,
                     ),
                     border: Border.all(
-                      color: colorScheme.primary.withValues(alpha: 0.12),
+                      color: colorScheme.primary.withValues(alpha: 0.22),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.primary.withValues(alpha: 0.10),
+                        blurRadius: 14,
+                        spreadRadius: -8,
+                      ),
+                    ],
                   ),
                   child: Icon(icon, color: colorScheme.primary, size: 21),
                 ),
@@ -61,7 +69,12 @@ class AppSectionPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: theme.textTheme.titleLarge),
+                    Text(
+                      title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
                       Text(
@@ -80,7 +93,7 @@ class AppSectionPanel extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: AppThemeTokens.spaceLg2),
+          const SizedBox(height: AppThemeTokens.spaceMd),
           child,
         ],
       ),

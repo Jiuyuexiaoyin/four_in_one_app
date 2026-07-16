@@ -39,8 +39,9 @@ class HabitCheckInTemplate {
       habitId: habitId ?? this.habitId,
       title: title ?? this.title,
       unit: unit ?? this.unit,
-      defaultValue:
-          clearDefaultValue ? null : (defaultValue ?? this.defaultValue),
+      defaultValue: clearDefaultValue
+          ? null
+          : (defaultValue ?? this.defaultValue),
       sortOrder: sortOrder ?? this.sortOrder,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
@@ -88,7 +89,9 @@ class HabitCheckInTemplate {
     if (json['defaultValue'] != null && defaultValue == null) {
       throw const FormatException('Invalid template default value');
     }
-    if (updatedAtText != null && updatedAtText.isNotEmpty && updatedAt == null) {
+    if (updatedAtText != null &&
+        updatedAtText.isNotEmpty &&
+        updatedAt == null) {
       throw const FormatException('Invalid template updatedAt');
     }
 

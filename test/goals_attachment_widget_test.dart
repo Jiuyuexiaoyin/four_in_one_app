@@ -29,14 +29,17 @@ void main() {
     final attachFinder = find.byKey(
       const ValueKey('project-record-attach-record-1'),
     );
+    final attachScrollable = find
+        .ancestor(of: attachFinder, matching: find.byType(Scrollable))
+        .first;
     await tester.scrollUntilVisible(
       attachFinder,
       300,
-      scrollable: find
-          .ancestor(of: attachFinder, matching: find.byType(Scrollable))
-          .first,
+      scrollable: attachScrollable,
     );
     await tester.ensureVisible(attachFinder);
+    await tester.drag(attachScrollable, const Offset(0, -180));
+    await tester.pump();
     await tester.tap(
       find.byKey(const ValueKey('project-record-attach-record-1')),
     );
@@ -211,13 +214,13 @@ Future<void> _pumpGoalsPage(
   WidgetTester tester,
   GoalsStore store,
   PlanRecordAttachmentStorage attachmentStorage,
-) {
-  tester.view.physicalSize = const Size(900, 2000);
+) async {
+  tester.view.physicalSize = const Size(900, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
-  return tester.pumpWidget(
+  await tester.pumpWidget(
     MaterialApp(
       home: GoalsScope(
         notifier: store,
@@ -225,6 +228,12 @@ Future<void> _pumpGoalsPage(
       ),
     ),
   );
+  await _pumpStableFrame(tester);
+
+  final planCard = find.byKey(const ValueKey('goal-row-goal-1'));
+  await tester.ensureVisible(planCard);
+  await tester.tap(planCard);
+  await _pumpStableFrame(tester);
 }
 
 Future<void> _pumpStableFrame(WidgetTester tester) async {

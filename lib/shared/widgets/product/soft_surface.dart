@@ -26,44 +26,67 @@ class SoftSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final accentColor = tone == SoftSurfaceTone.accent
+        ? colorScheme.primary
+        : colorScheme.secondary;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(borderRadius),
+      side: BorderSide(color: borderColor ?? _borderColor(colorScheme)),
+    );
 
-    return Container(
+    return SizedBox(
       width: width,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? _backgroundColor(colorScheme),
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: borderColor ?? _borderColor(colorScheme)),
-        boxShadow: _resolveShadow(colorScheme),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.05),
+              blurRadius: 18,
+              spreadRadius: -12,
+            ),
+          ],
+        ),
+        child: Material(
+          color: backgroundColor ?? _backgroundColor(colorScheme),
+          shape: shape,
+          elevation: _resolveElevation(colorScheme),
+          shadowColor: Colors.black.withValues(
+            alpha: colorScheme.brightness == Brightness.dark ? 0.24 : 0.08,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(padding: padding, child: child),
+        ),
       ),
-      child: child,
     );
   }
 
-  List<BoxShadow> _resolveShadow(ColorScheme colorScheme) {
+  double _resolveElevation(ColorScheme colorScheme) {
     if (tone == SoftSurfaceTone.flat || tone == SoftSurfaceTone.ghost) {
-      return const <BoxShadow>[];
+      return 0;
     }
-    return [
-      BoxShadow(
-        color: Colors.black.withValues(
-          alpha: colorScheme.brightness == Brightness.dark ? 0.10 : 0.035,
-        ),
-        blurRadius: 22,
-        offset: const Offset(0, 10),
-      ),
-    ];
+    return colorScheme.brightness == Brightness.dark ? 2 : 1;
   }
 
   Color _backgroundColor(ColorScheme colorScheme) {
     switch (tone) {
       case SoftSurfaceTone.standard:
       case SoftSurfaceTone.flat:
-        return AppThemeTokens.softSurfaceTone(colorScheme);
+        return Color.lerp(
+              AppThemeTokens.softSurfaceTone(colorScheme),
+              colorScheme.primary,
+              colorScheme.brightness == Brightness.dark ? 0.026 : 0.015,
+            ) ??
+            AppThemeTokens.softSurfaceTone(colorScheme);
       case SoftSurfaceTone.accent:
-        return AppThemeTokens.selectedStateTone(colorScheme);
+        return Color.lerp(
+              AppThemeTokens.softSurfaceTone(colorScheme),
+              colorScheme.primary,
+              colorScheme.brightness == Brightness.dark ? 0.08 : 0.05,
+            ) ??
+            AppThemeTokens.selectedStateTone(colorScheme);
       case SoftSurfaceTone.plain:
-        return colorScheme.surface;
+        return colorScheme.surfaceContainerLow;
       case SoftSurfaceTone.ghost:
         return Colors.transparent;
     }
@@ -72,11 +95,11 @@ class SoftSurface extends StatelessWidget {
   Color _borderColor(ColorScheme colorScheme) {
     switch (tone) {
       case SoftSurfaceTone.accent:
-        return colorScheme.primary.withValues(alpha: 0.10);
+        return colorScheme.primary.withValues(alpha: 0.28);
       case SoftSurfaceTone.standard:
       case SoftSurfaceTone.plain:
       case SoftSurfaceTone.flat:
-        return AppThemeTokens.borderTone(colorScheme);
+        return AppThemeTokens.borderTone(colorScheme).withValues(alpha: 0.92);
       case SoftSurfaceTone.ghost:
         return Colors.transparent;
     }

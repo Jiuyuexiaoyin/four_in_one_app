@@ -5,14 +5,10 @@ import 'package:four_in_one_app/features/focus/presentation/focus_scope.dart';
 import 'package:four_in_one_app/features/goals/application/goals_store.dart';
 import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
 import 'package:four_in_one_app/features/habits/application/habits_store.dart';
+import 'package:four_in_one_app/features/habits/domain/models/habit_record.dart';
 import 'package:four_in_one_app/features/habits/presentation/habits_scope.dart';
-import 'package:four_in_one_app/shared/widgets/product/activity_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/app_section_panel.dart';
-import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
-import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
-import 'package:four_in_one_app/shared/widgets/product/outsiders_hero.dart';
-import 'package:four_in_one_app/shared/widgets/product/progress_rail.dart';
-import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
+import 'package:four_in_one_app/shared/widgets/stitch_exact/stitch_exact.dart';
 
 class ReviewPage extends StatelessWidget {
   const ReviewPage({super.key});
@@ -31,29 +27,53 @@ class ReviewPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppThemeTokens.pagePadding,
-        AppThemeTokens.spaceXl,
+        StitchExactPremiumSpacing.pageTop,
         AppThemeTokens.pagePadding,
-        AppThemeTokens.pagePadding,
+        StitchExactPremiumSpacing.pageBottomSecondary,
       ),
       children: [
-        const OutsidersHero(
-          eyebrow: 'REVIEW',
-          headline: '今日回看',
-          supporting: '基于已有记录，安静看见当前进展。',
+        StitchExactCommandHeader(
+          eyebrow: '复盘',
+          title: '今日回看',
+          subtitle: '复盘只读取本地真实记录。',
+          leadingIcon: Icons.insights_rounded,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            StitchExactStatusPill(
+              label: '打卡',
+              value: '${reviewData.habitCheckInsToday}',
+              selected: reviewData.habitCheckInsToday > 0,
+            ),
+            StitchExactStatusPill(
+              label: '行动',
+              value:
+                  '${reviewData.completedActionCount}/${reviewData.actionCount}',
+              selected: reviewData.actionCount > 0,
+            ),
+            StitchExactStatusPill(
+              label: '专注',
+              value: '${reviewData.focusCompletedSessions}',
+              selected: reviewData.focusCompletedSessions > 0,
+            ),
+          ],
+        ),
+        const SizedBox(height: 26),
         _ReviewOverviewHero(data: reviewData),
-        const SizedBox(height: 16),
+        const SizedBox(height: 26),
         _ReviewHabitsSection(data: reviewData),
-        const SizedBox(height: 16),
+        const SizedBox(height: 26),
         _ReviewPlanSection(data: reviewData),
-        const SizedBox(height: 16),
+        const SizedBox(height: 26),
         _ReviewFocusSection(
           sectionKey: const ValueKey('review-focus-section'),
           data: reviewData,
           focusStore: focusStore,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 26),
         const _ReviewNote(note: '复盘只展示真实记录，不补假趋势。'),
       ],
     );
@@ -118,15 +138,15 @@ class _ReviewData {
     final completedActions = goalsStore.tasks
         .where((task) => task.isCompleted)
         .length;
-    final focusCompletedMinutes = focusStore.sessions.fold<int>(
+    final focusCompletedSeconds = focusStore.sessions.fold<int>(
       0,
-      (total, session) => total + (session.durationSeconds ~/ 60),
+      (total, session) => total + session.durationSeconds,
     );
 
     return _ReviewData(
       habitTotalCount: habitsStore.totalCount,
       habitCompletedCount: habitsStore.completedCount,
-      habitCheckInsToday: habitsStore.totalCheckInsToday,
+      habitCheckInsToday: _todayHabitCheckIns(habitsStore),
       habitRecentCheckIns: recentDayCounts.fold<int>(
         0,
         (total, count) => total + count,
@@ -139,26 +159,44 @@ class _ReviewData {
       actionCount: goalsStore.tasks.length,
       completedActionCount: completedActions,
       focusCompletedSessions: focusStore.completedSessionCount,
-      focusCompletedMinutes: focusCompletedMinutes,
+      focusCompletedMinutes: focusCompletedSeconds ~/ 60,
       latestFocusTargetTitle: _latestFocusTargetTitle(focusStore),
       focusRecentDayCounts: focusStore.recentDayCounts(focusStore.now),
     );
   }
 
   static List<int> _recentHabitDayCounts(HabitsStore habitsStore) {
-    if (habitsStore.habits.isEmpty) {
+    final retainedHabits = habitsStore.storedHabits
+        .where((habit) => !habit.isDeleted)
+        .toList(growable: false);
+    if (retainedHabits.isEmpty) {
       return List<int>.filled(7, 0, growable: false);
     }
 
     final totals = List<int>.filled(7, 0);
-    for (final habit in habitsStore.habits) {
-      final activityDays = habitsStore.recentActivityDays(habit);
+    for (final habit in retainedHabits) {
+      final activityDays = habitsStore.recentActivityDays(habit).reversed;
       for (var index = 0; index < activityDays.length && index < 7; index++) {
-        totals[index] += activityDays[index].count;
+        totals[index] += activityDays.elementAt(index).count;
       }
     }
 
     return totals;
+  }
+
+  static int _todayHabitCheckIns(HabitsStore habitsStore) {
+    final retainedHabitIds = habitsStore.storedHabits
+        .where((habit) => !habit.isDeleted)
+        .map((habit) => habit.id)
+        .toSet();
+    return habitsStore.records
+        .where(
+          (record) =>
+              retainedHabitIds.contains(record.habitId) &&
+              record.localDate == habitsStore.currentDayKey &&
+              record.type != HabitRecordType.skip,
+        )
+        .length;
   }
 
   static String? _latestFocusTargetTitle(FocusStore focusStore) {
@@ -180,72 +218,47 @@ class _ReviewOverviewHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return SoftSurface(
+    return StitchExactPanel(
       key: const ValueKey('review-overview-hero'),
-      tone: SoftSurfaceTone.accent,
+      glow: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-                ),
-                child: Icon(Icons.insights_rounded, color: colorScheme.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('当前进展', style: theme.textTheme.titleLarge),
-                    const SizedBox(height: 2),
-                    Text(
-                      data.hasAnyRealData ? '来自真实记录' : '开始记录后会在这里汇总',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppThemeTokens.secondaryTextTone(colorScheme),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          StitchExactCommandHeader(
+            eyebrow: '进展回顾',
+            title: '当前进展',
+            subtitle: data.hasAnyRealData ? '来自真实记录' : '开始记录后会在这里汇总',
+            leadingIcon: Icons.query_stats_rounded,
+            compact: true,
+            trailing: StitchExactStatusPill(
+              label: data.hasAnyRealData ? '真实记录' : '暂无记录',
+              selected: data.hasAnyRealData,
+            ),
           ),
           const SizedBox(height: 18),
-          MetricStrip(
-            tileWidth: 136,
-            tileEmphasis: MetricTileEmphasis.hero,
-            tileBackgroundColor: Theme.of(context).scaffoldBackgroundColor
-                .withValues(
-                  alpha: colorScheme.brightness == Brightness.dark
-                      ? 0.22
-                      : 0.58,
-                ),
-            tileBorderColor: colorScheme.primary.withValues(alpha: 0.08),
+          StitchExactMetricGrid(
+            minHeight: 74,
             metrics: [
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-hero-habit-checkins',
                 value: '${data.habitCheckInsToday}',
                 label: '今日打卡',
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-hero-completed-actions',
                 value: '${data.completedActionCount}',
                 label: '已完成行动',
+                accent: colorScheme.secondary,
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-hero-focus-sessions',
                 value: '${data.focusCompletedSessions}',
                 label: '专注次数',
+                accent: colorScheme.tertiary,
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-hero-plan-progress',
                 value: data.planProgressRate == null
                     ? '—'
@@ -279,33 +292,39 @@ class _ReviewHabitsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MetricStrip(
+          StitchExactMetricGrid(
+            minHeight: 74,
             metrics: [
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-habits-check-ins-today',
                 value: '${data.habitCheckInsToday} 次',
                 label: '今日打卡',
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-habits-completed',
                 value: '${data.habitCompletedCount}',
                 label: '今日达标',
+                accent: colorScheme.tertiary,
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-habits-total',
                 value: '${data.habitTotalCount}',
                 label: '习惯总数',
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-habits-active-days',
                 value: '${data.habitRecentActiveDays} 天',
                 label: '近 7 天活跃',
+                accent: colorScheme.secondary,
               ),
             ],
           ),
           if (completionRate != null) ...[
             const SizedBox(height: 14),
-            _ReviewSoftProgressBar(value: completionRate / 100),
+            StitchExactProgressBar(
+              value: completionRate / 100,
+              semanticLabel: '复盘习惯完成率 $completionRate%',
+            ),
             const SizedBox(height: 8),
             Text(
               '完成率 $completionRate%',
@@ -324,19 +343,9 @@ class _ReviewHabitsSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          ActivityStrip(
-            items: [
-              for (
-                var index = 0;
-                index < data.habitRecentDayCounts.length;
-                index += 1
-              )
-                ActivityStripItem(
-                  count: data.habitRecentDayCounts[index],
-                  semanticLabel:
-                      '第 ${index + 1} 天打卡 ${data.habitRecentDayCounts[index]} 次',
-                ),
-            ],
+          StitchExactMiniBars(
+            values: data.habitRecentDayCounts,
+            labels: const ['今', '1', '2', '3', '4', '5', '6'],
             valueKey: 'review-habits-recent-strip',
           ),
           const SizedBox(height: 10),
@@ -374,38 +383,46 @@ class _ReviewPlanSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MetricStrip(
+          StitchExactMetricGrid(
+            minHeight: 74,
             metrics: [
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-goals-count',
                 value: '${data.goalCount}',
                 label: '目标',
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-goals-projects',
                 value: '${data.projectCount}',
                 label: '项目',
+                accent: colorScheme.secondary,
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-goals-subprojects',
                 value: '${data.subprojectCount}',
                 label: '子项目',
+                accent: colorScheme.tertiary,
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-goals-tasks',
                 value: '${data.actionCount}',
                 label: '行动',
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-goals-completed-tasks',
                 value: '${data.completedActionCount}',
                 label: '已完成行动',
+                accent: colorScheme.tertiary,
               ),
             ],
           ),
           if (progressRate != null) ...[
             const SizedBox(height: 14),
-            _ReviewSoftProgressBar(value: progressRate / 100),
+            StitchExactProgressBar(
+              value: progressRate / 100,
+              accent: colorScheme.secondary,
+              semanticLabel: '复盘计划进度 $progressRate%',
+            ),
             const SizedBox(height: 8),
             Text(
               '进度 $progressRate%',
@@ -467,29 +484,32 @@ class _ReviewFocusSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MetricStrip(
+          StitchExactMetricGrid(
+            minHeight: 74,
             metrics: [
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-focus-completed-sessions',
                 value: '${data.focusCompletedSessions} 次',
                 label: '完成专注',
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-focus-total-minutes',
                 value: '${data.focusCompletedMinutes} 分钟',
                 label: '累计时长',
+                accent: colorScheme.secondary,
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-focus-status',
                 value: _statusLabel(focusStore.status),
                 label: '当前状态',
+                accent: colorScheme.tertiary,
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-focus-remaining',
                 value: focusStore.formattedRemaining,
                 label: '剩余时间',
               ),
-              MetricTileData(
+              StitchExactMetric(
                 valueKey: 'review-focus-default-duration',
                 value: '${focusStore.defaultDurationSeconds ~/ 60} 分钟',
                 label: '默认时长',
@@ -504,17 +524,11 @@ class _ReviewFocusSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          ActivityStrip(
+          StitchExactMiniBars(
             valueKey: 'review-focus-recent-strip',
-            items: [
-              for (var i = 0; i < data.focusRecentDayCounts.length; i++)
-                ActivityStripItem(
-                  count: data.focusRecentDayCounts[i],
-                  cellKey: ValueKey<String>('review-focus-recent-day-$i'),
-                  semanticLabel:
-                      '${i == 0 ? '今日' : '$i 天前'} ${data.focusRecentDayCounts[i]} 次',
-                ),
-            ],
+            values: data.focusRecentDayCounts,
+            labels: const ['今', '1', '2', '3', '4', '5', '6'],
+            accent: colorScheme.secondary,
           ),
           const SizedBox(height: 14),
           Container(
@@ -588,22 +602,6 @@ class _ReviewFocusSection extends StatelessWidget {
   }
 }
 
-class _ReviewSoftProgressBar extends StatelessWidget {
-  const _ReviewSoftProgressBar({required this.value});
-
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return ProgressRail(
-      value: value,
-      fillColor: colorScheme.primary.withValues(alpha: 0.7),
-    );
-  }
-}
-
 class _ReviewNote extends StatelessWidget {
   const _ReviewNote({required this.note});
 
@@ -614,9 +612,8 @@ class _ReviewNote extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return SoftSurface(
-      padding: const EdgeInsets.all(18),
-      borderRadius: AppThemeTokens.radiusLg,
+    return StitchExactPanel(
+      padding: const EdgeInsets.all(20),
       child: Text(
         note,
         style: theme.textTheme.bodyMedium?.copyWith(

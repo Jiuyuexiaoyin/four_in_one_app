@@ -1,8 +1,11 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:four_in_one_app/app/router/app_router.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
+import 'package:four_in_one_app/core/notifications/notification_runtime_scope.dart';
+import 'package:four_in_one_app/core/permissions/app_permission_status.dart';
+import 'package:four_in_one_app/core/permissions/notification_permission_prompt.dart';
 import 'package:four_in_one_app/features/goals/application/goals_store.dart';
 import 'package:four_in_one_app/features/goals/domain/models/goal_item.dart';
 import 'package:four_in_one_app/features/goals/presentation/goals_scope.dart';
@@ -22,6 +25,8 @@ import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/mini_heatmap_cell.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
+import 'package:four_in_one_app/shared/widgets/stitch_exact/main_page_header.dart';
+import 'package:four_in_one_app/shared/widgets/stitch_exact/stitch_exact.dart';
 
 const _habitEmojiPresets = <String>[
   '🌱',
@@ -39,6 +44,60 @@ const _habitEmojiPresets = <String>[
 ];
 
 const _habitReminderPresets = <String>['08:30', '12:30', '18:00', '21:30'];
+
+Future<AppPermissionResult?> _requestNotificationForNewReminder(
+  BuildContext context, {
+  required bool wasEnabled,
+  required List<HabitReminderRule> reminderRules,
+}) async {
+  final isEnabled = reminderRules.any(
+    (rule) => rule.isEnabled && rule.weekdays.isNotEmpty,
+  );
+  final runtime = NotificationRuntimeScope.maybeOf(context);
+  if (wasEnabled || !isEnabled || runtime == null) {
+    return null;
+  }
+
+  return requestNotificationPermissionInContext(
+    context,
+    requestContext: NotificationPermissionContext.habitReminder,
+    controller: runtime,
+  );
+}
+
+void _showReminderPermissionFallback(
+  BuildContext context,
+  AppPermissionResult? result,
+) {
+  if (result == null ||
+      result.status == AppPermissionStatus.granted ||
+      result.status == AppPermissionStatus.notApplicable) {
+    return;
+  }
+
+  final runtime = NotificationRuntimeScope.maybeOf(context);
+  final message = switch (result.status) {
+    AppPermissionStatus.denied => '提醒已保存，但 Android 尚未允许显示通知。',
+    AppPermissionStatus.settingsRequired => '提醒已保存，请在系统设置中开启通知。',
+    AppPermissionStatus.restricted => '提醒已保存，但通知受到系统或设备策略限制。',
+    AppPermissionStatus.unavailable => '提醒已保存，但当前无法读取 Android 通知状态。',
+    AppPermissionStatus.granted || AppPermissionStatus.notApplicable => '',
+  };
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      action: runtime == null
+          ? null
+          : SnackBarAction(
+              label: '系统设置',
+              onPressed: () async {
+                await runtime.openNotificationSettings();
+              },
+            ),
+    ),
+  );
+}
 
 const _followInterfaceAccentColorKey = 'habit-color-follow-accent';
 
@@ -90,41 +149,49 @@ class HabitsPage extends StatelessWidget {
         .cast<HabitItem?>()
         .firstWhere((habit) => habit != null, orElse: () => null);
     final weeklyCounts = _weeklyHabitCounts(habitsStore, activeHabits);
-    final recentRecords = _recentRecordPreviews(habitsStore, [
-      ...activeHabits,
-      ...pausedHabits,
-      ...archivedHabits,
-    ]);
+    final weeklyLabels = _recentHabitDayLabels(habitsStore.currentDayKey);
 
     final content = SingleChildScrollView(
+      key: const ValueKey('habits-page-scroll'),
       padding: const EdgeInsets.fromLTRB(
         AppThemeTokens.pagePadding,
-        AppThemeTokens.spaceMd,
+        StitchExactPremiumSpacing.pageTop,
         AppThemeTokens.pagePadding,
-        AppThemeTokens.pagePadding + 18,
+        StitchExactPremiumSpacing.pageBottom,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _HabitsRhythmStage(
-            totalCount: habitsStore.totalCount,
-            completedCount: habitsStore.completedCount,
-            totalCheckInsToday: habitsStore.totalCheckInsToday,
+          StitchExactMainPageHeader(
+            title: '习惯',
+            leadingIcon: Icons.account_tree_outlined,
+            actions: [
+              StitchExactMainHeaderAction(
+                key: const ValueKey('habits-header-create'),
+                icon: Icons.add_rounded,
+                tooltip: '新建习惯',
+                onPressed: () => _showCreateHabitDialog(context, habitsStore),
+                primary: true,
+              ),
+              StitchExactMainHeaderAction(
+                key: const ValueKey('habits-header-settings'),
+                icon: Icons.person_outline_rounded,
+                tooltip: '我的/设置',
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoute.settings),
+              ),
+            ],
+          ),
+          _HabitsStitchExactStage(
+            habitsStore: habitsStore,
             weeklyCounts: weeklyCounts,
-            activeHabits: displayActiveHabits,
+            weeklyLabels: weeklyLabels,
             nextHabit: nextHabit,
-            onPrimaryPressed: nextHabit == null
-                ? null
-                : () => habitsStore.checkIn(nextHabit.id),
             onAddPressed: () => _showCreateHabitDialog(context, habitsStore),
           ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
-          _HabitsListHeader(
-            totalCount: habitsStore.totalCount,
-            completedCount: habitsStore.completedCount,
-            totalCheckInsToday: habitsStore.totalCheckInsToday,
-          ),
-          const SizedBox(height: AppThemeTokens.spaceSm),
+          const SizedBox(height: 26),
+          const _ActiveProtocolsTitle(),
+          const SizedBox(height: 12),
           if (!hasVisibleHabits)
             const _HabitsEmptyState()
           else
@@ -139,6 +206,20 @@ class HabitsPage extends StatelessWidget {
                     goalsStore,
                   ),
                 ),
+
+                if (archivedHabits.isNotEmpty) ...[
+                  const SizedBox(height: AppThemeTokens.spaceSm),
+                  _ArchivedHabitsSection(
+                    habits: archivedHabits,
+                    itemBuilder: (habit) => _buildHabitCard(
+                      context,
+                      habitsStore,
+                      habit,
+                      effectiveAttachmentStorage,
+                      goalsStore,
+                    ),
+                  ),
+                ],
                 if (pausedHabits.isNotEmpty) ...[
                   const SizedBox(height: AppThemeTokens.spaceSm),
                   _HabitLifecycleSectionHeader(
@@ -156,31 +237,8 @@ class HabitsPage extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (archivedHabits.isNotEmpty) ...[
-                  const SizedBox(height: AppThemeTokens.spaceSm),
-                  _ArchivedHabitsSection(
-                    habits: archivedHabits,
-                    itemBuilder: (habit) => _buildHabitCard(
-                      context,
-                      habitsStore,
-                      habit,
-                      effectiveAttachmentStorage,
-                      goalsStore,
-                    ),
-                  ),
-                ],
               ],
             ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
-          _HabitInsightPreview(
-            remainingCount: habitsStore.remainingCount,
-            totalCheckInsToday: habitsStore.totalCheckInsToday,
-            activeCount: habitsStore.totalCount,
-          ),
-          if (recentRecords.isNotEmpty) ...[
-            const SizedBox(height: AppThemeTokens.spaceMd),
-            _RecentRecordPreview(items: recentRecords.take(3).toList()),
-          ],
         ],
       ),
     );
@@ -190,7 +248,7 @@ class HabitsPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Habits')),
+      appBar: AppBar(title: const Text('习惯')),
       body: content,
     );
   }
@@ -205,7 +263,7 @@ class HabitsPage extends StatelessWidget {
     final isActive = habit.isActive;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppThemeTokens.spaceSm),
+      padding: const EdgeInsets.only(bottom: StitchExactPremiumSpacing.cardGap),
       child: _TodayHabitRow(
         habitId: habit.id,
         emoji: habit.emoji,
@@ -265,9 +323,15 @@ class HabitsPage extends StatelessWidget {
       builder: (_) => const _HabitFormDialog.create(),
     );
 
-    if (habitDraft == null) {
+    if (habitDraft == null || !context.mounted) {
       return;
     }
+
+    final permissionResult = await _requestNotificationForNewReminder(
+      context,
+      wasEnabled: false,
+      reminderRules: habitDraft.reminderRules,
+    );
 
     await habitsStore.createHabit(
       habitDraft.name,
@@ -287,6 +351,9 @@ class HabitsPage extends StatelessWidget {
           )
           .toList(growable: false),
     );
+    if (context.mounted) {
+      _showReminderPermissionFallback(context, permissionResult);
+    }
   }
 
   Future<void> _showEditHabitDialog(
@@ -305,9 +372,15 @@ class HabitsPage extends StatelessWidget {
       ),
     );
 
-    if (habitDraft == null) {
+    if (habitDraft == null || !context.mounted) {
       return;
     }
+
+    final permissionResult = await _requestNotificationForNewReminder(
+      context,
+      wasEnabled: habit.enabledReminderRules.isNotEmpty,
+      reminderRules: habitDraft.reminderRules,
+    );
 
     final didUpdateHabit = await habitsStore.updateHabit(
       habit.id,
@@ -325,6 +398,9 @@ class HabitsPage extends StatelessWidget {
         habit.id,
         habitDraft.checkInTemplates,
       );
+    }
+    if (context.mounted) {
+      _showReminderPermissionFallback(context, permissionResult);
     }
   }
 
@@ -445,9 +521,15 @@ class HabitsPage extends StatelessWidget {
       ),
     );
 
-    if (selection == null) {
+    if (selection == null || !context.mounted) {
       return;
     }
+
+    final permissionResult = await _requestNotificationForNewReminder(
+      context,
+      wasEnabled: habit.enabledReminderRules.isNotEmpty,
+      reminderRules: selection.reminderRules,
+    );
 
     await habitsStore.updateHabitReminderRules(
       habit.id,
@@ -460,11 +542,10 @@ class HabitsPage extends StatelessWidget {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          selection.reminderTime == null ? '提醒已清除' : '提醒已设置；若系统未授权通知，请在系统设置开启。',
-        ),
+        content: Text(selection.reminderTime == null ? '提醒已清除' : '提醒已设置'),
       ),
     );
+    _showReminderPermissionFallback(context, permissionResult);
   }
 
   Future<void> _showHabitLifecycleSheet(
@@ -499,12 +580,11 @@ class _HabitLifecycleSectionHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return SoftSurface(
+    return StitchExactPanel(
       padding: const EdgeInsets.symmetric(
         horizontal: AppThemeTokens.spaceLg,
         vertical: AppThemeTokens.spaceMd,
       ),
-      backgroundColor: AppThemeTokens.softSurfaceTone(colorScheme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -551,282 +631,242 @@ class _ArchivedHabitsSection extends StatelessWidget {
   }
 }
 
-class _HabitsRhythmStage extends StatelessWidget {
-  const _HabitsRhythmStage({
-    required this.totalCount,
-    required this.completedCount,
-    required this.totalCheckInsToday,
+class _HabitsStitchExactStage extends StatelessWidget {
+  const _HabitsStitchExactStage({
+    required this.habitsStore,
     required this.weeklyCounts,
-    required this.activeHabits,
+    required this.weeklyLabels,
     required this.nextHabit,
-    required this.onPrimaryPressed,
     required this.onAddPressed,
   });
 
-  final int totalCount;
-  final int completedCount;
-  final int totalCheckInsToday;
+  final HabitsStore habitsStore;
   final List<int> weeklyCounts;
-  final List<HabitItem> activeHabits;
+  final List<String> weeklyLabels;
   final HabitItem? nextHabit;
-  final VoidCallback? onPrimaryPressed;
   final VoidCallback onAddPressed;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final accent = _stageAccentColor(activeHabits, colorScheme);
-    final progress = totalCount == 0 ? 0.0 : completedCount / totalCount;
-    final compact = MediaQuery.sizeOf(context).width < 380;
-    final titleStyle = theme.textTheme.headlineMedium?.copyWith(
-      fontWeight: FontWeight.w700,
-      height: 1.06,
-      color: colorScheme.onSurface,
-    );
+    final colorScheme = Theme.of(context).colorScheme;
+    final progress = habitsStore.totalCount == 0
+        ? 0.0
+        : habitsStore.completedCount / habitsStore.totalCount;
+    final habit = nextHabit;
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 142),
-      padding: EdgeInsets.fromLTRB(
-        compact ? 12 : 14,
-        compact ? 12 : 14,
-        compact ? 12 : 14,
-        compact ? 12 : 14,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(colorScheme.surface, accent, 0.10) ??
-                colorScheme.surface,
-            AppThemeTokens.softSurfaceTone(colorScheme).withValues(alpha: 0.86),
-            Color.lerp(colorScheme.surface, colorScheme.primary, 0.05) ??
-                colorScheme.surface,
-          ],
-        ),
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.16),
-            blurRadius: 34,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '习惯',
-            style: titleStyle?.copyWith(fontSize: compact ? 21 : 23),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 3),
-          Text(
-            '今天保持节奏',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '轻量记录每天的重复行为。',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(
-                colorScheme,
-              ).withValues(alpha: 0.72),
-              height: 1.1,
-            ),
-          ),
-          SizedBox(height: compact ? 4 : 6),
-          SizedBox(
-            height: compact ? 38 : 44,
-            child: CustomPaint(
-              painter: _HabitRhythmPainter(
-                accentColor: accent,
-                baseColor: colorScheme.outlineVariant,
-                weeklyCounts: weeklyCounts,
-                progress: progress,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: _StageStatus(
-                  completedCount: completedCount,
-                  totalCount: totalCount,
-                  totalCheckInsToday: totalCheckInsToday,
-                  accentColor: accent,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppThemeTokens.spaceXs),
-          Wrap(
-            spacing: AppThemeTokens.spaceSm,
-            runSpacing: AppThemeTokens.spaceSm,
-            crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        StitchExactPanel(
+          glow: habitsStore.completedCount > 0,
+          padding: const EdgeInsets.all(StitchExactPremiumSpacing.cardLarge),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FilledButton(
-                onPressed: onPrimaryPressed,
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor:
-                      ThemeData.estimateBrightnessForColor(accent) ==
-                          Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(nextHabit == null ? '查看今日习惯' : '继续打卡'),
-              ),
-              FilledButton.tonal(
-                onPressed: onAddPressed,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-                child: const Text('添加习惯'),
-              ),
-              if (nextHabit != null)
-                Text(
-                  '${nextHabit!.emoji} ${nextHabit!.name}',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                    fontWeight: FontWeight.w600,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const StitchExactCapsLabel(text: '系统完整性'),
+                        const SizedBox(height: 10),
+                        Text(
+                          '每日准备就绪',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: colorScheme.onSurface,
+                                fontWeight: FontWeight.w900,
+                                height: 1.08,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  Text(
+                    habitsStore.totalCount == 0
+                        ? '--%'
+                        : '${(progress * 100).round()}%',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontSize: 46,
+                      fontWeight: FontWeight.w900,
+                      height: 0.95,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              StitchExactProgressRail(
+                label: '认知负荷 (Cognitive Load)',
+                value: progress,
+                detail: habitsStore.totalCount == 0
+                    ? '创建习惯后开始记录每日准备状态。'
+                    : '今日打卡 ${habitsStore.totalCheckInsToday} 次 · 待完成 ${habitsStore.remainingCount}',
+              ),
+              const SizedBox(height: 28),
+              StitchExactMetricGrid(
+                metrics: [
+                  StitchExactMetric(
+                    label: '恢复',
+                    value:
+                        '${habitsStore.completedCount}/${habitsStore.totalCount}',
+                    detail: '达标',
+                  ),
+                  StitchExactMetric(
+                    label: '压力',
+                    value: '${habitsStore.remainingCount}',
+                    detail: '待完成',
+                    accent: StitchExactColors.green,
+                  ),
+                  StitchExactMetric(
+                    label: '记录',
+                    value: '${habitsStore.totalCheckInsToday}',
+                    detail: '今日',
+                    accent: StitchExactColors.purple,
+                  ),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HabitRhythmPainter extends CustomPainter {
-  const _HabitRhythmPainter({
-    required this.accentColor,
-    required this.baseColor,
-    required this.weeklyCounts,
-    required this.progress,
-  });
-
-  final Color accentColor;
-  final Color baseColor;
-  final List<int> weeklyCounts;
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final baseline = size.height * 0.56;
-    final path = Path()..moveTo(0, baseline);
-    for (var index = 1; index <= 6; index += 1) {
-      final x = size.width * index / 6;
-      final y = baseline + math.sin(index * 1.18) * size.height * 0.16;
-      final previousX = size.width * (index - 1) / 6;
-      final controlX = (previousX + x) / 2;
-      path.cubicTo(controlX, baseline, controlX, y, x, y);
-    }
-
-    final basePaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.30)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, basePaint);
-
-    final accentPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          accentColor.withValues(alpha: 0.20),
-          accentColor.withValues(alpha: 0.82),
-        ],
-      ).createShader(Offset.zero & size)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    final metric = path.computeMetrics().first;
-    final activePath = metric.extractPath(0, metric.length * progress);
-    canvas.drawPath(activePath, accentPaint);
-
-    final maxCount = weeklyCounts.fold<int>(
-      1,
-      (currentMax, count) => count > currentMax ? count : currentMax,
-    );
-    for (var index = 0; index < 7; index += 1) {
-      final count = index < weeklyCounts.length ? weeklyCounts[index] : 0;
-      final x = size.width * index / 6;
-      final y = baseline + math.sin(index * 1.18) * size.height * 0.16;
-      final radius = 4.0 + (count / maxCount) * 5.0;
-      canvas.drawCircle(
-        Offset(x, y),
-        radius + 4,
-        Paint()..color = accentColor.withValues(alpha: 0.08),
-      );
-      canvas.drawCircle(
-        Offset(x, y),
-        radius,
-        Paint()
-          ..color = count == 0
-              ? baseColor.withValues(alpha: 0.42)
-              : accentColor.withValues(alpha: 0.68),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HabitRhythmPainter oldDelegate) {
-    return oldDelegate.accentColor != accentColor ||
-        oldDelegate.baseColor != baseColor ||
-        oldDelegate.progress != progress ||
-        oldDelegate.weeklyCounts != weeklyCounts;
-  }
-}
-
-class _StageStatus extends StatelessWidget {
-  const _StageStatus({
-    required this.completedCount,
-    required this.totalCount,
-    required this.totalCheckInsToday,
-    required this.accentColor,
-  });
-
-  final int completedCount;
-  final int totalCount;
-  final int totalCheckInsToday;
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      height: 26,
-      constraints: const BoxConstraints(maxWidth: 190),
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 9),
-      decoration: BoxDecoration(
-        color: colorScheme.surface.withValues(alpha: 0.66),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: accentColor.withValues(alpha: 0.16)),
-      ),
-      child: Text(
-        '今日 $completedCount/$totalCount · $totalCheckInsToday 次',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-          height: 1,
         ),
-      ),
+        const SizedBox(height: 28),
+        StitchExactPanel(
+          padding: const EdgeInsets.all(22),
+          glow: habit != null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.primary.withValues(alpha: 0.65),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StitchExactCapsLabel(
+                      text: '当前节奏',
+                      accent: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.psychology_alt_outlined,
+                    color: colorScheme.primary,
+                    size: 19,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                habit == null ? '所有协议已就绪' : '${habit.emoji} ${habit.name}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                habit == null ? '没有待完成习惯。可以添加下一项协议，或查看记录。' : '下一次打卡会继续更新真实节奏。',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppThemeTokens.secondaryTextTone(colorScheme),
+                  height: 1.36,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: StitchExactMetricGrid(
+                      metrics: [
+                        StitchExactMetric(
+                          label: '目标',
+                          value: habit == null
+                              ? '--'
+                              : '${habit.targetCountPerDay}',
+                          detail: '次/日',
+                        ),
+                        StitchExactMetric(
+                          label: '已完成',
+                          value: habit == null
+                              ? '--'
+                              : '${habitsStore.todayCheckInCount(habit)}',
+                          detail: '今日',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton(
+                    onPressed: habit == null
+                        ? null
+                        : () => habitsStore.checkIn(habit.id),
+                    child: const Text('完成'),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: onAddPressed,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('添加习惯'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              StitchExactProgressRail(value: progress),
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+        StitchExactPanel(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(child: StitchExactCapsLabel(text: '每日节奏')),
+                  Text(
+                    habitsStore.totalCount == 0
+                        ? '--%'
+                        : '${(progress * 100).round()}%',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              StitchExactMiniBars(
+                values: weeklyCounts,
+                labels: weeklyLabels,
+                height: 66,
+                valueKey: 'habits-stitch-weekly-line',
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -886,28 +926,34 @@ class _TodayHabitRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final effectiveAccent = accentColor ?? colorScheme.primary;
+    final effectiveAccent = accentColor ?? StitchExactColors.cyan;
+    final recentActiveDays = recentActivityItems
+        .where((item) => item.count > 0)
+        .length
+        .clamp(0, 7);
     final statusLabel = skippedToday
         ? '今日已跳过'
         : targetReached
         ? '今日已完成'
         : '$todayCount/$targetCount';
     final actionLabel = onCheckIn == null
-        ? '暂停'
+        ? lifecycleLabel ?? '不可打卡'
         : targetReached
         ? '加一次'
         : '打卡';
+    final subtitle = description == null || description!.trim().isEmpty
+        ? '每日 $targetCount 次目标'
+        : description!.trim();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
-        color: Color.lerp(
-          AppThemeTokens.softSurfaceTone(colorScheme),
-          effectiveAccent,
-          0.035,
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.onSurface.withValues(alpha: 0.06),
         ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: effectiveAccent.withValues(alpha: 0.14)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -915,128 +961,126 @@ class _TodayHabitRow extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HabitOrb(emoji: emoji, color: effectiveAccent),
-              const SizedBox(width: AppThemeTokens.spaceMd),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 19, height: 1),
+                ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppThemeTokens.spaceSm),
-                        _HabitStatePill(
-                          label: statusLabel,
-                          color: effectiveAccent,
-                          quiet: !targetReached,
-                        ),
-                      ],
-                    ),
-                    if (description != null && description!.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        description!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppThemeTokens.secondaryTextTone(colorScheme),
-                        ),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontFamily: 'Hanken Grotesk',
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        height: 1.12,
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      '今日 $todayCount / $targetCount',
-                      key: ValueKey<String>(
-                        'habit-today-count-$todayCount-$targetCount',
-                      ),
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: targetReached
-                            ? effectiveAccent
-                            : colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
                       ),
                     ),
-                    if (skippedToday) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        '今天已跳过',
-                        key: ValueKey<String>('habit-skip-state-$habitId'),
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.tertiary,
-                          fontWeight: FontWeight.w700,
+                    const SizedBox(height: 8),
+                    AnimatedSwitcher(
+                      duration: StitchExactMotion.fast,
+                      switchInCurve: StitchExactMotion.fastCurve,
+                      switchOutCurve: StitchExactMotion.fastCurve,
+                      child: Text(
+                        '今日 $todayCount / $targetCount',
+                        key: ValueKey<String>(
+                          'habit-today-count-$todayCount-$targetCount',
+                        ),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: targetReached
+                              ? effectiveAccent
+                              : colorScheme.onSurface,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: AppThemeTokens.spaceSm),
-                    Wrap(
-                      spacing: AppThemeTokens.spaceXs,
-                      runSpacing: AppThemeTokens.spaceXs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        TextButton.icon(
-                          key: ValueKey<String>('habit-reminder-$habitId'),
-                          onPressed: onReminderTap,
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 30),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            foregroundColor: AppThemeTokens.secondaryTextTone(
-                              colorScheme,
-                            ),
-                            backgroundColor: effectiveAccent.withValues(
-                              alpha: 0.08,
-                            ),
-                          ),
-                          icon: Icon(
-                            Icons.notifications_none_rounded,
-                            size: 13,
-                            color: effectiveAccent.withValues(alpha: 0.82),
-                          ),
-                          label: Text(
-                            hasReminder ? reminderSummary : '未设置提醒',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (lifecycleLabel != null)
-                          _HabitMetaChip(
-                            label: lifecycleLabel!,
-                            icon: Icons.pause_circle_outline_rounded,
-                            color: colorScheme.tertiary,
-                            tooltip: lifecycleDescription,
-                          ),
-                        if (planLinkSummary != null)
-                          _HabitMetaChip(
-                            label: planLinkSummary!,
-                            icon: Icons.link_rounded,
-                            color: planLinkUnavailable
-                                ? colorScheme.error
-                                : effectiveAccent,
-                          ),
-                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: AppThemeTokens.spaceSm),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$recentActiveDays',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontFamily: 'Hanken Grotesk',
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      height: 0.95,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '连续',
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (skippedToday) ...[
+            const SizedBox(height: 8),
+            Text(
+              '今天已跳过',
+              key: ValueKey<String>('habit-skip-state-$habitId'),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colorScheme.tertiary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          _ProtocolSequenceStrip(
+            items: recentActivityItems,
+            accentColor: effectiveAccent,
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               FilledButton(
                 key: ValueKey<String>('habit-check-in-$habitId'),
                 onPressed: onCheckIn,
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 38),
-                  padding: const EdgeInsets.symmetric(horizontal: 13),
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   backgroundColor: effectiveAccent,
                   foregroundColor:
                       ThemeData.estimateBrightnessForColor(effectiveAccent) ==
@@ -1044,21 +1088,29 @@ class _TodayHabitRow extends StatelessWidget {
                       ? Colors.white
                       : Colors.black,
                 ),
-                child: Text(actionLabel),
+                child: AnimatedSwitcher(
+                  duration: StitchExactMotion.fast,
+                  switchInCurve: StitchExactMotion.fastCurve,
+                  switchOutCurve: StitchExactMotion.fastCurve,
+                  child: Text(
+                    actionLabel,
+                    key: ValueKey<String>(
+                      'habit-check-in-label-$habitId-$actionLabel',
+                    ),
+                  ),
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: AppThemeTokens.spaceMd),
-          _WeeklyRhythmStrip(
-            items: recentActivityItems,
-            accentColor: effectiveAccent,
-          ),
-          const SizedBox(height: AppThemeTokens.spaceSm),
-          Wrap(
-            spacing: AppThemeTokens.spaceXs,
-            runSpacing: AppThemeTokens.spaceXs,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
+              TextButton.icon(
+                key: ValueKey<String>('habit-reminder-$habitId'),
+                onPressed: onReminderTap,
+                style: _compactHabitActionStyle(context),
+                icon: const Icon(Icons.notifications_none_rounded, size: 14),
+                label: Text(
+                  hasReminder ? reminderSummary : '未设置提醒',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               TextButton(
                 key: ValueKey<String>('habit-records-$habitId'),
                 onPressed: onRecordDetails,
@@ -1083,7 +1135,7 @@ class _TodayHabitRow extends StatelessWidget {
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 style: IconButton.styleFrom(
-                  minimumSize: const Size(36, 36),
+                  minimumSize: const Size(34, 34),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: AppThemeTokens.secondaryTextTone(
                     colorScheme,
@@ -1096,13 +1148,39 @@ class _TodayHabitRow extends StatelessWidget {
                 onPressed: onLifecycleTap,
                 icon: const Icon(Icons.more_horiz_rounded, size: 18),
                 style: IconButton.styleFrom(
-                  minimumSize: const Size(36, 36),
+                  minimumSize: const Size(34, 34),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: AppThemeTokens.secondaryTextTone(
                     colorScheme,
                   ),
                 ),
               ),
+              AnimatedSwitcher(
+                duration: StitchExactMotion.fast,
+                switchInCurve: StitchExactMotion.fastCurve,
+                switchOutCurve: StitchExactMotion.fastCurve,
+                child: _HabitStatePill(
+                  key: ValueKey<String>('habit-state-$habitId-$statusLabel'),
+                  label: statusLabel,
+                  color: effectiveAccent,
+                  quiet: !targetReached,
+                ),
+              ),
+              if (lifecycleLabel != null)
+                _HabitMetaChip(
+                  label: lifecycleLabel!,
+                  icon: Icons.pause_circle_outline_rounded,
+                  color: colorScheme.tertiary,
+                  tooltip: lifecycleDescription,
+                ),
+              if (planLinkSummary != null)
+                _HabitMetaChip(
+                  label: planLinkSummary!,
+                  icon: Icons.link_rounded,
+                  color: planLinkUnavailable
+                      ? colorScheme.error
+                      : effectiveAccent,
+                ),
             ],
           ),
           _HabitIdentityCompatibilityAnchor(
@@ -1132,6 +1210,88 @@ class _TodayHabitRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProtocolSequenceStrip extends StatelessWidget {
+  const _ProtocolSequenceStrip({
+    required this.items,
+    required this.accentColor,
+  });
+
+  final List<ActivityStripItem> items;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleItems = items.take(7).toList(growable: false);
+    return Row(
+      children: [
+        for (var index = 0; index < visibleItems.length; index += 1) ...[
+          Expanded(
+            child: _ProtocolSequenceDot(
+              item: visibleItems[index],
+              accentColor: accentColor,
+            ),
+          ),
+          if (index != visibleItems.length - 1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProtocolSequenceDot extends StatelessWidget {
+  const _ProtocolSequenceDot({required this.item, required this.accentColor});
+
+  final ActivityStripItem item;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDone = item.count > 0;
+    final label = item.label ?? '';
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          key: item.cellKey,
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: isDone
+                ? StitchExactColors.cyan
+                : StitchExactColors.surfaceHigh,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isDone
+                  ? StitchExactColors.cyan
+                  : Colors.white.withValues(alpha: 0.10),
+            ),
+            boxShadow: isDone
+                ? [
+                    BoxShadow(
+                      color: StitchExactColors.cyan.withValues(alpha: 0.30),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            isDone ? '✓' : label,
+            style: TextStyle(
+              color: isDone
+                  ? StitchExactColors.black
+                  : StitchExactColors.onSurfaceVariant,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1167,222 +1327,12 @@ class _HabitIdentityCompatibilityAnchor extends HabitIdentityCard {
   Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
-class _WeeklyRhythmStrip extends StatelessWidget {
-  const _WeeklyRhythmStrip({required this.items, required this.accentColor});
-
-  final List<ActivityStripItem> items;
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return ActivityStrip(
-      items: items,
-      accentColor: accentColor,
-      cellHeight: 10,
-      cellBorderRadius: AppThemeTokens.radiusPill,
-      spacing: 6,
-    );
-  }
-}
-
-class _HabitInsightPreview extends StatelessWidget {
-  const _HabitInsightPreview({
-    required this.remainingCount,
-    required this.totalCheckInsToday,
-    required this.activeCount,
-  });
-
-  final int remainingCount;
-  final int totalCheckInsToday;
-  final int activeCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _InsightPill(
-            label: '待完成',
-            value: '$remainingCount',
-            color: colorScheme.primary,
-          ),
-        ),
-        const SizedBox(width: AppThemeTokens.spaceSm),
-        Expanded(
-          child: _InsightPill(
-            label: '今日打卡',
-            value: '$totalCheckInsToday',
-            color: colorScheme.secondary,
-          ),
-        ),
-        const SizedBox(width: AppThemeTokens.spaceSm),
-        Expanded(
-          child: _InsightPill(
-            label: '活跃习惯',
-            value: '$activeCount',
-            color: colorScheme.tertiary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InsightPill extends StatelessWidget {
-  const _InsightPill({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Color.lerp(
-          AppThemeTokens.softSurfaceTone(colorScheme),
-          color,
-          0.06,
-        ),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: color.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecentRecordPreview extends StatelessWidget {
-  const _RecentRecordPreview({required this.items});
-
-  final List<_HabitRecordPreviewItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(
-          colorScheme,
-        ).withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '最近记录',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppThemeTokens.spaceSm),
-          for (final item in items) ...[
-            _RecentRecordRow(item: item),
-            if (item != items.last) const Divider(height: 16),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _RecentRecordRow extends StatelessWidget {
-  const _RecentRecordRow({required this.item});
-
-  final _HabitRecordPreviewItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final color = _habitAccentColor(item.habit) ?? colorScheme.primary;
-    final note = item.record.note?.trim();
-
-    return Row(
-      children: [
-        Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: AppThemeTokens.spaceSm),
-        Expanded(
-          child: Text(
-            '${item.habit.name} · ${item.record.localDate} · ${_recordTypeLabel(item.record.type)}'
-            '${note == null || note.isEmpty ? '' : ' · $note'}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HabitOrb extends StatelessWidget {
-  const _HabitOrb({required this.emoji, required this.color});
-
-  final String emoji;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.12),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-      ),
-      child: Text(emoji, style: const TextStyle(fontSize: 20)),
-    );
-  }
-}
-
 class _HabitStatePill extends StatelessWidget {
   const _HabitStatePill({
     required this.label,
     required this.color,
     required this.quiet,
+    super.key,
   });
 
   final String label;
@@ -1462,13 +1412,6 @@ class _HabitMetaChip extends StatelessWidget {
   }
 }
 
-class _HabitRecordPreviewItem {
-  const _HabitRecordPreviewItem({required this.habit, required this.record});
-
-  final HabitItem habit;
-  final HabitRecord record;
-}
-
 class _HabitLifecycleActionSheet extends StatelessWidget {
   const _HabitLifecycleActionSheet({
     required this.habit,
@@ -1540,10 +1483,7 @@ class _HabitLifecycleActionSheet extends StatelessWidget {
                 icon: Icons.restore_rounded,
                 title: '恢复',
                 subtitle: '重新回到日常列表，并按原提醒设置同步。',
-                onTap: () => _runLifecycleAction(
-                  context,
-                  habitsStore.restoreHabit(habit.id),
-                ),
+                onTap: () => _restoreHabit(context),
               ),
               if (habit.isPaused)
                 _LifecycleActionTile(
@@ -1611,6 +1551,19 @@ class _HabitLifecycleActionSheet extends StatelessWidget {
     await action;
     if (context.mounted) {
       Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _restoreHabit(BuildContext context) async {
+    final permissionResult = await _requestNotificationForNewReminder(
+      context,
+      wasEnabled: false,
+      reminderRules: habit.reminderRules,
+    );
+    await habitsStore.restoreHabit(habit.id);
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      _showReminderPermissionFallback(context, permissionResult);
     }
   }
 
@@ -1926,6 +1879,14 @@ List<int> _weeklyHabitCounts(HabitsStore habitsStore, List<HabitItem> habits) {
   ];
 }
 
+List<String> _recentHabitDayLabels(String currentDayKey) {
+  final today = _parseLocalDate(currentDayKey);
+  return [
+    for (var index = 6; index >= 0; index -= 1)
+      _weekdayShortLabel(today.subtract(Duration(days: index)).weekday),
+  ];
+}
+
 int _habitNumericId(HabitItem habit) {
   final match = RegExp(r'^habit-(\d+)$').firstMatch(habit.id);
   return match == null ? -1 : int.tryParse(match.group(1)!) ?? -1;
@@ -1953,30 +1914,6 @@ int _compareHabitDisplayOrder(HabitItem a, HabitItem b) {
   }
 
   return a.createdAt.compareTo(b.createdAt);
-}
-
-List<_HabitRecordPreviewItem> _recentRecordPreviews(
-  HabitsStore habitsStore,
-  List<HabitItem> habits,
-) {
-  final previews = <_HabitRecordPreviewItem>[];
-  for (final habit in habits) {
-    for (final record in habitsStore.recordsForHabit(habit)) {
-      previews.add(_HabitRecordPreviewItem(habit: habit, record: record));
-    }
-  }
-  previews.sort((a, b) => b.record.createdAt.compareTo(a.record.createdAt));
-  return previews.take(3).toList(growable: false);
-}
-
-Color _stageAccentColor(List<HabitItem> activeHabits, ColorScheme colorScheme) {
-  final incompleteHabit = activeHabits
-      .where((habit) => habit.habitColorValue != null)
-      .cast<HabitItem?>()
-      .firstWhere((habit) => habit != null, orElse: () => null);
-  return incompleteHabit == null
-      ? colorScheme.primary
-      : Color(incompleteHabit.habitColorValue!);
 }
 
 ButtonStyle _compactHabitActionStyle(BuildContext context) {
@@ -2058,52 +1995,24 @@ String _resolvedHabitPlanLinkTitle(HabitPlanLink link, GoalsStore? goalsStore) {
   };
 }
 
-class _HabitsListHeader extends StatelessWidget {
-  const _HabitsListHeader({
-    required this.totalCount,
-    required this.completedCount,
-    required this.totalCheckInsToday,
-  });
-
-  final int totalCount;
-  final int completedCount;
-  final int totalCheckInsToday;
+class _ActiveProtocolsTitle extends StatelessWidget {
+  const _ActiveProtocolsTitle();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '今日习惯',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            Text(
-              '$completedCount/$totalCount',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 2),
+      child: Text(
+        '活跃习惯',
+        style: TextStyle(
+          color: StitchExactColors.onSurfaceVariant,
+          fontFamily: 'JetBrains Mono',
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.1,
+          height: 1.2,
         ),
-        const SizedBox(height: 3),
-        Text(
-          '$totalCheckInsToday 次打卡 · 轻触一行继续节奏',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(colorScheme),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -2116,13 +2025,8 @@ class _HabitsEmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
+    return StitchExactPanel(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -5181,6 +5085,11 @@ class _HabitFormDialogState extends State<_HabitFormDialog> {
         ),
       ),
       actions: [
+        TextButton(
+          key: const ValueKey('habit-form-cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
         FilledButton(
           key: const ValueKey('habit-form-submit'),
           onPressed: _submit,

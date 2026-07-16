@@ -181,7 +181,7 @@ void main() {
     },
   );
 
-  test('pause and reset do not record sessions', () async {
+  test('pause before completion and reset do not record sessions', () async {
     var fakeNow = DateTime.utc(2026, 4, 24, 9);
     final storage = _FakeFocusStorage();
     final timerFactory = _FakeTimerFactory();
@@ -193,7 +193,7 @@ void main() {
     );
 
     store.start();
-    fakeNow = fakeNow.add(const Duration(seconds: 4));
+    fakeNow = fakeNow.add(const Duration(seconds: 1));
     store.pause();
     await _flushAsync();
 

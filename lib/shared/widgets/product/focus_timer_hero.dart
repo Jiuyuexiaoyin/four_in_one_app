@@ -42,22 +42,30 @@ class FocusTimerHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
       decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(0.0, -0.35),
-          radius: 1.2,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            stateStyle.accentColor.withValues(
-              alpha: colorScheme.brightness == Brightness.dark ? 0.12 : 0.08,
-            ),
-            stateStyle.backgroundColor.withValues(alpha: 0.45),
-            Colors.transparent,
+            Color.lerp(
+              colorScheme.surfaceContainerHigh,
+              stateStyle.accentColor,
+              0.08,
+            )!,
+            colorScheme.surface,
+            colorScheme.surfaceContainerLowest,
           ],
-          stops: const [0.0, 0.6, 1.0],
         ),
         borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
         border: Border.all(
-          color: stateStyle.borderColor.withValues(alpha: 0.45),
+          color: stateStyle.borderColor.withValues(alpha: 0.78),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: stateStyle.accentColor.withValues(alpha: 0.16),
+            blurRadius: 34,
+            spreadRadius: -12,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +112,7 @@ class FocusTimerHero extends StatelessWidget {
                     child: CircularProgressIndicator(
                       strokeWidth: 8,
                       value: boundedProgress,
-                      strokeCap: StrokeCap.round,
+                      strokeCap: StrokeCap.butt,
                       backgroundColor: Theme.of(context).scaffoldBackgroundColor
                           .withValues(
                             alpha: colorScheme.brightness == Brightness.dark
@@ -120,16 +128,20 @@ class FocusTimerHero extends StatelessWidget {
                     width: 156,
                     height: 156,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor
-                          .withValues(
-                            alpha: colorScheme.brightness == Brightness.dark
-                                ? 0.18
-                                : 0.58,
-                          ),
+                      color: colorScheme.surfaceContainerLowest.withValues(
+                        alpha: 0.82,
+                      ),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: stateStyle.borderColor.withValues(alpha: 0.82),
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: stateStyle.accentColor.withValues(alpha: 0.12),
+                          blurRadius: 24,
+                          spreadRadius: -8,
+                        ),
+                      ],
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -145,7 +157,7 @@ class FocusTimerHero extends StatelessWidget {
                               maxLines: 1,
                               style: theme.textTheme.displayLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                letterSpacing: -1.8,
+                                letterSpacing: 0,
                                 color: colorScheme.onSurface,
                               ),
                             ),
@@ -179,7 +191,7 @@ class FocusTimerHero extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: colorScheme.surface.withValues(
-                alpha: colorScheme.brightness == Brightness.dark ? 0.20 : 0.50,
+                alpha: colorScheme.brightness == Brightness.dark ? 0.38 : 0.50,
               ),
               borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
               border: Border.all(
@@ -211,7 +223,7 @@ class FocusTimerHero extends StatelessWidget {
       case FocusTimerHeroState.running:
         return _FocusTimerHeroStyle(
           backgroundColor: AppThemeTokens.selectedStateTone(colorScheme),
-          borderColor: colorScheme.primary.withValues(alpha: 0.10),
+          borderColor: colorScheme.primary.withValues(alpha: 0.34),
           accentColor: colorScheme.primary,
           icon: Icons.play_circle_rounded,
         );
@@ -220,15 +232,15 @@ class FocusTimerHero extends StatelessWidget {
           backgroundColor: colorScheme.secondaryContainer.withValues(
             alpha: 0.24,
           ),
-          borderColor: colorScheme.secondary.withValues(alpha: 0.10),
+          borderColor: colorScheme.secondary.withValues(alpha: 0.30),
           accentColor: colorScheme.secondary,
           icon: Icons.pause_circle_rounded,
         );
       case FocusTimerHeroState.idle:
         return _FocusTimerHeroStyle(
           backgroundColor: AppThemeTokens.softSurfaceTone(colorScheme),
-          borderColor: AppThemeTokens.borderTone(colorScheme),
-          accentColor: colorScheme.onSurfaceVariant,
+          borderColor: colorScheme.primary.withValues(alpha: 0.16),
+          accentColor: colorScheme.primary,
           icon: Icons.hourglass_bottom_rounded,
         );
     }

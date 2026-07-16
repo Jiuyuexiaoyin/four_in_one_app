@@ -33,7 +33,7 @@ void main() {
       HabitReminderLocalNotificationService.reminderBodyForHabit(
         reminders.scheduled.single.habit,
       ),
-      '该打卡了：${reminders.scheduled.single.habit.emoji} Journal',
+      '今天的「Journal」还未完成',
     );
   });
 
@@ -104,7 +104,7 @@ void main() {
       HabitReminderLocalNotificationService.reminderBodyForHabit(
         reminders.scheduled.single.habit,
       ),
-      '该打卡了：${reminders.scheduled.single.habit.emoji} Evening journal',
+      '今天的「Evening journal」还未完成',
     );
   });
 

@@ -24,8 +24,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('专注'));
-    await tester.pumpAndSettle();
+    await _tapFocusTab(tester);
 
     expect(find.text('空闲中'), findsOneWidget);
     expect(find.text('准备好后，开始一段安静推进。'), findsOneWidget);
@@ -35,7 +34,12 @@ void main() {
     await tester.pump();
 
     expect(find.text('专注中'), findsOneWidget);
-    expect(find.text('本轮已锁定'), findsOneWidget);
+    expect(find.text('下一轮'), findsNothing);
+    expect(find.text('本轮已锁定'), findsNothing);
+    expect(
+      _findKeyedText('focus-selected-duration-label', '3 秒'),
+      findsOneWidget,
+    );
 
     fakeNow = fakeNow.add(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
@@ -68,19 +72,60 @@ void main() {
     expect(_findKeyedText('focus-remaining-time', '00:03'), findsOneWidget);
   });
 
-  testWidgets('custom duration dialog validates and applies minutes', (
+  testWidgets('duration rail presets update the configured timer duration', (
     tester,
   ) async {
+    final focusStore = FocusStore.inMemory();
+
     await tester.pumpWidget(
       FourInOneApp(
         habitsStore: HabitsStore.seededInMemory(),
         goalsStore: GoalsStore.inMemory(),
-        focusStore: FocusStore.inMemory(),
+        focusStore: focusStore,
       ),
     );
 
-    await tester.tap(find.text('专注'));
-    await tester.pumpAndSettle();
+    await _tapFocusTab(tester);
+
+    for (final seconds in FocusStore.durationChoicesSeconds) {
+      await _tapVisible(
+        tester,
+        find.byKey(ValueKey<String>('focus-duration-choice-$seconds')),
+      );
+      await tester.pumpAndSettle();
+      expect(focusStore.selectedDurationSeconds, seconds);
+      expect(focusStore.remainingSeconds, seconds);
+      expect(
+        _findKeyedText('focus-selected-duration-label', '${seconds ~/ 60} 分钟'),
+        findsOneWidget,
+      );
+    }
+
+    await _tapVisible(
+      tester,
+      find.byKey(const ValueKey('focus-duration-choice-300')),
+    );
+    await _tapVisible(tester, find.widgetWithText(FilledButton, '开始'));
+    await tester.pump();
+
+    expect(focusStore.activeDurationSeconds, 5 * 60);
+    expect(_findKeyedText('focus-remaining-time', '05:00'), findsOneWidget);
+  });
+
+  testWidgets('custom duration dialog validates and applies minutes', (
+    tester,
+  ) async {
+    final focusStore = FocusStore.inMemory();
+
+    await tester.pumpWidget(
+      FourInOneApp(
+        habitsStore: HabitsStore.seededInMemory(),
+        goalsStore: GoalsStore.inMemory(),
+        focusStore: focusStore,
+      ),
+    );
+
+    await _tapFocusTab(tester);
 
     await _tapVisible(
       tester,
@@ -92,19 +137,29 @@ void main() {
     expect(find.text('输入专注时长'), findsOneWidget);
     expect(find.text('分钟'), findsWidgets);
 
-    await tester.enterText(find.byType(TextField), '181');
-    await tester.tap(find.text('确定'));
+    await tester.enterText(
+      find.byKey(const ValueKey('focus-custom-duration-input')),
+      '181',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('focus-custom-duration-confirm')),
+    );
     await tester.pump();
 
     expect(find.text('请输入 1 到 180 分钟'), findsOneWidget);
-    expect(find.text('本轮时长 25 分钟'), findsOneWidget);
+    expect(_findKeyedText('focus-remaining-time', '25:00'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), '37');
-    await tester.tap(find.text('确定'));
+    await tester.enterText(
+      find.byKey(const ValueKey('focus-custom-duration-input')),
+      '37',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('focus-custom-duration-confirm')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('自定义时长'), findsNothing);
-    expect(find.text('本轮时长 37 分钟'), findsOneWidget);
+    expect(focusStore.selectedDurationSeconds, 37 * 60);
     expect(_findKeyedText('focus-remaining-time', '37:00'), findsOneWidget);
   });
 
@@ -121,8 +176,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('专注'));
-    await tester.pumpAndSettle();
+    await _tapFocusTab(tester);
 
     expect(find.text('本轮专注对象'), findsOneWidget);
     expect(find.text('从计划里的未完成行动中选择'), findsOneWidget);
@@ -169,8 +223,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('专注'));
-    await tester.pumpAndSettle();
+    await _tapFocusTab(tester);
 
     await _tapVisible(
       tester,
@@ -227,8 +280,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('专注'));
-    await tester.pumpAndSettle();
+    await _tapFocusTab(tester);
 
     expect(find.text('已暂停'), findsOneWidget);
     expect(find.text('正在推进'), findsOneWidget);
@@ -274,8 +326,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('专注'));
-    await tester.pumpAndSettle();
+    await _tapFocusTab(tester);
 
     final weeklySectionFinder = find.byKey(
       const ValueKey('focus-weekly-section'),
@@ -283,7 +334,7 @@ void main() {
     await tester.scrollUntilVisible(
       weeklySectionFinder,
       100,
-      scrollable: find.byType(Scrollable),
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.ensureVisible(weeklySectionFinder);
     await tester.pumpAndSettle();
@@ -322,14 +373,21 @@ Finder _findKeyedTextStartingWith(String key, String prefix) {
 }
 
 Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  final target = finder.first;
   await tester.scrollUntilVisible(
-    finder,
+    target,
     80,
-    scrollable: find.byType(Scrollable),
+    scrollable: find.byType(Scrollable).first,
   );
-  await tester.ensureVisible(finder);
+  await tester.ensureVisible(target);
   await tester.pumpAndSettle();
-  await tester.tap(finder);
+  await tester.tap(target);
+}
+
+Future<void> _tapFocusTab(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('stitch-nav-/focus')));
+
+  await tester.pumpAndSettle();
 }
 
 GoalsStore _goalsStoreWithPlanActions() {

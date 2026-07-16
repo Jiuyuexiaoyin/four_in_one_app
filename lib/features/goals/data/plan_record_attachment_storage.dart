@@ -53,7 +53,8 @@ class LocalPlanRecordAttachmentStorage implements PlanRecordAttachmentStorage {
         return null;
       }
 
-      final fileSystem = _fileSystem ?? const DartPlanRecordAttachmentFileSystem();
+      final fileSystem =
+          _fileSystem ?? const DartPlanRecordAttachmentFileSystem();
       final directoryProvider =
           _directoryProvider ??
           const AppDocumentsPlanRecordAttachmentDirectoryProvider();
@@ -92,7 +93,8 @@ class LocalPlanRecordAttachmentStorage implements PlanRecordAttachmentStorage {
     }
 
     try {
-      final fileSystem = _fileSystem ?? const DartPlanRecordAttachmentFileSystem();
+      final fileSystem =
+          _fileSystem ?? const DartPlanRecordAttachmentFileSystem();
       final directoryProvider =
           _directoryProvider ??
           const AppDocumentsPlanRecordAttachmentDirectoryProvider();
@@ -117,7 +119,8 @@ class LocalPlanRecordAttachmentStorage implements PlanRecordAttachmentStorage {
     }
 
     try {
-      final fileSystem = _fileSystem ?? const DartPlanRecordAttachmentFileSystem();
+      final fileSystem =
+          _fileSystem ?? const DartPlanRecordAttachmentFileSystem();
       final directoryProvider =
           _directoryProvider ??
           const AppDocumentsPlanRecordAttachmentDirectoryProvider();
@@ -140,7 +143,10 @@ class LocalPlanRecordAttachmentStorage implements PlanRecordAttachmentStorage {
   String _buildFileName(String recordId, PlanPickedImage picked) {
     final safeRecordId = recordId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
     final timestamp = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final extension = _safeExtension(picked.fileName) ?? _safeExtension(picked.path) ?? '.jpg';
+    final extension =
+        _safeExtension(picked.fileName) ??
+        _safeExtension(picked.path) ??
+        '.jpg';
 
     return '${safeRecordId}_$timestamp$extension';
   }
@@ -184,7 +190,9 @@ class LocalPlanRecordAttachmentStorage implements PlanRecordAttachmentStorage {
 
   String _joinPath(String first, String second) {
     final separator = Platform.pathSeparator;
-    return first.endsWith(separator) ? '$first$second' : '$first$separator$second';
+    return first.endsWith(separator)
+        ? '$first$second'
+        : '$first$separator$second';
   }
 }
 
@@ -250,7 +258,9 @@ class AppDocumentsPlanRecordAttachmentDirectoryProvider
 
   String _joinPath(String first, String second) {
     final separator = Platform.pathSeparator;
-    return first.endsWith(separator) ? '$first$second' : '$first$separator$second';
+    return first.endsWith(separator)
+        ? '$first$second'
+        : '$first$separator$second';
   }
 }
 

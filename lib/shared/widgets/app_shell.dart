@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:four_in_one_app/app/router/app_router.dart';
-import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
+import 'package:four_in_one_app/shared/widgets/stitch_exact/stitch_exact.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({
@@ -21,221 +21,98 @@ class AppShell extends StatelessWidget {
     AppRoute.habits,
     AppRoute.goals,
     AppRoute.focus,
-    AppRoute.review,
+  ];
+
+  static const _items = <StitchExactBottomNavItem>[
+    StitchExactBottomNavItem(
+      label: '今天',
+      icon: Icons.calendar_today_outlined,
+      route: AppRoute.today,
+    ),
+    StitchExactBottomNavItem(
+      label: '习惯',
+      icon: Icons.account_tree_outlined,
+      route: AppRoute.habits,
+    ),
+    StitchExactBottomNavItem(
+      label: '计划',
+      icon: Icons.event_note_outlined,
+      route: AppRoute.goals,
+    ),
+    StitchExactBottomNavItem(
+      label: '专注',
+      icon: Icons.timer_outlined,
+      route: AppRoute.focus,
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final canvasColor = theme.scaffoldBackgroundColor;
-    final shellSurface =
-        Color.lerp(colorScheme.surface, canvasColor, 0.26) ??
-        colorScheme.surface;
-    final isTodayTab = showBottomNavigation && currentIndex == 0;
-    final showPageAppBar = !isTodayTab;
-
+    final clampedIndex = currentIndex.clamp(0, _routes.length - 1);
+    final routeName = ModalRoute.of(context)?.settings.name;
+    final showSettingsAction =
+        !showBottomNavigation && routeName != AppRoute.settings;
     return Scaffold(
+      key: const ValueKey('app-shell-scaffold'),
       extendBody: true,
-      backgroundColor: canvasColor,
-      appBar: showPageAppBar
-          ? AppBar(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: showBottomNavigation
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: colorScheme.surfaceContainerLowest,
+              foregroundColor: colorScheme.onSurface,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(
+                key: const ValueKey('secondary-back-button'),
+                tooltip: '返回',
+                onPressed: () {
+                  final navigator = Navigator.of(context);
+                  if (navigator.canPop()) {
+                    navigator.pop();
+                    return;
+                  }
+                  navigator.pushReplacementNamed(AppRoute.today);
+                },
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
               title: Text(
-                title,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.0,
+                title.toUpperCase(),
+                style: TextStyle(
+                  color: colorScheme.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.4,
                 ),
               ),
-              flexibleSpace: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      canvasColor.withValues(alpha: 0.96),
-                      Color.lerp(canvasColor, colorScheme.primary, 0.04) ??
-                          canvasColor,
-                      shellSurface.withValues(alpha: 0.86),
-                    ],
-                  ),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: colorScheme.primary.withValues(alpha: 0.08),
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                IconButton(
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoute.settings),
-                  icon: const Icon(Icons.settings_outlined),
-                  tooltip: '我的',
-                ),
-              ],
-            )
-          : null,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: AppThemeTokens.pageBackgroundGradient(colorScheme),
-              ),
-            ),
-          ),
-          Positioned(
-            top: -118,
-            left: -98,
-            child: _AmbientGlow(
-              size: 250,
-              color: colorScheme.primary.withValues(alpha: 0.28),
-            ),
-          ),
-          Positioned(
-            top: 120,
-            right: -116,
-            child: _AmbientGlow(
-              size: 210,
-              color: colorScheme.secondary.withValues(alpha: 0.12),
-            ),
-          ),
-          Positioned.fill(
-            child: SafeArea(
-              top: !showPageAppBar,
-              bottom: false,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: showBottomNavigation ? 82 : 0),
-                child: child,
-              ),
-            ),
-          ),
-          if (isTodayTab)
-            PositionedDirectional(
-              top: 12,
-              end: 18,
-              child: SafeArea(
-                bottom: false,
-                child: Material(
-                  color: Colors.transparent,
-                  child: IconButton(
-                    onPressed: () =>
-                        Navigator.of(context).pushNamed(AppRoute.settings),
-                    icon: const Icon(Icons.settings_outlined),
-                    tooltip: '我的',
-                    style: IconButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                      backgroundColor: colorScheme.primary.withValues(
-                        alpha: 0.12,
+              actions: showSettingsAction
+                  ? [
+                      IconButton(
+                        tooltip: '我的/设置',
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed(AppRoute.settings),
+                        icon: const Icon(Icons.settings_outlined),
                       ),
-                    ),
-                  ),
-                ),
-              ),
+                    ]
+                  : null,
             ),
-        ],
+      body: Material(
+        key: const ValueKey('app-shell-body-surface'),
+        color: theme.scaffoldBackgroundColor,
+        child: SafeArea(top: showBottomNavigation, bottom: false, child: child),
       ),
       bottomNavigationBar: showBottomNavigation
-          ? SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: shellSurface.withValues(alpha: 0.52),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: colorScheme.primary.withValues(alpha: 0.10),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 16,
-                        offset: const Offset(0, 7),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
-                    child: NavigationBar(
-                      height: 54,
-                      backgroundColor: Colors.transparent,
-                      indicatorColor: colorScheme.primary.withValues(
-                        alpha: 0.08,
-                      ),
-                      selectedIndex: currentIndex,
-                      labelBehavior:
-                          NavigationDestinationLabelBehavior.alwaysShow,
-                      onDestinationSelected: (index) {
-                        if (index == currentIndex) {
-                          return;
-                        }
-                        Navigator.of(
-                          context,
-                        ).pushReplacementNamed(_routes[index]);
-                      },
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.home_outlined, size: 19),
-                          selectedIcon: Icon(Icons.home, size: 19),
-                          label: '今天',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(
-                            Icons.check_circle_outline_rounded,
-                            size: 19,
-                          ),
-                          selectedIcon: Icon(
-                            Icons.check_circle_rounded,
-                            size: 19,
-                          ),
-                          label: '习惯',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.track_changes_outlined, size: 19),
-                          selectedIcon: Icon(Icons.track_changes, size: 19),
-                          label: '计划',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.timer_outlined, size: 19),
-                          selectedIcon: Icon(Icons.timer, size: 19),
-                          label: '专注',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.insights_outlined, size: 19),
-                          selectedIcon: Icon(Icons.insights, size: 19),
-                          label: '复盘',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          ? StitchExactBottomNav(
+              items: _items,
+              currentIndex: clampedIndex,
+              onSelected: (index) {
+                if (index == clampedIndex) return;
+                Navigator.of(context).pushReplacementNamed(_routes[index]);
+              },
             )
           : null,
-    );
-  }
-}
-
-class _AmbientGlow extends StatelessWidget {
-  const _AmbientGlow({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
-        ),
-      ),
     );
   }
 }

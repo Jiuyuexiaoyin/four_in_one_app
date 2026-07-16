@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
+import 'package:four_in_one_app/app/router/app_router.dart';
 import 'package:four_in_one_app/app/theme/app_theme_tokens.dart';
 import 'package:four_in_one_app/features/goals/application/goals_store.dart';
 import 'package:four_in_one_app/features/goals/data/plan_record_attachment_storage.dart';
@@ -10,11 +13,12 @@ import 'package:four_in_one_app/shared/widgets/product/analytics_bar_list.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_strip.dart';
 import 'package:four_in_one_app/shared/widgets/product/metric_tile.dart';
 import 'package:four_in_one_app/shared/widgets/product/mini_heatmap_cell.dart';
-import 'package:four_in_one_app/shared/widgets/product/plan_goal_card.dart';
-import 'package:four_in_one_app/shared/widgets/product/outsiders_hero.dart';
 import 'package:four_in_one_app/shared/widgets/product/plan_tree_row.dart';
 import 'package:four_in_one_app/shared/widgets/product/progress_rail.dart';
 import 'package:four_in_one_app/shared/widgets/product/soft_surface.dart';
+import 'package:four_in_one_app/shared/widgets/stitch_exact/compact_plan_filter_bar.dart';
+import 'package:four_in_one_app/shared/widgets/stitch_exact/main_page_header.dart';
+import 'package:four_in_one_app/shared/widgets/stitch_exact/stitch_exact.dart';
 
 class GoalsPage extends StatelessWidget {
   const GoalsPage({this.attachmentStorage, super.key});
@@ -27,103 +31,112 @@ class GoalsPage extends StatelessWidget {
     final effectiveAttachmentStorage =
         attachmentStorage ?? const LocalPlanRecordAttachmentStorage();
 
-    return ListView(
-      key: const ValueKey('goals-page-scroll'),
-      padding: const EdgeInsets.fromLTRB(
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.spaceXl,
-        AppThemeTokens.pagePadding,
-        AppThemeTokens.pagePadding,
-      ),
+    return Stack(
       children: [
-        const OutsidersHero(
-          eyebrow: 'PLAN',
-          headline: '计划你的长期推进。',
-          supporting: '目标是方向，项目是路径，行动才是下一步。',
-        ),
-        const SizedBox(height: AppThemeTokens.spaceXl),
-        _PlanOverviewSurface(goalsStore: goalsStore),
-        const SizedBox(height: 14),
-        _PlanSearchSurface(
-          goalsStore: goalsStore,
-          onEditProject: (project) =>
-              _showEditProjectDialog(context, goalsStore, project),
-          onEditTask: (task) => _showEditTaskDialog(context, goalsStore, task),
-          onOpenProjectDetail: (project) => _showProjectDetailSheet(
-            context,
-            project: project,
-            goalsStore: goalsStore,
-            attachmentStorage: effectiveAttachmentStorage,
+        const Positioned.fill(child: StitchExactGridBackground()),
+        ListView(
+          key: const ValueKey('goals-page-scroll'),
+          scrollCacheExtent: const ScrollCacheExtent.pixels(1600),
+          padding: const EdgeInsets.fromLTRB(
+            AppThemeTokens.pagePadding,
+            StitchExactPremiumSpacing.pageTop,
+            AppThemeTokens.pagePadding,
+            StitchExactPremiumSpacing.pageBottom,
           ),
+          children: [
+            StitchExactMainPageHeader(
+              title: '计划',
+              leadingIcon: Icons.event_note_outlined,
+              actions: [
+                StitchExactMainHeaderAction(
+                  key: const ValueKey('add-goal-button'),
+                  icon: Icons.add_rounded,
+                  tooltip: '新建计划',
+                  onPressed: () => _showCreateGoalDialog(context, goalsStore),
+                  primary: true,
+                ),
+                StitchExactMainHeaderAction(
+                  key: const ValueKey('goals-header-settings'),
+                  icon: Icons.person_outline_rounded,
+                  tooltip: '我的/设置',
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(AppRoute.settings),
+                ),
+              ],
+            ),
+            Text(
+              '一个计划，一个下一步。',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: StitchExactPremiumSpacing.cardGap),
+            _PlanOverviewSummary(goalsStore: goalsStore),
+            const SizedBox(height: StitchExactPremiumSpacing.sectionTight),
+            if (goalsStore.goals.isEmpty)
+              _PlanEmptyStarter(
+                onCreatePlan: () => _showCreateGoalDialog(context, goalsStore),
+              )
+            else ...[
+              _CurrentPlanCard(
+                goalsStore: goalsStore,
+                onCreatePlan: () => _showCreateGoalDialog(context, goalsStore),
+                onEditGoal: (goal) =>
+                    _showEditGoalDialog(context, goalsStore, goal),
+                onOpenGoal: (goal) => _showPlanDetailSheet(
+                  context,
+                  goal: goal,
+                  goalsStore: goalsStore,
+                  attachmentStorage: effectiveAttachmentStorage,
+                ),
+                onAddAction: (goal) =>
+                    _showCreateActionForGoal(context, goalsStore, goal),
+              ),
+              const SizedBox(height: StitchExactPremiumSpacing.sectionTight),
+              _NextActionsSection(
+                goalsStore: goalsStore,
+                onToggleTask: (task) => goalsStore.toggleTask(task.id),
+                onEditTask: (task) =>
+                    _showEditTaskDialog(context, goalsStore, task),
+                onCreateTaskRecord: (task) =>
+                    _showCreateTaskRecordDialog(context, goalsStore, task),
+                onOpenProjectDetail: (project) => _showProjectDetailSheet(
+                  context,
+                  project: project,
+                  goalsStore: goalsStore,
+                  attachmentStorage: effectiveAttachmentStorage,
+                ),
+              ),
+              const SizedBox(height: StitchExactPremiumSpacing.sectionTight),
+              _AllPlansSection(
+                goalsStore: goalsStore,
+                onCreatePlan: () => _showCreateGoalDialog(context, goalsStore),
+                onEditGoal: (goal) =>
+                    _showEditGoalDialog(context, goalsStore, goal),
+                onOpenGoal: (goal) => _showPlanDetailSheet(
+                  context,
+                  goal: goal,
+                  goalsStore: goalsStore,
+                  attachmentStorage: effectiveAttachmentStorage,
+                ),
+              ),
+            ],
+            const SizedBox(height: StitchExactPremiumSpacing.sectionTight),
+            _PlanSearchDisclosure(
+              goalsStore: goalsStore,
+              onEditProject: (project) =>
+                  _showEditProjectDialog(context, goalsStore, project),
+              onEditTask: (task) =>
+                  _showEditTaskDialog(context, goalsStore, task),
+              onOpenProjectDetail: (project) => _showProjectDetailSheet(
+                context,
+                project: project,
+                goalsStore: goalsStore,
+                attachmentStorage: effectiveAttachmentStorage,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppThemeTokens.pagePadding),
-        _AddGoalSection(
-          onPressed: () => _showCreateGoalDialog(context, goalsStore),
-        ),
-        const SizedBox(height: 28),
-        _GoalsListHeader(
-          totalCount: goalsStore.totalCount,
-          completedCount: goalsStore.completedCount,
-        ),
-        const SizedBox(height: 14),
-        if (goalsStore.goals.isEmpty)
-          const _GoalsEmptyState()
-        else
-          Column(
-            children: goalsStore.goals
-                .map(
-                  (goal) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _GoalHierarchyCard(
-                      goal: goal,
-                      goalsStore: goalsStore,
-                      onOpenFocus: () =>
-                          _showGoalStructureSheet(context, goalsStore, goal),
-                      onEditGoal: () =>
-                          _showEditGoalDialog(context, goalsStore, goal),
-                      onCreateProject: () =>
-                          _showCreateProjectDialog(context, goalsStore, goal),
-                      onEditProject: (project) =>
-                          _showEditProjectDialog(context, goalsStore, project),
-                      onCreateSubproject: (project) =>
-                          _showCreateSubprojectDialog(
-                            context,
-                            goalsStore,
-                            project,
-                          ),
-                      onEditSubproject: (subproject) =>
-                          _showEditSubprojectDialog(
-                            context,
-                            goalsStore,
-                            subproject,
-                          ),
-                      onCreateProjectTask: (project) =>
-                          _showCreateTaskDialog(context, goalsStore, project),
-                      onCreateSubprojectTask: (subproject) =>
-                          _showCreateSubprojectTaskDialog(
-                            context,
-                            goalsStore,
-                            subproject,
-                          ),
-                      onEditTask: (task) =>
-                          _showEditTaskDialog(context, goalsStore, task),
-                      onCreateProjectRecord: (project) =>
-                          _showCreateProjectRecordDialog(
-                            context,
-                            goalsStore,
-                            project,
-                          ),
-                      onCreateTaskRecord: (task) => _showCreateTaskRecordDialog(
-                        context,
-                        goalsStore,
-                        task,
-                      ),
-                      attachmentStorage: effectiveAttachmentStorage,
-                    ),
-                  ),
-                )
-                .toList(growable: false),
-          ),
       ],
     );
   }
@@ -132,16 +145,40 @@ class GoalsPage extends StatelessWidget {
     BuildContext context,
     GoalsStore goalsStore,
   ) async {
-    final goalTitle = await showDialog<String>(
+    final draft = await showDialog<_PlanIdentityDraft>(
       context: context,
-      builder: (_) => const _TitleDialog(title: '新建目标', hintText: '输入目标名称'),
+      builder: (_) => const _PlanIdentityDialog(
+        title: '新建计划',
+        titleLabel: '计划名称',
+        initialTitle: '',
+        initialIcon: GoalItem.defaultIcon,
+        initialDescription: '',
+        initialColorValue: GoalItem.defaultColorValue,
+        defaultIcon: GoalItem.defaultIcon,
+      ),
     );
 
-    if (goalTitle == null) {
+    if (draft == null) {
       return;
     }
 
-    goalsStore.createGoal(goalTitle);
+    await goalsStore.createGoal(draft.title);
+    if (goalsStore.goals.isEmpty) {
+      return;
+    }
+
+    final createdGoal = goalsStore.goals.first;
+    if (createdGoal.title != draft.title) {
+      return;
+    }
+
+    await goalsStore.updateGoalIdentity(
+      createdGoal.id,
+      title: draft.title,
+      icon: draft.icon,
+      description: draft.description,
+      colorValue: draft.colorValue,
+    );
   }
 
   Future<void> _showCreateProjectDialog(
@@ -169,8 +206,8 @@ class GoalsPage extends StatelessWidget {
     final draft = await showDialog<_PlanIdentityDraft>(
       context: context,
       builder: (_) => _PlanIdentityDialog(
-        title: '编辑目标',
-        titleLabel: '目标名称',
+        title: '编辑计划',
+        titleLabel: '计划名称',
         initialTitle: goal.title,
         initialIcon: goal.icon,
         initialDescription: goal.description,
@@ -334,29 +371,42 @@ class GoalsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _showGoalStructureSheet(
+  Future<void> _showCreateActionForGoal(
     BuildContext context,
     GoalsStore goalsStore,
     GoalItem goal,
-  ) {
-    final effectiveAttachmentStorage =
-        attachmentStorage ?? const LocalPlanRecordAttachmentStorage();
+  ) async {
+    final projects = goalsStore.getProjectsForGoal(goal.id);
+    if (projects.isEmpty) {
+      await _showCreateProjectDialog(context, goalsStore, goal);
+      return;
+    }
 
+    await _showCreateTaskDialog(context, goalsStore, projects.first);
+  }
+
+  Future<void> _showPlanDetailSheet(
+    BuildContext context, {
+    required GoalItem goal,
+    required GoalsStore goalsStore,
+    required PlanRecordAttachmentStorage attachmentStorage,
+  }) {
     return showModalBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (_) => AnimatedBuilder(
         animation: goalsStore,
         builder: (sheetContext, _) {
-          return _GoalStructureSheet(
-            goal: goal,
+          final liveGoal = goalsStore.goalById(goal.id) ?? goal;
+          return _PlanDetailSheet(
+            goal: liveGoal,
             goalsStore: goalsStore,
-            attachmentStorage: effectiveAttachmentStorage,
+            attachmentStorage: attachmentStorage,
             onEditGoal: () =>
-                _showEditGoalDialog(sheetContext, goalsStore, goal),
+                _showEditGoalDialog(sheetContext, goalsStore, liveGoal),
             onCreateProject: () =>
-                _showCreateProjectDialog(sheetContext, goalsStore, goal),
+                _showCreateProjectDialog(sheetContext, goalsStore, liveGoal),
             onEditProject: (project) =>
                 _showEditProjectDialog(sheetContext, goalsStore, project),
             onCreateSubproject: (project) =>
@@ -380,6 +430,8 @@ class GoalsPage extends StatelessWidget {
             ),
             onCreateTaskRecord: (task) =>
                 _showCreateTaskRecordDialog(sheetContext, goalsStore, task),
+            onAddAction: () =>
+                _showCreateActionForGoal(sheetContext, goalsStore, liveGoal),
           );
         },
       ),
@@ -452,81 +504,66 @@ class GoalsPage extends StatelessWidget {
   }
 }
 
-class _PlanOverviewSurface extends StatelessWidget {
-  const _PlanOverviewSurface({required this.goalsStore});
+class _PlanOverviewSummary extends StatelessWidget {
+  const _PlanOverviewSummary({required this.goalsStore});
 
   final GoalsStore goalsStore;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final totalActions = goalsStore.tasks.length;
     final completedActions = goalsStore.tasks
         .where((task) => task.isCompleted)
         .length;
-    final totalSubprojects = goalsStore.subprojects.length;
-    final overviewProgress = totalActions == 0
-        ? 0.0
-        : completedActions / totalActions;
+    final activeActions = totalActions - completedActions;
+    final progress = totalActions == 0 ? 0.0 : completedActions / totalActions;
 
-    return Container(
-      padding: const EdgeInsets.all(AppThemeTokens.spaceXl),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusXl),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
+    return StitchExactPanel(
+      glow: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '目标树概览',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w700,
+          StitchExactCommandHeader(
+            eyebrow: '计划概览',
+            title: '今天要推进什么',
+            subtitle: '只看计划、下一步行动和已经完成的结果。',
+            leadingIcon: Icons.dashboard_customize_outlined,
+            compact: true,
+            trailing: StitchExactStatusPill(
+              label: '完成度',
+              value: '${(progress * 100).round()}%',
+              selected: totalActions > 0,
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '把长期结果拆成项目、子项目和行动。',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppThemeTokens.spaceMd),
-              Text(
-                '推进 ${goalsStore.completedCount} / ${goalsStore.totalCount}',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+          const SizedBox(height: 14),
+          StitchExactProgressRail(
+            label: '行动完成进度',
+            value: progress,
+            detail: '已完成 $completedActions / $totalActions',
+            valueKey: 'plan-overview-progress',
           ),
           const SizedBox(height: 14),
-          _PlanOverviewProgressLine(value: overviewProgress),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _PlanOverviewMetric(
-                label: '目标',
+          StitchExactMetricGrid(
+            metrics: [
+              StitchExactMetric(
+                label: '计划',
                 value: '${goalsStore.goals.length}',
+                detail: '总数',
               ),
-              _PlanOverviewMetric(
-                label: '项目',
-                value: '${goalsStore.projects.length}',
+              StitchExactMetric(
+                label: '进行中',
+                value: '$activeActions',
+                detail: '未完成行动',
               ),
-              _PlanOverviewMetric(label: '子项目', value: '$totalSubprojects'),
-              _PlanOverviewMetric(
-                label: '已完成行动',
-                value: '$completedActions / $totalActions',
+              StitchExactMetric(
+                label: '已完成',
+                value: '$completedActions',
+                detail: '完成行动',
+              ),
+              StitchExactMetric(
+                label: '记录',
+                value: '${goalsStore.records.length}',
+                detail: '真实记录',
               ),
             ],
           ),
@@ -536,43 +573,1106 @@ class _PlanOverviewSurface extends StatelessWidget {
   }
 }
 
-class _PlanOverviewMetric extends StatelessWidget {
-  const _PlanOverviewMetric({required this.label, required this.value});
+class _PlanEmptyStarter extends StatelessWidget {
+  const _PlanEmptyStarter({required this.onCreatePlan});
+
+  final VoidCallback onCreatePlan;
+
+  @override
+  Widget build(BuildContext context) {
+    return StitchExactPanel(
+      key: const ValueKey('goals-empty-state'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.flag_outlined,
+            color: StitchExactColors.cyanBright,
+            size: 24,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '还没有计划，先建立一个目标。',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: StitchExactColors.onSurface,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '先写下一个清晰方向，之后再添加行动和记录。',
+            style: TextStyle(
+              color: StitchExactColors.onSurfaceVariant,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const ValueKey('plan-empty-create-plan'),
+            onPressed: onCreatePlan,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('新建计划'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrentPlanCard extends StatelessWidget {
+  const _CurrentPlanCard({
+    required this.goalsStore,
+    required this.onCreatePlan,
+    required this.onEditGoal,
+    required this.onOpenGoal,
+    required this.onAddAction,
+  });
+
+  final GoalsStore goalsStore;
+  final VoidCallback onCreatePlan;
+  final ValueChanged<GoalItem> onEditGoal;
+  final ValueChanged<GoalItem> onOpenGoal;
+  final ValueChanged<GoalItem> onAddAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final goal = _currentFocusGoal(goalsStore);
+    if (goal == null) {
+      return _PlanEmptyStarter(onCreatePlan: onCreatePlan);
+    }
+
+    final tasks = _tasksForGoal(goalsStore, goal);
+    final projects = goalsStore.getProjectsForGoal(goal.id);
+    final progress = goalsStore.computeGoalProgress(goal.id);
+    final nextAction = _nextActionForGoal(goalsStore, goal);
+    final needsProject = nextAction == null && projects.isEmpty;
+    final meta = _planMetaForGoal(goalsStore, goal);
+    final color = Color(goal.colorValue);
+
+    return _PlanTechCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PlanIconBadge(text: goal.icon, color: color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _PlanPillarLabel(
+                      text: '当前计划',
+                      color: StitchExactColors.cyanBright,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _safePlanTitle(goal.title, '未命名计划'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: _planCardTitleStyle().copyWith(fontSize: 21),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            goal.description.trim().isEmpty
+                ? '保持一个清晰目标，下一步行动会出现在这里。'
+                : goal.description.trim(),
+            style: _planBodyStyle(),
+          ),
+          const SizedBox(height: 16),
+          _PlanMarkedProgress(
+            value: progress.hasTasks ? progress.percentage / 100 : 0,
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _PlanInfoChip(label: '进度', value: progress.label),
+              _PlanInfoChip(
+                label: '行动',
+                value: '${progress.completedTasks}/${tasks.length}',
+              ),
+              if (meta != null) _PlanInfoChip(label: '提醒', value: meta),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: StitchExactColors.surface.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: StitchExactColors.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _PlanPillarLabel(text: '下一步行动'),
+                const SizedBox(height: 8),
+                Text(
+                  nextAction == null
+                      ? needsProject
+                            ? '还没有项目，先建立项目，再添加可以推进的行动。'
+                            : '还没有行动，先添加一个可以今天推进的小动作。'
+                      : _safePlanTitle(nextAction.title, '未命名行动'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: StitchExactColors.onSurface,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    height: 1.25,
+                  ),
+                ),
+                if (nextAction != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _taskContext(goalsStore, nextAction),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _planBodyStyle().copyWith(fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                key: ValueKey('goal-open-focus-${goal.id}'),
+                onPressed: () =>
+                    nextAction == null ? onAddAction(goal) : onOpenGoal(goal),
+                icon: Icon(
+                  nextAction == null
+                      ? needsProject
+                            ? Icons.create_new_folder_outlined
+                            : Icons.add_task_rounded
+                      : Icons.play_arrow_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  nextAction == null
+                      ? needsProject
+                            ? '先建项目'
+                            : '添加行动'
+                      : '继续推进',
+                ),
+              ),
+              OutlinedButton.icon(
+                key: ValueKey('goal-current-edit-${goal.id}'),
+                onPressed: () => onEditGoal(goal),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+                label: const Text('编辑'),
+              ),
+              TextButton(
+                onPressed: () => onOpenGoal(goal),
+                child: const Text('详情'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NextActionsSection extends StatelessWidget {
+  const _NextActionsSection({
+    required this.goalsStore,
+    required this.onToggleTask,
+    required this.onEditTask,
+    required this.onCreateTaskRecord,
+    required this.onOpenProjectDetail,
+  });
+
+  final GoalsStore goalsStore;
+  final ValueChanged<GoalTaskItem> onToggleTask;
+  final ValueChanged<GoalTaskItem> onEditTask;
+  final ValueChanged<GoalTaskItem> onCreateTaskRecord;
+  final ValueChanged<ProjectItem> onOpenProjectDetail;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = _nextActions(goalsStore).take(6).toList(growable: false);
+
+    return _PlanTechCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PlanSectionTitle(icon: Icons.checklist_rounded, text: '下一步行动'),
+          const SizedBox(height: 12),
+          if (actions.isEmpty)
+            const _InlineCue(
+              cueKey: ValueKey('plan-empty-next-actions'),
+              text: '没有待处理行动。进入计划详情添加下一步。',
+            )
+          else
+            Column(
+              children: actions
+                  .map(
+                    (task) => _PlanActionRow(
+                      task: task,
+                      goalsStore: goalsStore,
+                      toggleKey: ValueKey('plan-next-action-toggle-${task.id}'),
+                      editKey: ValueKey('plan-next-action-edit-${task.id}'),
+                      addRecordKey: ValueKey(
+                        'plan-next-action-add-record-${task.id}',
+                      ),
+                      onToggle: () => onToggleTask(task),
+                      onEdit: () => onEditTask(task),
+                      onAddRecord: () => onCreateTaskRecord(task),
+                      onOpenProject: () {
+                        final project = goalsStore.projectById(task.projectId);
+                        if (project != null) {
+                          onOpenProjectDetail(project);
+                        }
+                      },
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AllPlansSection extends StatelessWidget {
+  const _AllPlansSection({
+    required this.goalsStore,
+    required this.onCreatePlan,
+    required this.onEditGoal,
+    required this.onOpenGoal,
+  });
+
+  final GoalsStore goalsStore;
+  final VoidCallback onCreatePlan;
+  final ValueChanged<GoalItem> onEditGoal;
+  final ValueChanged<GoalItem> onOpenGoal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: _PlanSectionTitle(
+                icon: Icons.folder_copy_outlined,
+                text: '全部计划',
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onCreatePlan,
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('新建计划'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...goalsStore.goals.map(
+          (goal) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _PlanCompactCard(
+              goal: goal,
+              goalsStore: goalsStore,
+              onOpen: () => onOpenGoal(goal),
+              onEdit: () => onEditGoal(goal),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlanCompactCard extends StatelessWidget {
+  const _PlanCompactCard({
+    required this.goal,
+    required this.goalsStore,
+    required this.onOpen,
+    required this.onEdit,
+  });
+
+  final GoalItem goal;
+  final GoalsStore goalsStore;
+  final VoidCallback onOpen;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = goalsStore.computeGoalProgress(goal.id);
+    final projects = goalsStore.getProjectsForGoal(goal.id);
+    final taskCount = goalsStore.taskCountForGoal(goal.id);
+    final meta = _planMetaForGoal(goalsStore, goal);
+    final color = Color(goal.colorValue);
+
+    return InkWell(
+      key: ValueKey('goal-row-${goal.id}'),
+      borderRadius: BorderRadius.circular(16),
+      onTap: onOpen,
+      child: _PlanTechCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PlanIconBadge(text: goal.icon, color: color, size: 38),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _safePlanTitle(goal.title, '未命名计划'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _planCardTitleStyle().copyWith(fontSize: 18),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        _joinNonEmpty([
+                          '项目 ${projects.length}',
+                          '行动 $taskCount',
+                          progress.label,
+                          meta,
+                        ], separator: ' · '),
+                        key: ValueKey('goal-progress-${goal.id}'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _planBodyStyle().copyWith(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  key: ValueKey('goal-edit-${goal.id}'),
+                  tooltip: '编辑',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _PlanMarkedProgress(
+              value: progress.hasTasks ? progress.percentage / 100 : 0,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanSearchDisclosure extends StatelessWidget {
+  const _PlanSearchDisclosure({
+    required this.goalsStore,
+    required this.onEditProject,
+    required this.onEditTask,
+    required this.onOpenProjectDetail,
+  });
+
+  final GoalsStore goalsStore;
+  final ValueChanged<ProjectItem> onEditProject;
+  final ValueChanged<GoalTaskItem> onEditTask;
+  final ValueChanged<ProjectItem> onOpenProjectDetail;
+
+  @override
+  Widget build(BuildContext context) {
+    return KeyedSubtree(
+      key: const ValueKey('plan-search-disclosure'),
+      child: _PlanSearchSurface(
+        goalsStore: goalsStore,
+        onEditProject: onEditProject,
+        onEditTask: onEditTask,
+        onOpenProjectDetail: onOpenProjectDetail,
+      ),
+    );
+  }
+}
+
+class _PlanDetailSheet extends StatelessWidget {
+  const _PlanDetailSheet({
+    required this.goal,
+    required this.goalsStore,
+    required this.attachmentStorage,
+    required this.onEditGoal,
+    required this.onCreateProject,
+    required this.onEditProject,
+    required this.onCreateSubproject,
+    required this.onEditSubproject,
+    required this.onCreateProjectTask,
+    required this.onCreateSubprojectTask,
+    required this.onEditTask,
+    required this.onCreateProjectRecord,
+    required this.onCreateTaskRecord,
+    required this.onAddAction,
+  });
+
+  final GoalItem goal;
+  final GoalsStore goalsStore;
+  final PlanRecordAttachmentStorage attachmentStorage;
+  final VoidCallback onEditGoal;
+  final VoidCallback onCreateProject;
+  final ValueChanged<ProjectItem> onEditProject;
+  final ValueChanged<ProjectItem> onCreateSubproject;
+  final ValueChanged<SubprojectItem> onEditSubproject;
+  final ValueChanged<ProjectItem> onCreateProjectTask;
+  final ValueChanged<SubprojectItem> onCreateSubprojectTask;
+  final ValueChanged<GoalTaskItem> onEditTask;
+  final ValueChanged<ProjectItem> onCreateProjectRecord;
+  final ValueChanged<GoalTaskItem> onCreateTaskRecord;
+  final VoidCallback onAddAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final projects = goalsStore.getProjectsForGoal(goal.id);
+    final tasks = _tasksForGoal(goalsStore, goal);
+    final progress = goalsStore.computeGoalProgress(goal.id);
+    final color = Color(goal.colorValue);
+
+    return DraggableScrollableSheet(
+      key: ValueKey('goal-focus-sheet-${goal.id}'),
+      expand: false,
+      initialChildSize: 0.86,
+      minChildSize: 0.50,
+      maxChildSize: 0.94,
+      builder: (context, scrollController) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: EdgeInsets.fromLTRB(
+              AppThemeTokens.pagePadding,
+              0,
+              AppThemeTokens.pagePadding,
+              MediaQuery.of(context).viewInsets.bottom +
+                  AppThemeTokens.pagePadding,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _PlanIconBadge(text: goal.icon, color: color, size: 44),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '计划详情',
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: StitchExactColors.cyanBright,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _safePlanTitle(goal.title, '未命名计划'),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '关闭',
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                if (goal.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(goal.description.trim(), style: _planBodyStyle()),
+                ],
+                const SizedBox(height: 14),
+                _PlanMarkedProgress(
+                  value: progress.hasTasks ? progress.percentage / 100 : 0,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _PlanInfoChip(label: '项目', value: '${projects.length}'),
+                    _PlanInfoChip(
+                      label: '行动',
+                      value: '${progress.completedTasks}/${tasks.length}',
+                    ),
+                    _PlanInfoChip(label: '进度', value: progress.label),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      key: ValueKey('goal-add-project-${goal.id}'),
+                      onPressed: projects.isEmpty
+                          ? onCreateProject
+                          : onAddAction,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: Text(projects.isEmpty ? '先建项目' : '添加行动'),
+                    ),
+                    OutlinedButton.icon(
+                      key: ValueKey('goal-focus-edit-${goal.id}'),
+                      onPressed: onEditGoal,
+                      icon: const Icon(Icons.edit_outlined, size: 17),
+                      label: const Text('编辑计划'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                const _PlanSectionTitle(
+                  icon: Icons.checklist_rounded,
+                  text: '行动',
+                ),
+                const SizedBox(height: 10),
+                if (tasks.isEmpty)
+                  _InlineCue(
+                    cueKey: const ValueKey('plan-detail-empty-actions'),
+                    onTap: projects.isEmpty ? onCreateProject : onAddAction,
+                    text: projects.isEmpty ? '还没有项目 · 先建项目' : '还没有行动 · 添加行动',
+                  )
+                else
+                  Column(
+                    children: tasks
+                        .map(
+                          (task) => _PlanActionRow(
+                            task: task,
+                            goalsStore: goalsStore,
+                            toggleKey: ValueKey('goal-task-toggle-${task.id}'),
+                            editKey: ValueKey('goal-task-edit-${task.id}'),
+                            addRecordKey: ValueKey(
+                              'goal-task-add-record-${task.id}',
+                            ),
+                            onToggle: () => goalsStore.toggleTask(task.id),
+                            onEdit: () => onEditTask(task),
+                            onAddRecord: () => onCreateTaskRecord(task),
+                            onOpenProject: () {
+                              final project = goalsStore.projectById(
+                                task.projectId,
+                              );
+                              if (project != null) {
+                                _showProjectDetailSheet(
+                                  context,
+                                  project: project,
+                                  goalsStore: goalsStore,
+                                  attachmentStorage: attachmentStorage,
+                                );
+                              }
+                            },
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                const SizedBox(height: 20),
+                const _PlanSectionTitle(
+                  icon: Icons.history_edu_outlined,
+                  text: '记录',
+                ),
+                const SizedBox(height: 10),
+                if (projects.isEmpty)
+                  const _InlineCue(
+                    cueKey: ValueKey('plan-detail-empty-records'),
+                    text: '添加项目后，可以在这里查看记录和统计。',
+                  )
+                else
+                  Column(
+                    children: projects
+                        .map(
+                          (project) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _ProjectRecordsPanel(
+                              project: project,
+                              goalsStore: goalsStore,
+                              attachmentStorage: attachmentStorage,
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                const SizedBox(height: 14),
+                Theme(
+                  data: Theme.of(
+                    context,
+                  ).copyWith(dividerColor: Colors.transparent),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: ExpansionTile(
+                      key: ValueKey('plan-advanced-breakdown-${goal.id}'),
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text('高级结构'),
+                      subtitle: const Text('项目、分组和完整树视图默认收起。'),
+                      children: [
+                        const SizedBox(height: 8),
+                        if (projects.isEmpty)
+                          _InlineCue(
+                            cueKey: const ValueKey('goal-empty-projects-cue'),
+                            onTap: onCreateProject,
+                            text: '还没有项目 · 添加推进方向',
+                          )
+                        else
+                          Column(
+                            children: projects
+                                .map(
+                                  (project) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _ProjectBranch(
+                                      project: project,
+                                      goalsStore: goalsStore,
+                                      onEditProject: () =>
+                                          onEditProject(project),
+                                      onCreateSubproject: () =>
+                                          onCreateSubproject(project),
+                                      onCreateProjectTask: () =>
+                                          onCreateProjectTask(project),
+                                      onEditSubproject: onEditSubproject,
+                                      onCreateSubprojectTask:
+                                          onCreateSubprojectTask,
+                                      onEditTask: onEditTask,
+                                      onCreateProjectRecord: () =>
+                                          onCreateProjectRecord(project),
+                                      onCreateTaskRecord: onCreateTaskRecord,
+                                      attachmentStorage: attachmentStorage,
+                                    ),
+                                  ),
+                                )
+                                .toList(growable: false),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PlanActionRow extends StatelessWidget {
+  const _PlanActionRow({
+    required this.task,
+    required this.goalsStore,
+    required this.onToggle,
+    required this.onEdit,
+    required this.onAddRecord,
+    required this.onOpenProject,
+    this.toggleKey,
+    this.editKey,
+    this.addRecordKey,
+  });
+
+  final GoalTaskItem task;
+  final GoalsStore goalsStore;
+  final VoidCallback onToggle;
+  final VoidCallback onEdit;
+  final VoidCallback onAddRecord;
+  final VoidCallback onOpenProject;
+  final Key? toggleKey;
+  final Key? editKey;
+  final Key? addRecordKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = _planningMetaText(
+      dueDate: task.dueDate,
+      priority: task.priority,
+      tags: task.tags,
+      overdue: goalsStore.isTaskOverdue(task),
+      dueToday: goalsStore.isTaskDueToday(task),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: StitchExactColors.surface.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: StitchExactColors.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            key: toggleKey,
+            value: task.isCompleted,
+            onChanged: (_) => onToggle(),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _safePlanTitle(task.title, '未命名行动'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: task.isCompleted
+                        ? StitchExactColors.onSurfaceVariant
+                        : StitchExactColors.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    decoration: task.isCompleted
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _joinNonEmpty([_taskContext(goalsStore, task), meta]),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: _planBodyStyle().copyWith(fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    TextButton(
+                      key: editKey,
+                      onPressed: onEdit,
+                      child: const Text('编辑'),
+                    ),
+                    TextButton(
+                      key: addRecordKey,
+                      onPressed: onAddRecord,
+                      child: const Text('记录'),
+                    ),
+                    TextButton(
+                      onPressed: onOpenProject,
+                      child: const Text('项目详情'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanIconBadge extends StatelessWidget {
+  const _PlanIconBadge({
+    required this.text,
+    required this.color,
+    this.size = 42,
+  });
+
+  final String text;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.36)),
+      ),
+      child: Text(
+        text.trim().isEmpty ? GoalItem.defaultIcon : text.trim(),
+        style: TextStyle(fontSize: size * 0.45),
+      ),
+    );
+  }
+}
+
+class _PlanInfoChip extends StatelessWidget {
+  const _PlanInfoChip({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Container(
-      width: 132,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor.withValues(
-          alpha: colorScheme.brightness == Brightness.dark ? 0.18 : 0.48,
-        ),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusMd),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.08)),
+        color: StitchExactColors.surfaceHighest.withValues(alpha: 0.56),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: StitchExactColors.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w800,
+      child: Text(
+        '$label $value',
+        style: const TextStyle(
+          color: StitchExactColors.onSurface,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+GoalItem? _currentFocusGoal(GoalsStore goalsStore) {
+  if (goalsStore.goals.isEmpty) {
+    return null;
+  }
+
+  for (final goal in goalsStore.goals) {
+    final progress = goalsStore.computeGoalProgress(goal.id);
+    if (!progress.isComplete) {
+      return goal;
+    }
+  }
+
+  return goalsStore.goals.first;
+}
+
+List<GoalTaskItem> _tasksForGoal(GoalsStore goalsStore, GoalItem goal) {
+  final projectIds = goalsStore
+      .getProjectsForGoal(goal.id)
+      .map((project) => project.id)
+      .toSet();
+  return goalsStore.tasks
+      .where((task) => projectIds.contains(task.projectId))
+      .toList(growable: false);
+}
+
+GoalTaskItem? _nextActionForGoal(GoalsStore goalsStore, GoalItem goal) {
+  final tasks = _tasksForGoal(
+    goalsStore,
+    goal,
+  ).where((task) => !task.isCompleted).toList(growable: false);
+  if (tasks.isEmpty) {
+    return null;
+  }
+  tasks.sort(_compareTasksForNextAction);
+  return tasks.first;
+}
+
+List<GoalTaskItem> _nextActions(GoalsStore goalsStore) {
+  final tasks = goalsStore.tasks
+      .where((task) => !task.isCompleted)
+      .toList(growable: false);
+  tasks.sort(_compareTasksForNextAction);
+  return tasks;
+}
+
+int _compareTasksForNextAction(GoalTaskItem a, GoalTaskItem b) {
+  final dueCompare = _dueSortKey(a.dueDate).compareTo(_dueSortKey(b.dueDate));
+  if (dueCompare != 0) {
+    return dueCompare;
+  }
+  final priorityCompare = _priorityRank(
+    a.priority,
+  ).compareTo(_priorityRank(b.priority));
+  if (priorityCompare != 0) {
+    return priorityCompare;
+  }
+  return b.createdAt.compareTo(a.createdAt);
+}
+
+String _taskContext(GoalsStore goalsStore, GoalTaskItem task) {
+  final project = goalsStore.projectById(task.projectId);
+  final goal = project == null ? null : goalsStore.goalById(project.goalId);
+  final subproject = task.subprojectId == null
+      ? null
+      : goalsStore.subprojectById(task.subprojectId!);
+  return _joinNonEmpty([
+    _safeNullableTitle(goal?.title, '未命名计划'),
+    _safeNullableTitle(project?.title, '未命名项目'),
+    _safeNullableTitle(subproject?.title, '未命名分组'),
+  ]);
+}
+
+String? _planMetaForGoal(GoalsStore goalsStore, GoalItem goal) {
+  final projects = goalsStore.getProjectsForGoal(goal.id);
+  final tasks = _tasksForGoal(goalsStore, goal);
+  final dueDates = <String>[
+    ...projects.map((project) => project.dueDate).whereType<String>(),
+    ...tasks.map((task) => task.dueDate).whereType<String>(),
+  ]..sort();
+  final priorities = <PlanPriority>[
+    ...projects.map((project) => project.priority).whereType<PlanPriority>(),
+    ...tasks.map((task) => task.priority).whereType<PlanPriority>(),
+  ]..sort((a, b) => _priorityRank(a).compareTo(_priorityRank(b)));
+  final parts = <String>[];
+  if (dueDates.isNotEmpty) {
+    parts.add('最近 ${dueDates.first}');
+  }
+  if (priorities.isNotEmpty) {
+    parts.add('优先级 ${_priorityLabel(priorities.first)}');
+  }
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
+String _safePlanTitle(String value, String fallback) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty || trimmed == '-1') {
+    return fallback;
+  }
+  return trimmed;
+}
+
+String? _safeNullableTitle(String? value, String fallback) {
+  if (value == null) {
+    return null;
+  }
+  return _safePlanTitle(value, fallback);
+}
+
+class _PlanSectionTitle extends StatelessWidget {
+  const _PlanSectionTitle({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: StitchExactColors.outline, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text.toUpperCase(),
+            style: const TextStyle(
+              color: StitchExactColors.outline,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2.1,
+              height: 1.25,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-              fontWeight: FontWeight.w600,
+        ),
+      ],
+    );
+  }
+}
+
+class _PlanTechCard extends StatelessWidget {
+  const _PlanTechCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: StitchExactColors.surface.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PlanPillarLabel extends StatelessWidget {
+  const _PlanPillarLabel({required this.text, this.color});
+
+  final String text;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: _planMonoStyle(color: color ?? StitchExactColors.onSurface),
+    );
+  }
+}
+
+class _PlanMarkedProgress extends StatelessWidget {
+  const _PlanMarkedProgress({required this.value});
+
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final bounded = value.clamp(0.0, 1.0);
+    return SizedBox(
+      height: 20,
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          Positioned.fill(
+            top: 9,
+            bottom: 9,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: StitchExactColors.surfaceHighest,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 9,
+            bottom: 9,
+            left: 0,
+            right: null,
+            width: 220 * bounded,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: StitchExactColors.cyanBright,
+                boxShadow: [
+                  BoxShadow(
+                    color: StitchExactColors.cyanBright.withValues(alpha: 0.45),
+                    blurRadius: 9,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          for (final fraction in const [0.25, 0.5, 0.75])
+            Positioned(
+              left: 220 * fraction,
+              top: 5,
+              child: Container(
+                width: 1,
+                height: 10,
+                color: StitchExactColors.outlineVariant,
+              ),
+            ),
+          Positioned(
+            left: 220 * bounded,
+            top: 1,
+            child: Container(
+              width: 3,
+              height: 18,
+              color: StitchExactColors.onSurface,
             ),
           ),
         ],
@@ -581,54 +1681,33 @@ class _PlanOverviewMetric extends StatelessWidget {
   }
 }
 
-class _PlanOverviewProgressLine extends StatelessWidget {
-  const _PlanOverviewProgressLine({required this.value});
-
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final boundedValue = value.clamp(0.0, 1.0).toDouble();
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppThemeTokens.radiusPill),
-      child: LinearProgressIndicator(
-        minHeight: 7,
-        value: boundedValue,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(
-          alpha: colorScheme.brightness == Brightness.dark ? 0.16 : 0.46,
-        ),
-        valueColor: AlwaysStoppedAnimation<Color>(
-          colorScheme.primary.withValues(alpha: 0.72),
-        ),
-      ),
-    );
-  }
+TextStyle _planCardTitleStyle() {
+  return const TextStyle(
+    color: StitchExactColors.onSurface,
+    fontSize: 19,
+    fontWeight: FontWeight.w900,
+    height: 1.08,
+    letterSpacing: 0,
+  );
 }
 
-enum _PlanSearchFilter {
-  all('全部'),
-  today('今天'),
-  overdue('逾期'),
-  highPriority('高优先级'),
-  incomplete('未完成'),
-  completed('已完成'),
-  tag('标签');
-
-  const _PlanSearchFilter(this.label);
-
-  final String label;
+TextStyle _planBodyStyle() {
+  return const TextStyle(
+    color: StitchExactColors.onSurfaceVariant,
+    fontSize: 13,
+    height: 1.46,
+    fontWeight: FontWeight.w600,
+  );
 }
 
-enum _PlanSortMode {
-  hierarchy('默认层级'),
-  dueDate('截止日期'),
-  priority('优先级');
-
-  const _PlanSortMode(this.label);
-
-  final String label;
+TextStyle _planMonoStyle({Color? color, double fontSize = 10}) {
+  return TextStyle(
+    color: color ?? StitchExactColors.onSurfaceVariant,
+    fontSize: fontSize,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 1.1,
+    height: 1.1,
+  );
 }
 
 enum _PlanSearchResultType { project, task }
@@ -682,9 +1761,7 @@ class _PlanSearchSurface extends StatefulWidget {
 
 class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
   final TextEditingController _queryController = TextEditingController();
-  _PlanSearchFilter _filter = _PlanSearchFilter.all;
-  _PlanSortMode _sortMode = _PlanSortMode.hierarchy;
-  String? _selectedTag;
+  CompactPlanFilterState _filterState = const CompactPlanFilterState();
 
   @override
   void dispose() {
@@ -694,186 +1771,68 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
 
   @override
   Widget build(BuildContext context) {
+    final active = _isActive;
+    final results = active ? _results() : const <_PlanSearchResult>[];
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final tags = _availableTags();
-    final results = _results();
-    final active = _isActive;
+    Widget? resultList;
 
-    return SoftSurface(
-      padding: const EdgeInsets.all(16),
-      borderRadius: AppThemeTokens.radiusLg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '计划筛选',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+    if (active) {
+      resultList = results.isEmpty
+          ? Text(
+              '没有找到匹配的项目或行动。',
+              key: const ValueKey('plan-filter-empty'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppThemeTokens.secondaryTextTone(colorScheme),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '匹配的项目与行动',
+                  key: const ValueKey('plan-filtered-results'),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppThemeTokens.secondaryTextTone(colorScheme),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              if (active)
-                TextButton(
-                  key: const ValueKey('plan-search-clear'),
-                  onPressed: _clear,
-                  child: const Text('清除'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '按截止日期、优先级和标签快速找到项目或行动。',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const ValueKey('plan-search-field'),
-            controller: _queryController,
-            textInputAction: TextInputAction.search,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search_rounded),
-              labelText: '搜索项目 / 行动 / 标签',
-              isDense: true,
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _PlanSearchFilter.values
-                .map(
-                  (filter) => FilterChip(
-                    key: ValueKey('plan-filter-${filter.name}'),
-                    label: Text(filter.label),
-                    selected: _filter == filter,
-                    onSelected: (_) {
-                      setState(() {
-                        _filter = filter;
-                        if (filter != _PlanSearchFilter.tag) {
-                          _selectedTag = null;
-                        }
-                      });
-                    },
-                    visualDensity: VisualDensity.compact,
+                const SizedBox(height: 8),
+                ...results.map(
+                  (result) => _PlanSearchResultRow(
+                    result: result,
+                    goalsStore: widget.goalsStore,
+                    onEditProject: widget.onEditProject,
+                    onEditTask: widget.onEditTask,
+                    onOpenProjectDetail: widget.onOpenProjectDetail,
                   ),
-                )
-                .toList(growable: false),
-          ),
-          if (_filter == _PlanSearchFilter.tag) ...[
-            const SizedBox(height: 10),
-            if (tags.isEmpty)
-              Text(
-                '还没有标签。',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppThemeTokens.secondaryTextTone(colorScheme),
                 ),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: tags
-                    .map(
-                      (tag) => ChoiceChip(
-                        key: ValueKey('plan-tag-$tag'),
-                        label: Text('#$tag'),
-                        selected: _selectedTag == tag,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedTag = _selectedTag == tag ? null : tag;
-                          });
-                        },
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-          ],
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                '排序',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              ..._PlanSortMode.values.map(
-                (mode) => ChoiceChip(
-                  key: ValueKey('plan-sort-${mode.name}'),
-                  label: Text(mode.label),
-                  selected: _sortMode == mode,
-                  onSelected: (_) {
-                    setState(() {
-                      _sortMode = mode;
-                    });
-                  },
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ],
-          ),
-          if (active) ...[
-            const SizedBox(height: 14),
-            Text(
-              '筛选结果 ${results.length}',
-              key: const ValueKey('plan-filtered-results'),
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (results.isEmpty)
-              Text(
-                '没有找到匹配的项目或行动。',
-                key: const ValueKey('plan-filter-empty'),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppThemeTokens.secondaryTextTone(colorScheme),
-                ),
-              )
-            else
-              Column(
-                children: results
-                    .map(
-                      (result) => _PlanSearchResultRow(
-                        result: result,
-                        goalsStore: widget.goalsStore,
-                        onEditProject: widget.onEditProject,
-                        onEditTask: widget.onEditTask,
-                        onOpenProjectDetail: widget.onOpenProjectDetail,
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-          ],
-        ],
-      ),
+              ],
+            );
+    }
+
+    return CompactPlanFilterBar(
+      searchController: _queryController,
+      availableTags: _availableTags(),
+      filterState: _filterState,
+      onSearchChanged: (_) => setState(() {}),
+      onFilterStateChanged: (state) {
+        setState(() {
+          _filterState = state;
+        });
+      },
+      onClearAll: _clear,
+      results: resultList,
     );
   }
 
   bool get _isActive =>
-      _queryController.text.trim().isNotEmpty ||
-      _filter != _PlanSearchFilter.all ||
-      _sortMode != _PlanSortMode.hierarchy;
+      _queryController.text.trim().isNotEmpty || !_filterState.isDefault;
 
   void _clear() {
     setState(() {
       _queryController.clear();
-      _filter = _PlanSearchFilter.all;
-      _sortMode = _PlanSortMode.hierarchy;
-      _selectedTag = null;
+      _filterState = const CompactPlanFilterState();
     });
   }
 
@@ -939,18 +1898,32 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
       return false;
     }
 
-    return switch (_filter) {
-      _PlanSearchFilter.all => true,
-      _PlanSearchFilter.today => _isDueToday(result),
-      _PlanSearchFilter.overdue => _isOverdue(result),
-      _PlanSearchFilter.highPriority =>
-        result.priority == PlanPriority.high ||
-            result.priority == PlanPriority.urgent,
-      _PlanSearchFilter.incomplete => !_isComplete(result),
-      _PlanSearchFilter.completed => _isComplete(result),
-      _PlanSearchFilter.tag =>
-        _selectedTag != null && result.tags.contains(_selectedTag),
-    };
+    final filters = _filterState.filters;
+    if (filters.contains(CompactPlanFilterKind.today) && !_isDueToday(result)) {
+      return false;
+    }
+    if (filters.contains(CompactPlanFilterKind.overdue) &&
+        !_isOverdue(result)) {
+      return false;
+    }
+    if (filters.contains(CompactPlanFilterKind.highPriority) &&
+        result.priority != PlanPriority.high &&
+        result.priority != PlanPriority.urgent) {
+      return false;
+    }
+    if (filters.contains(CompactPlanFilterKind.incomplete) &&
+        _isComplete(result)) {
+      return false;
+    }
+    if (filters.contains(CompactPlanFilterKind.completed) &&
+        !_isComplete(result)) {
+      return false;
+    }
+    if (_filterState.tag != null && !result.tags.contains(_filterState.tag)) {
+      return false;
+    }
+
+    return true;
   }
 
   bool _matchesQuery(_PlanSearchResult result, String query) {
@@ -965,12 +1938,12 @@ class _PlanSearchSurfaceState extends State<_PlanSearchSurface> {
   }
 
   int _compareResults(_PlanSearchResult a, _PlanSearchResult b) {
-    final primary = switch (_sortMode) {
-      _PlanSortMode.hierarchy => a.index.compareTo(b.index),
-      _PlanSortMode.dueDate => _dueSortKey(
+    final primary = switch (_filterState.sortMode) {
+      CompactPlanSortMode.hierarchy => a.index.compareTo(b.index),
+      CompactPlanSortMode.dueDate => _dueSortKey(
         a.dueDate,
       ).compareTo(_dueSortKey(b.dueDate)),
-      _PlanSortMode.priority => _priorityRank(
+      CompactPlanSortMode.priority => _priorityRank(
         a.priority,
       ).compareTo(_priorityRank(b.priority)),
     };
@@ -1236,120 +2209,6 @@ DateTime? _parseLocalDateForPicker(String? value) {
   return parsed;
 }
 
-class _AddGoalSection extends StatelessWidget {
-  const _AddGoalSection({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('写下长期结果', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 6),
-                Text(
-                  '先确定方向，再拆成项目、子项目和行动。',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppThemeTokens.secondaryTextTone(colorScheme),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          FilledButton(
-            key: const ValueKey('add-goal-button'),
-            onPressed: onPressed,
-            child: const Text('添加目标'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GoalsListHeader extends StatelessWidget {
-  const _GoalsListHeader({
-    required this.totalCount,
-    required this.completedCount,
-  });
-
-  final int totalCount;
-  final int completedCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      children: [
-        Expanded(child: Text('目标规划', style: theme.textTheme.titleLarge)),
-        Text(
-          '推进 $completedCount / $totalCount',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: AppThemeTokens.secondaryTextTone(colorScheme),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GoalsEmptyState extends StatelessWidget {
-  const _GoalsEmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      key: const ValueKey('goals-empty-state'),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppThemeTokens.softSurfaceTone(colorScheme),
-        borderRadius: BorderRadius.circular(AppThemeTokens.radiusLg),
-        border: Border.all(color: AppThemeTokens.borderTone(colorScheme)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.flag_outlined,
-            size: 20,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 12),
-          Text('还没有长期目标', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            '先写下一个想长期推进的结果。',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppThemeTokens.secondaryTextTone(colorScheme),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _TitleDialog extends StatefulWidget {
   const _TitleDialog({
     required this.title,
@@ -1483,7 +2342,7 @@ class _PlanningMetadataEditorState extends State<_PlanningMetadataEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Text(
           '计划属性',
           style: theme.textTheme.labelLarge?.copyWith(
@@ -2027,104 +2886,6 @@ class _PlanIdentityDialogState extends State<_PlanIdentityDialog> {
   }
 }
 
-class _GoalHierarchyCard extends StatelessWidget {
-  const _GoalHierarchyCard({
-    required this.goal,
-    required this.goalsStore,
-    required this.onOpenFocus,
-    required this.onEditGoal,
-    required this.onCreateProject,
-    required this.onEditProject,
-    required this.onCreateSubproject,
-    required this.onEditSubproject,
-    required this.onCreateProjectTask,
-    required this.onCreateSubprojectTask,
-    required this.onEditTask,
-    required this.onCreateProjectRecord,
-    required this.onCreateTaskRecord,
-    required this.attachmentStorage,
-  });
-
-  final GoalItem goal;
-  final GoalsStore goalsStore;
-  final VoidCallback onOpenFocus;
-  final VoidCallback onEditGoal;
-  final VoidCallback onCreateProject;
-  final ValueChanged<ProjectItem> onEditProject;
-  final ValueChanged<ProjectItem> onCreateSubproject;
-  final ValueChanged<SubprojectItem> onEditSubproject;
-  final ValueChanged<ProjectItem> onCreateProjectTask;
-  final ValueChanged<SubprojectItem> onCreateSubprojectTask;
-  final ValueChanged<GoalTaskItem> onEditTask;
-  final ValueChanged<ProjectItem> onCreateProjectRecord;
-  final ValueChanged<GoalTaskItem> onCreateTaskRecord;
-  final PlanRecordAttachmentStorage attachmentStorage;
-
-  @override
-  Widget build(BuildContext context) {
-    final projects = goalsStore.getProjectsForGoal(goal.id);
-    final progress = goalsStore.computeGoalProgress(goal.id);
-    final projectCount = projects.length;
-    final subprojectCount = projects.fold<int>(
-      0,
-      (count, project) =>
-          count + goalsStore.getSubprojectsForProject(project.id).length,
-    );
-    final taskCount = goalsStore.taskCountForGoal(goal.id);
-
-    return PlanGoalCard(
-      key: ValueKey('goal-row-${goal.id}'),
-      goalId: goal.id,
-      title: goal.title,
-      icon: goal.icon,
-      description: goal.description,
-      colorValue: goal.colorValue,
-      projectCount: projectCount,
-      subprojectCount: subprojectCount,
-      actionCount: taskCount,
-      completedActionCount: progress.completedTasks,
-      progressLabel: progress.label,
-      hasActions: progress.hasTasks,
-      progressValue: progress.hasTasks ? progress.percentage / 100 : null,
-      progressTextKey: ValueKey('goal-progress-${goal.id}'),
-      openTreeKey: ValueKey('goal-open-focus-${goal.id}'),
-      editGoalKey: ValueKey('goal-edit-${goal.id}'),
-      addProjectKey: ValueKey('goal-add-project-${goal.id}'),
-      onOpenTree: onOpenFocus,
-      onEditGoal: onEditGoal,
-      onAddProject: onCreateProject,
-      child: projects.isEmpty
-          ? const _InlineCue(
-              cueKey: ValueKey('goal-empty-projects-cue'),
-              text: '先添加项目，把目标拆成推进方向。',
-            )
-          : Column(
-              children: projects
-                  .map(
-                    (project) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ProjectBranch(
-                        project: project,
-                        goalsStore: goalsStore,
-                        onEditProject: () => onEditProject(project),
-                        onCreateSubproject: () => onCreateSubproject(project),
-                        onCreateProjectTask: () => onCreateProjectTask(project),
-                        onEditSubproject: onEditSubproject,
-                        onCreateSubprojectTask: onCreateSubprojectTask,
-                        onEditTask: onEditTask,
-                        onCreateProjectRecord: () =>
-                            onCreateProjectRecord(project),
-                        onCreateTaskRecord: onCreateTaskRecord,
-                        attachmentStorage: attachmentStorage,
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-    );
-  }
-}
-
 class _ProjectBranch extends StatelessWidget {
   const _ProjectBranch({
     required this.project,
@@ -2310,327 +3071,6 @@ class _SubprojectBranch extends StatelessWidget {
               editKey: ValueKey('goal-task-edit-${task.id}'),
               addRecordKey: ValueKey('goal-task-add-record-${task.id}'),
               onToggleTask: () => goalsStore.toggleTask(task.id),
-              onEdit: () => onEditTask(task),
-              onAddRecord: () => onCreateTaskRecord(task),
-            ),
-          )
-          .toList(growable: false),
-    );
-  }
-}
-
-class _GoalStructureSheet extends StatelessWidget {
-  const _GoalStructureSheet({
-    required this.goal,
-    required this.goalsStore,
-    required this.onEditGoal,
-    required this.onCreateProject,
-    required this.onEditProject,
-    required this.onCreateSubproject,
-    required this.onEditSubproject,
-    required this.onCreateProjectTask,
-    required this.onCreateSubprojectTask,
-    required this.onEditTask,
-    required this.onCreateProjectRecord,
-    required this.onCreateTaskRecord,
-    required this.attachmentStorage,
-  });
-
-  final GoalItem goal;
-  final GoalsStore goalsStore;
-  final VoidCallback onEditGoal;
-  final VoidCallback onCreateProject;
-  final ValueChanged<ProjectItem> onEditProject;
-  final ValueChanged<ProjectItem> onCreateSubproject;
-  final ValueChanged<SubprojectItem> onEditSubproject;
-  final ValueChanged<ProjectItem> onCreateProjectTask;
-  final ValueChanged<SubprojectItem> onCreateSubprojectTask;
-  final ValueChanged<GoalTaskItem> onEditTask;
-  final ValueChanged<ProjectItem> onCreateProjectRecord;
-  final ValueChanged<GoalTaskItem> onCreateTaskRecord;
-  final PlanRecordAttachmentStorage attachmentStorage;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final projects = goalsStore.getProjectsForGoal(goal.id);
-    final progress = goalsStore.computeGoalProgress(goal.id);
-
-    return SafeArea(
-      child: Container(
-        key: ValueKey('goal-focus-sheet-${goal.id}'),
-        padding: EdgeInsets.fromLTRB(
-          AppThemeTokens.pagePadding,
-          8,
-          AppThemeTokens.pagePadding,
-          MediaQuery.of(context).viewInsets.bottom + AppThemeTokens.pagePadding,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('目标树结构', style: theme.textTheme.labelLarge),
-              const SizedBox(height: 6),
-              Text(
-                goal.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '项目 ${projects.length} · 行动 ${goalsStore.taskCountForGoal(goal.id)} · ${progress.label}',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: progress.hasTasks
-                      ? colorScheme.primary
-                      : AppThemeTokens.secondaryTextTone(colorScheme),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ProgressRail(
-                value: progress.hasTasks ? progress.percentage / 100 : null,
-                height: 6,
-                fillColor: colorScheme.primary.withValues(alpha: 0.72),
-                backgroundColor: AppThemeTokens.borderTone(
-                  colorScheme,
-                ).withValues(alpha: 0.42),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  FilledButton.tonalIcon(
-                    key: ValueKey('goal-focus-edit-${goal.id}'),
-                    onPressed: onEditGoal,
-                    icon: const Icon(Icons.tune_rounded, size: 16),
-                    label: const Text('编辑目标'),
-                  ),
-                  FilledButton.tonalIcon(
-                    key: ValueKey('goal-focus-add-project-${goal.id}'),
-                    onPressed: onCreateProject,
-                    icon: const Icon(Icons.add_rounded, size: 16),
-                    label: const Text('添加项目'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              if (projects.isEmpty)
-                _InlineCue(
-                  cueKey: const ValueKey('goal-focus-empty-projects-cue'),
-                  onTap: onCreateProject,
-                  text: '还没有项目 · 添加推进方向',
-                )
-              else
-                Column(
-                  children: projects
-                      .map(
-                        (project) => _FocusedProjectBlock(
-                          project: project,
-                          goalsStore: goalsStore,
-                          onEditProject: () => onEditProject(project),
-                          onCreateSubproject: () => onCreateSubproject(project),
-                          onCreateProjectTask: () =>
-                              onCreateProjectTask(project),
-                          onEditSubproject: onEditSubproject,
-                          onCreateSubprojectTask: onCreateSubprojectTask,
-                          onEditTask: onEditTask,
-                          onCreateProjectRecord: () =>
-                              onCreateProjectRecord(project),
-                          onCreateTaskRecord: onCreateTaskRecord,
-                          attachmentStorage: attachmentStorage,
-                        ),
-                      )
-                      .toList(growable: false),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FocusedProjectBlock extends StatelessWidget {
-  const _FocusedProjectBlock({
-    required this.project,
-    required this.goalsStore,
-    required this.onEditProject,
-    required this.onCreateSubproject,
-    required this.onCreateProjectTask,
-    required this.onEditSubproject,
-    required this.onCreateSubprojectTask,
-    required this.onEditTask,
-    required this.onCreateProjectRecord,
-    required this.onCreateTaskRecord,
-    required this.attachmentStorage,
-  });
-
-  final ProjectItem project;
-  final GoalsStore goalsStore;
-  final VoidCallback onEditProject;
-  final VoidCallback onCreateSubproject;
-  final VoidCallback onCreateProjectTask;
-  final ValueChanged<SubprojectItem> onEditSubproject;
-  final ValueChanged<SubprojectItem> onCreateSubprojectTask;
-  final ValueChanged<GoalTaskItem> onEditTask;
-  final VoidCallback onCreateProjectRecord;
-  final ValueChanged<GoalTaskItem> onCreateTaskRecord;
-  final PlanRecordAttachmentStorage attachmentStorage;
-
-  @override
-  Widget build(BuildContext context) {
-    final directTasks = goalsStore.getDirectTasksForProject(project.id);
-    final subprojects = goalsStore.getSubprojectsForProject(project.id);
-    final progress = goalsStore.computeProjectProgress(project.id);
-    final totalTasks = goalsStore.getTasksForProject(project.id).length;
-    final planningMeta = _planningMetaText(
-      dueDate: project.dueDate,
-      priority: project.priority,
-      tags: project.tags,
-      overdue: goalsStore.isProjectOverdue(project),
-      dueToday: goalsStore.isProjectDueToday(project),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: PlanTreeRow(
-        type: PlanTreeRowType.project,
-        title: project.title,
-        identitySeed: project.id,
-        icon: project.icon,
-        description: project.description,
-        colorValue: project.colorValue,
-        metadataText: _joinNonEmpty([
-          '子项目 ${subprojects.length} · 行动 $totalTasks',
-          planningMeta,
-        ], separator: ' · '),
-        progressText: '行动 $totalTasks · ${progress.label}',
-        progressValue: progress.hasTasks ? progress.percentage / 100 : null,
-        hasProgress: progress.hasTasks,
-        editKey: ValueKey('goal-focus-project-edit-${project.id}'),
-        detailKey: ValueKey('goal-focus-project-open-detail-${project.id}'),
-        addRecordKey: ValueKey('goal-focus-project-add-record-${project.id}'),
-        addSubprojectKey: ValueKey(
-          'goal-focus-project-add-subproject-${project.id}',
-        ),
-        addTaskKey: ValueKey('goal-focus-project-add-task-${project.id}'),
-        onEdit: onEditProject,
-        onOpenDetail: () => _showProjectDetailSheet(
-          context,
-          project: project,
-          goalsStore: goalsStore,
-          attachmentStorage: attachmentStorage,
-        ),
-        onAddRecord: onCreateProjectRecord,
-        onAddSubproject: onCreateSubproject,
-        onAddTask: onCreateProjectTask,
-        emptyAffordanceKey: directTasks.isEmpty && subprojects.isEmpty
-            ? const ValueKey('goal-focus-empty-tasks-cue')
-            : null,
-        emptyAffordanceText: directTasks.isEmpty && subprojects.isEmpty
-            ? '还没有行动 · 添加行动'
-            : null,
-        onEmptyAffordanceTap: directTasks.isEmpty && subprojects.isEmpty
-            ? onCreateProjectTask
-            : null,
-        children: [
-          ...directTasks.map(
-            (task) => PlanTreeRow(
-              type: PlanTreeRowType.task,
-              title: task.title,
-              completed: task.isCompleted,
-              metadataText: _planningMetaText(
-                dueDate: task.dueDate,
-                priority: task.priority,
-                tags: task.tags,
-                overdue: goalsStore.isTaskOverdue(task),
-                dueToday: goalsStore.isTaskDueToday(task),
-              ),
-              editKey: ValueKey('goal-focus-task-edit-${task.id}'),
-              addRecordKey: ValueKey('goal-focus-task-add-record-${task.id}'),
-              onEdit: () => onEditTask(task),
-              onAddRecord: () => onCreateTaskRecord(task),
-            ),
-          ),
-          ...subprojects.map(
-            (subproject) => _FocusedSubprojectBlock(
-              subproject: subproject,
-              goalsStore: goalsStore,
-              onEdit: () => onEditSubproject(subproject),
-              onCreateTask: () => onCreateSubprojectTask(subproject),
-              onEditTask: onEditTask,
-              onCreateTaskRecord: onCreateTaskRecord,
-            ),
-          ),
-          _ProjectRecordsPanel(
-            project: project,
-            goalsStore: goalsStore,
-            attachmentStorage: attachmentStorage,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FocusedSubprojectBlock extends StatelessWidget {
-  const _FocusedSubprojectBlock({
-    required this.subproject,
-    required this.goalsStore,
-    required this.onEdit,
-    required this.onCreateTask,
-    required this.onEditTask,
-    required this.onCreateTaskRecord,
-  });
-
-  final SubprojectItem subproject;
-  final GoalsStore goalsStore;
-  final VoidCallback onEdit;
-  final VoidCallback onCreateTask;
-  final ValueChanged<GoalTaskItem> onEditTask;
-  final ValueChanged<GoalTaskItem> onCreateTaskRecord;
-
-  @override
-  Widget build(BuildContext context) {
-    final tasks = goalsStore.getTasksForSubproject(subproject.id);
-    final progress = goalsStore.computeSubprojectProgress(subproject.id);
-
-    return PlanTreeRow(
-      type: PlanTreeRowType.subproject,
-      level: 1,
-      title: subproject.title,
-      identitySeed: subproject.id,
-      progressText: '行动 ${tasks.length} · ${progress.label}',
-      progressValue: progress.hasTasks ? progress.percentage / 100 : null,
-      hasProgress: progress.hasTasks,
-      editKey: ValueKey('goal-focus-subproject-edit-${subproject.id}'),
-      addTaskKey: ValueKey('goal-focus-subproject-add-task-${subproject.id}'),
-      onEdit: onEdit,
-      onAddTask: onCreateTask,
-      emptyAffordanceKey: tasks.isEmpty
-          ? ValueKey('goal-focus-subproject-empty-${subproject.id}')
-          : null,
-      emptyAffordanceText: tasks.isEmpty ? '还没有行动 · 添加行动' : null,
-      onEmptyAffordanceTap: tasks.isEmpty ? onCreateTask : null,
-      children: tasks
-          .map(
-            (task) => PlanTreeRow(
-              type: PlanTreeRowType.task,
-              title: task.title,
-              completed: task.isCompleted,
-              metadataText: _planningMetaText(
-                dueDate: task.dueDate,
-                priority: task.priority,
-                tags: task.tags,
-                overdue: goalsStore.isTaskOverdue(task),
-                dueToday: goalsStore.isTaskDueToday(task),
-              ),
-              editKey: ValueKey('goal-focus-task-edit-${task.id}'),
-              addRecordKey: ValueKey('goal-focus-task-add-record-${task.id}'),
               onEdit: () => onEditTask(task),
               onAddRecord: () => onCreateTaskRecord(task),
             ),
@@ -2963,7 +3403,7 @@ class _ProjectStatsSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 _ProjectDetailSnapshot(
                   projectId: project.id,
                   goalTitle: goal?.title ?? '所属目标不可用',

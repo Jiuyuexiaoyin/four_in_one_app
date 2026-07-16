@@ -1,0 +1,31 @@
+# Changelog
+
+本文件记录 Get Ready 的重要产品、平台与质量变更。
+
+## 2.6.0 — 2026-07-16
+
+### 品牌与平台
+
+- 启用正式产品名 **Get Ready** 与标语“随时准备，迎接每一次机会。”。
+- 用开放圆弧、绿色状态栏和绿色圆点构成的新标志替换旧三阶品牌。
+- 更新标准/圆形 Launcher、Adaptive Icon、Android 13+ themed/monochrome icon、通知小图标及 Splash 资产。
+- 更新 About、Android 可见名称与适用的平台元数据，版本提升至 `2.6.0+18`。
+
+### 产品与体验整合
+
+- 纳入 Android 通知权限中心、Habit/Focus 通知渠道、普通提醒调度、重启恢复与安全深链。
+- 保留并验证 Habit、Plan、Focus、Today 与 Review 的跨页面数据同步。
+- 完成 Plan 主界面简化，保持目标/项目/行动与记录语义不变。
+- 完成 Settings 色板、Plan 搜索筛选与 Focus 时长选择等定向组件打磨。
+- 保留现有 Stores、领域模型、持久化 schema、路由和已接受的交互逻辑。
+
+### 质量
+
+- 完整 Flutter 测试结果：251/251 通过。
+- 更新品牌、架构、Android 通知、隐私、运行与测试文档。
+- Debug APK 仅作为本地设备测试产物，不纳入版本控制。
+
+### 已知验证边界
+
+- Android Launcher 遮罩、Android 12 Splash、主题图标、通知阴影与厂商调度行为仍需要物理 Android 设备验证。
+- 未引入账号、云同步、分析、广告或后端服务。

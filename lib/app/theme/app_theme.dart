@@ -7,15 +7,15 @@ abstract final class AppTheme {
     Color? backgroundColor,
     Color? surfaceColor,
   }) {
-    final scaffoldBackgroundColor = _resolveCanvasColor(
+    final scaffoldBackgroundColor = _resolveSoftCharcoalColor(
       color: backgroundColor,
-      fallback: AppThemeTokens.premiumCanvas,
-      brightness: Brightness.dark,
+      fallback: const Color(0xFF242729),
+      anchor: const Color(0xFF242729),
     );
-    final resolvedSurfaceColor = _resolveSurfaceColor(
+    final resolvedSurfaceColor = _resolveSoftCharcoalColor(
       color: surfaceColor,
-      fallback: AppThemeTokens.premiumSurface,
-      brightness: Brightness.dark,
+      fallback: const Color(0xFF303437),
+      anchor: const Color(0xFF303437),
     );
     final colorScheme = _premiumDarkScheme(
       accentColor: accentColor,
@@ -36,12 +36,12 @@ abstract final class AppTheme {
   }) {
     final scaffoldBackgroundColor = _resolveCanvasColor(
       color: backgroundColor,
-      fallback: const Color(0xFF101311),
+      fallback: const Color(0xFF131313),
       brightness: Brightness.dark,
     );
     final resolvedSurfaceColor = _resolveSurfaceColor(
       color: surfaceColor,
-      fallback: const Color(0xFF171A18),
+      fallback: AppThemeTokens.premiumSurface,
       brightness: Brightness.dark,
     );
     final colorScheme = _premiumDarkScheme(
@@ -220,7 +220,6 @@ abstract final class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         iconColor: colorScheme.primary,
         textColor: colorScheme.onSurface,
-        tileColor: Colors.transparent,
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colorScheme.surface,
@@ -239,9 +238,9 @@ abstract final class AppTheme {
     required Color canvasColor,
     required Color surfaceColor,
   }) {
-    final surfaceLow = Color.lerp(canvasColor, surfaceColor, 0.36)!;
-    final surfaceHigh = Color.lerp(surfaceColor, Colors.white, 0.06)!;
-    final surfacePeak = Color.lerp(surfaceColor, Colors.white, 0.10)!;
+    final surfaceLow = Color.lerp(canvasColor, surfaceColor, 0.44)!;
+    final surfaceHigh = Color.lerp(surfaceColor, Colors.white, 0.04)!;
+    final surfacePeak = Color.lerp(surfaceColor, Colors.white, 0.08)!;
 
     return ColorScheme(
       brightness: Brightness.dark,
@@ -250,24 +249,24 @@ abstract final class AppTheme {
       primaryContainer: accentColor.withValues(alpha: 0.22),
       onPrimaryContainer: const Color(0xFFE9FFF9),
       secondary: AppThemeTokens.premiumSecondary,
-      onSecondary: const Color(0xFF151701),
+      onSecondary: const Color(0xFF2C0051),
       secondaryContainer: AppThemeTokens.premiumSecondary.withValues(
         alpha: 0.18,
       ),
-      onSecondaryContainer: const Color(0xFFF7FFD4),
-      tertiary: const Color(0xFFB6A7FF),
-      onTertiary: const Color(0xFF100B2D),
-      tertiaryContainer: const Color(0xFF292345),
-      onTertiaryContainer: const Color(0xFFF0ECFF),
+      onSecondaryContainer: const Color(0xFFEFDBFF),
+      tertiary: AppThemeTokens.premiumTertiary,
+      onTertiary: const Color(0xFF153800),
+      tertiaryContainer: AppThemeTokens.premiumTertiary.withValues(alpha: 0.16),
+      onTertiaryContainer: const Color(0xFFBCFF90),
       error: const Color(0xFFFF8C8C),
       onError: const Color(0xFF250000),
       errorContainer: const Color(0xFF431414),
       onErrorContainer: const Color(0xFFFFDADA),
       surface: surfaceColor,
-      onSurface: const Color(0xFFECEFF2),
-      onSurfaceVariant: const Color(0xFFA8B2BD),
-      outline: Colors.white.withValues(alpha: 0.22),
-      outlineVariant: Colors.white.withValues(alpha: 0.12),
+      onSurface: const Color(0xFFE5E2E1),
+      onSurfaceVariant: const Color(0xFFBAC9CC),
+      outline: const Color(0xFF849396),
+      outlineVariant: const Color(0xFF3B494C),
       shadow: Colors.black,
       scrim: Colors.black,
       inverseSurface: const Color(0xFFECEFF2),
@@ -308,6 +307,18 @@ abstract final class AppTheme {
       lightBlend: 0.7,
       darkBlend: 0.72,
     );
+  }
+
+  static Color _resolveSoftCharcoalColor({
+    required Color? color,
+    required Color fallback,
+    required Color anchor,
+  }) {
+    if (color == null) {
+      return fallback;
+    }
+
+    return Color.lerp(color, anchor, 0.82) ?? fallback;
   }
 
   static Color _restrainedThemeColor({

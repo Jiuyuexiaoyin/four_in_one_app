@@ -307,9 +307,7 @@ class HabitsLocalStorage implements HabitsStorage {
   Future<_TemplatesLoadResult> _loadTemplates() async {
     final templatesPayload = await _store.getString(templatesStorageKey);
     if (templatesPayload == null || templatesPayload.isEmpty) {
-      return const _TemplatesLoadResult(
-        templates: <HabitCheckInTemplate>[],
-      );
+      return const _TemplatesLoadResult(templates: <HabitCheckInTemplate>[]);
     }
 
     var shouldPersistAfterLoad = false;
