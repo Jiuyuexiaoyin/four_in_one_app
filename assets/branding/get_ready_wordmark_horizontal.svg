@@ -2,9 +2,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
   <title id="title">Get Ready horizontal wordmark</title>
   <desc id="desc">The Get Ready mark followed by the exact spaced and capitalized product name Get Ready.</desc>
-  <path id="open-arc" d="M209.104 261.273 C186.255 277.271 156.403 279.228 131.661 266.348 C106.920 253.469 91.4 227.893 91.4 200 C91.4 172.107 106.920 146.531 131.661 133.652 C156.403 120.772 186.255 122.729 209.104 138.727" fill="none" stroke="#F6F7F8" data-light-stroke="#111111" stroke-width="27.2" stroke-linecap="round" />
-  <rect id="status-bar" x="215.5" y="167.7" width="78.2" height="27.2" rx="13.6" fill="#16A34A" />
-  <circle id="readiness-dot" cx="237.6" cy="237.4" r="14.96" fill="#16A34A" />
+  <path id="open-arc" d="M249.5 132 C244.4 111.6 207.68 104.12 180.48 106.84 C130.84 110.24 98.2 149.34 98.2 198.98 C98.2 246.58 132.2 282.96 176.4 285" fill="none" stroke="#F6F7F8" data-light-stroke="#111111" stroke-width="27.2" stroke-linecap="round" />
+  <rect id="status-bar" x="218.22" y="212.92" width="76.5" height="25.5" rx="12.75" fill="#16A34A" />
+  <circle id="readiness-dot" cx="264.46" cy="279.9" r="25.5" fill="#16A34A" />
   <text id="word-get" x="370" y="78" fill="#F6F7F8" data-light-fill="#111111" font-family="Segoe UI, Arial, sans-serif" font-size="210" font-weight="600" dominant-baseline="hanging">Get</text>
   <text id="word-ready" x="735" y="78" fill="#16A34A" font-family="Segoe UI, Arial, sans-serif" font-size="210" font-weight="600" dominant-baseline="hanging">Ready</text>
 </svg>

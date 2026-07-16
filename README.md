@@ -121,7 +121,9 @@ Get Ready 面向希望把长期目标与每日行动连接起来的个人用户�
 
 ### 品牌身份
 
-Get Ready 的主标志由一个向右开放的圆弧、一条绿色圆角状态栏和状态栏下方的绿色圆点组成。它表达开放、准备、专注、行动、进步与机会；不再使用旧三阶图形。
+Get Ready 的主标志由一个不对称的向右开放圆弧、一条绿色圆角状态栏和状态栏下方的绿色圆点组成。下方圆弧端点主动收向底部中心，绿色信号组嵌入开口下半部；它表达开放、准备、专注、行动、进步与机会，不再使用旧三阶图形或对称 C 形。
+
+校正后的状态信号采用紧凑比例：状态栏宽度为圆点直径的 `1.50` 倍，高度为 `0.50` 倍，边缘间距约为 `0.313` 倍；圆点相对状态栏视觉中心略向右，并与状态栏一起下移、收进圆弧开口。圆点保持清晰视觉重量，不呈现为微小标点。
 
 | 角色 | 颜色 | 用途 |
 | --- | --- | --- |
@@ -297,12 +299,12 @@ four_in_one_app/
 | Flutter analyze | 通过，`No issues found!` |
 | 完整测试 | 251/251 通过 |
 | Debug APK | 构建并验包通过 |
-| Debug APK 大小 | 154,612,423 字节（147.45 MiB） |
-| Debug APK SHA-256 | `E7DD305C42E9BF6329EEF434D19771A424881F5E36DB6F8F2D4524FB14A92F6A` |
+| Debug APK 大小 | 154,634,625 字节（147.47 MiB） |
+| Debug APK SHA-256 | `BF2F87146F34FBC084C6FD4375418207A19F94A29D3A86849E6FFEE434824C8D` |
 | Android API | min 24 / target 36 / compile 36（APK 已确认） |
 | Android 实机验证 | 待完成；当前不得声称实机外观已通过 |
 
-最终验证数据将记录在 `reports/p11_get_ready_2_6_release_report.md`。
+最终发布验证数据记录在 `reports/p11_get_ready_2_6_release_report.md`；最新标志轮廓锁定证据记录在 `reports/p11_get_ready_logo_silhouette_correction_report.md`。
 
 ## 当前限制
 

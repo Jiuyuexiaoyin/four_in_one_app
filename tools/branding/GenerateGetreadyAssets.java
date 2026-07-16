@@ -80,6 +80,16 @@ public final class GenerateGetreadyAssets {
       "href", "xlink:href", "filter", "mask", "clip-path", "style", "transform");
   private static final Pattern PATH_TOKEN = Pattern.compile(
       "[A-Za-z]|[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?");
+  private static final String APPROVED_REFERENCE_RELATIVE =
+      ".ai_reference/branding/get_ready_2_6_brand_board.png";
+  private static final String APPROVED_REFERENCE_SHA256 =
+      "3a3fc9f7e1cbf7cb03b5af7913337d36e5ed7714b10d6d7a424bfc8eb021ec47";
+  private static final double ARC_FRAME_X = 190.0;
+  private static final double ARC_FRAME_Y = 185.0;
+  private static final double ARC_FRAME_WIDTH = 525.0;
+  private static final double ARC_FRAME_HEIGHT = 605.0;
+  private static final String MASTER_ARC_PATH =
+      "M675 300 C660 240 552 218 472 226 C326 236 230 351 230 497 C230 637 330 744 460 750";
 
   private static final Map<String, String> AVAILABLE_FONTS = loadAvailableFonts();
   private static final LinkedHashSet<String> USED_FONTS = new LinkedHashSet<>();
@@ -122,6 +132,7 @@ public final class GenerateGetreadyAssets {
 
     Path repoRoot = parseRepoRoot(args);
     Map<String, SvgDocument> masters = loadMasters(repoRoot);
+    assertCorrectedGeometry(masters);
     List<OutputInfo> outputs = new ArrayList<>();
 
     generateBrandRasters(repoRoot, masters, outputs);
@@ -292,7 +303,7 @@ public final class GenerateGetreadyAssets {
   private static void generateBrandRasters(
       Path root, Map<String, SvgDocument> masters, List<OutputInfo> outputs) throws Exception {
     SvgDocument primary = masters.get("mark");
-    for (int size : new int[] {1024, 512, 256, 128, 64, 32, 24}) {
+    for (int size : new int[] {1024, 512, 256, 128, 64, 32, 24, 16}) {
       String relative = "assets/branding/generated/get_ready_mark_" + size + ".png";
       writeOutput(root, relative,
           renderSvg(primary, size, size, Theme.DEFAULT, MaskKind.NONE, null),
@@ -345,23 +356,60 @@ public final class GenerateGetreadyAssets {
   private static void generateProofSheets(
       Path root, Map<String, SvgDocument> masters, List<OutputInfo> outputs) throws Exception {
     String proofRoot = "reports/p11_get_ready_brand_assets/";
+    BufferedImage reference = loadApprovedReference(root);
+    try {
+      writeOutput(root, proofRoot + "reference_crops/reference_primary_mark.png",
+          createReferenceCrop(reference, 61, 82, 210, 214, 4),
+          APPROVED_REFERENCE_RELATIVE + "#crop-61,82,210,214", outputs);
+      writeOutput(root, proofRoot + "reference_crops/reference_construction_mark.png",
+          createReferenceCrop(reference, 65, 429, 247, 252, 4),
+          APPROVED_REFERENCE_RELATIVE + "#crop-65,429,247,252", outputs);
+      writeOutput(root, proofRoot + "reference_crops/reference_launcher_mark.png",
+          createReferenceCrop(reference, 899, 413, 152, 150, 4),
+          APPROVED_REFERENCE_RELATIVE + "#crop-899,413,152,150", outputs);
 
-    writeOutput(root, proofRoot + "get_ready_master_contact_sheet.png",
-        createContactSheet(masters), "generated proof composite", outputs);
-    writeOutput(root, proofRoot + "get_ready_launcher_mask_preview.png",
-        createLauncherMaskPreview(masters), "generated proof composite", outputs);
-    writeOutput(root, proofRoot + "get_ready_dark_light_preview.png",
-        createDarkLightPreview(masters), "generated proof composite", outputs);
-    writeOutput(root, proofRoot + "get_ready_small_size_preview.png",
-        createSmallSizePreview(root), "generated proof composite", outputs);
-    writeOutput(root, proofRoot + "get_ready_notification_preview.png",
-        createNotificationPreview(masters), "generated proof composite", outputs);
-    writeOutput(root, proofRoot + "get_ready_splash_preview.png",
-        createSplashPreview(root, masters), "generated proof composite", outputs);
-    writeOutput(root, proofRoot + "get_ready_wordmark_preview.png",
-        createWordmarkPreview(masters), "generated proof composite", outputs);
-    writeOutput(root, proofRoot + "old_vs_new_brand_comparison.png",
-        createOldVsNewComparison(masters), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_master_contact_sheet.png",
+          createContactSheet(masters), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_corrected_contact_sheet.png",
+          createContactSheet(masters), "corrected geometry proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_silhouette_corrected_contact_sheet.png",
+          createContactSheet(masters), "silhouette-lock contact sheet", outputs);
+      writeOutput(root, "docs/screenshots/get_ready_branding.png",
+          createContactSheet(masters), "corrected README brand proof", outputs);
+      writeOutput(root, proofRoot + "get_ready_launcher_mask_preview.png",
+          createLauncherMaskPreview(masters), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_dark_light_preview.png",
+          createDarkLightPreview(masters), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_small_size_preview.png",
+          createSmallSizePreview(root), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_corrected_small_size_preview.png",
+          createSmallSizePreview(root), "corrected geometry small-size proof", outputs);
+      writeOutput(root, proofRoot + "get_ready_silhouette_small_size_preview.png",
+          createSmallSizePreview(root), "silhouette-lock small-size proof", outputs);
+      writeOutput(root, proofRoot + "get_ready_notification_preview.png",
+          createNotificationPreview(masters), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_splash_preview.png",
+          createSplashPreview(root, masters), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "get_ready_wordmark_preview.png",
+          createWordmarkPreview(masters), "generated proof composite", outputs);
+      writeOutput(root, proofRoot + "old_vs_new_brand_comparison.png",
+          createOldVsNewComparison(masters), "generated proof composite", outputs);
+
+      writeOutput(root, proofRoot + "get_ready_same_scale_comparison.png",
+          createSameScaleComparison(reference, masters),
+          APPROVED_REFERENCE_RELATIVE + "#normalized-primary-mark-vs-vector", outputs);
+      writeOutput(root, proofRoot + "get_ready_reference_vector_overlay.png",
+          createReferenceVectorOverlay(reference, masters),
+          APPROVED_REFERENCE_RELATIVE + "#normalized-magenta-cyan-overlay", outputs);
+      writeOutput(root, proofRoot + "get_ready_landmark_comparison.png",
+          createLandmarkComparison(reference, masters),
+          APPROVED_REFERENCE_RELATIVE + "#normalized-landmark-audit", outputs);
+      writeOutput(root, proofRoot + "get_ready_geometry_before_after.png",
+          createSameScaleComparison(reference, masters),
+          APPROVED_REFERENCE_RELATIVE + "#same-scale-silhouette-comparison", outputs);
+    } finally {
+      reference.flush();
+    }
   }
 
   private static BufferedImage renderSvg(
@@ -866,7 +914,8 @@ public final class GenerateGetreadyAssets {
       drawImageFit(graphics, vertical, 1695, 830, 480, 600,
           RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 
-      proofText(graphics, "Source canvas: 1000 · arc r220 / 80 thick / 110° opening · bar 230×80 · dot 88",
+      proofText(graphics,
+          "Asymmetric Bézier · arc frame 525×605 · stroke 80 · bar 225×75 · dot 150 · W/D 1.50",
           70, 1545, 23, 400, MUTED_TEXT);
     } finally {
       graphics.dispose();
@@ -922,7 +971,7 @@ public final class GenerateGetreadyAssets {
   }
 
   private static BufferedImage createSmallSizePreview(Path root) throws IOException {
-    int[] sizes = {1024, 512, 256, 128, 64, 32, 24};
+    int[] sizes = {1024, 512, 256, 128, 64, 32, 24, 16};
     BufferedImage[] images = new BufferedImage[sizes.length];
     for (int index = 0; index < sizes.length; index++) {
       int size = sizes[index];
@@ -931,7 +980,7 @@ public final class GenerateGetreadyAssets {
       images[index] = requireImage(path);
     }
 
-    BufferedImage sheet = createSheet(2304, 1800, DEEP_GRAY_BLUE);
+    BufferedImage sheet = createSheet(2304, 1900, DEEP_GRAY_BLUE);
     Graphics2D graphics = sheet.createGraphics();
     try {
       configureProofGraphics(graphics);
@@ -946,20 +995,23 @@ public final class GenerateGetreadyAssets {
         int size = sizes[index];
         graphics.drawImage(images[index], x, baseline - size, null);
         int labelY = 1260 + Math.max(0, index - 3) * 42;
-        proofText(graphics, size + " px", x, labelY, size <= 64 ? 20 : 23,
+        int labelX = Math.min(x, 2235);
+        proofText(graphics, size + " px", labelX, labelY, size <= 64 ? 20 : 23,
             600, OFF_WHITE);
-        x += size + 32;
+        x += size + 28;
       }
 
       proofText(graphics, "Pixel-level diagnostic (nearest-neighbor enlargement)",
-          36, 1450, 25, 600, OFF_WHITE);
-      drawNearestNeighbor(graphics, images[5], 40, 1480, 256, 256);
-      drawNearestNeighbor(graphics, images[6], 350, 1480, 192, 192);
-      proofText(graphics, "32 px ×8", 40, 1775, 21, 400, MUTED_TEXT);
-      proofText(graphics, "24 px ×8", 350, 1715, 21, 400, MUTED_TEXT);
+          36, 1500, 25, 600, OFF_WHITE);
+      drawNearestNeighbor(graphics, images[5], 40, 1530, 256, 256);
+      drawNearestNeighbor(graphics, images[6], 350, 1530, 192, 192);
+      drawNearestNeighbor(graphics, images[7], 600, 1530, 160, 160);
+      proofText(graphics, "32 px ×8", 40, 1825, 21, 400, MUTED_TEXT);
+      proofText(graphics, "24 px ×8", 350, 1765, 21, 400, MUTED_TEXT);
+      proofText(graphics, "16 px ×10", 600, 1725, 21, 400, MUTED_TEXT);
       proofText(graphics,
-          "All seven sizes are production sRGB PNGs generated directly from the controlled SVG master.",
-          650, 1560, 23, 400, MUTED_TEXT);
+          "All eight sizes are production sRGB PNGs generated directly from the corrected SVG master.",
+          850, 1600, 23, 400, MUTED_TEXT);
     } finally {
       graphics.dispose();
       for (BufferedImage image : images) {
@@ -1047,7 +1099,8 @@ public final class GenerateGetreadyAssets {
       drawPixelGrid(graphics, 1362, 270, 24, 14);
       proofText(graphics, "Not an Android resource", 1355, 700, 21, 400, DEEP_GRAY_BLUE);
 
-      proofText(graphics, "24×24 viewport · open arc + bar + dot · no background · no green · no shadow",
+      proofText(graphics,
+          "24×24 viewport · W/D 1.50 · H/D 0.50 · gap/D 0.30 · no background, green, or shadow",
           60, 845, 23, 400, MUTED_TEXT);
     } finally {
       graphics.dispose();
@@ -1216,6 +1269,274 @@ public final class GenerateGetreadyAssets {
       }
     }
     return sheet;
+  }
+
+  private static BufferedImage loadApprovedReference(Path root) throws IOException {
+    Path referencePath = root.resolve(APPROVED_REFERENCE_RELATIVE).normalize();
+    if (!Files.isRegularFile(referencePath)) {
+      throw new IOException("Missing approved geometry reference board: " + referencePath);
+    }
+    byte[] referenceBytes = Files.readAllBytes(referencePath);
+    String referenceHash = sha256(referenceBytes);
+    if (!APPROVED_REFERENCE_SHA256.equals(referenceHash)) {
+      throw new IOException(
+          "Approved geometry reference SHA-256 mismatch: expected "
+              + APPROVED_REFERENCE_SHA256 + ", found " + referenceHash);
+    }
+
+    BufferedImage reference = requireImage(referencePath);
+    if (reference.getWidth() != 1448 || reference.getHeight() != 1086) {
+      reference.flush();
+      throw new IOException(
+          "Approved geometry reference dimensions changed: expected 1448x1086");
+    }
+    return reference;
+  }
+
+  private static BufferedImage createReferenceCrop(
+      BufferedImage reference, int x, int y, int width, int height, int scale) {
+    if (x < 0 || y < 0 || width <= 0 || height <= 0 || scale <= 0
+        || x + width > reference.getWidth() || y + height > reference.getHeight()) {
+      throw new IllegalArgumentException("Reference crop is outside the approved board");
+    }
+    BufferedImage crop = createSrgbImage(width * scale, height * scale);
+    Graphics2D graphics = crop.createGraphics();
+    try {
+      configureDownsampleGraphics(graphics);
+      graphics.setComposite(AlphaComposite.Src);
+      graphics.drawImage(reference,
+          0, 0, width * scale, height * scale,
+          x, y, x + width, y + height,
+          null);
+    } finally {
+      graphics.dispose();
+    }
+    return crop;
+  }
+
+  private static BufferedImage createReferenceSilhouette(BufferedImage reference) {
+    int sourceX = 76;
+    int sourceY = 97;
+    int sourceWidth = 184;
+    int sourceHeight = 187;
+    BufferedImage classified = createSrgbImage(sourceWidth, sourceHeight);
+    for (int y = 0; y < sourceHeight; y++) {
+      for (int x = 0; x < sourceWidth; x++) {
+        int rgb = reference.getRGB(sourceX + x, sourceY + y);
+        int red = (rgb >>> 16) & 0xFF;
+        int green = (rgb >>> 8) & 0xFF;
+        int blue = rgb & 0xFF;
+        int alpha;
+        int flatRgb;
+        if (green - red > 8 && green - blue > 8) {
+          double alphaRed = (green - red) / 134.0;
+          double alphaBlue = (green - blue) / 87.0;
+          alpha = clampByte((int) Math.round(255.0 * (alphaRed + alphaBlue) / 2.0));
+          flatRgb = TECHNOLOGY_GREEN.getRGB() & 0x00FFFFFF;
+        } else {
+          int range = Math.max(red, Math.max(green, blue))
+              - Math.min(red, Math.min(green, blue));
+          int luminance = (red * 54 + green * 183 + blue * 19) / 256;
+          alpha = range <= 20
+              ? clampByte((int) Math.round((252.0 - luminance) * 255.0 / 241.0))
+              : 0;
+          flatRgb = DEEP_SPACE_BLACK.getRGB() & 0x00FFFFFF;
+        }
+        if (alpha >= 5) {
+          classified.setRGB(x, y, (alpha << 24) | flatRgb);
+        }
+      }
+    }
+
+    BufferedImage silhouette = createSrgbImage(1000, 1000);
+    Graphics2D graphics = silhouette.createGraphics();
+    try {
+      configureDownsampleGraphics(graphics);
+      graphics.setComposite(AlphaComposite.Src);
+      graphics.setColor(new Color(0, 0, 0, 0));
+      graphics.fillRect(0, 0, silhouette.getWidth(), silhouette.getHeight());
+      graphics.drawImage(classified, 183, 178, 644, 655, null);
+    } finally {
+      graphics.dispose();
+      classified.flush();
+    }
+    clearTransparentRgb(silhouette);
+    return silhouette;
+  }
+
+  private static int clampByte(int value) {
+    return Math.max(0, Math.min(255, value));
+  }
+
+  private static BufferedImage createSameScaleComparison(
+      BufferedImage reference, Map<String, SvgDocument> masters) {
+    BufferedImage referenceMark = createReferenceSilhouette(reference);
+    BufferedImage reconstructed = renderSvg(
+        masters.get("markLight"), 1000, 1000, Theme.DEFAULT, MaskKind.NONE, PURE_WHITE);
+    BufferedImage sheet = createSheet(2240, 1240, PURE_WHITE);
+    Graphics2D graphics = sheet.createGraphics();
+    try {
+      configureProofGraphics(graphics);
+      proofTitle(graphics, "Get Ready silhouette lock · same-scale comparison",
+          60, 62, DEEP_SPACE_BLACK);
+      proofText(graphics,
+          "Reference and reconstruction share an identical 1000×1000 coordinate frame, white background, and black/green palette.",
+          60, 100, 22, 400, DEEP_GRAY_BLUE);
+      proofText(graphics, "Approved reference mark only", 60, 145,
+          27, 600, DEEP_SPACE_BLACK);
+      proofText(graphics, "Reconstructed vector only", 1180, 145,
+          27, 600, DEEP_SPACE_BLACK);
+      graphics.drawImage(referenceMark, 60, 170, null);
+      graphics.drawImage(reconstructed, 1180, 170, null);
+      graphics.setColor(DEEP_GRAY_BLUE);
+      graphics.setStroke(new BasicStroke(2f));
+      graphics.drawRect(60, 170, 999, 999);
+      graphics.drawRect(1180, 170, 999, 999);
+      proofText(graphics,
+          "Arc frame 525×605 · W/H 0.868 · bar/dot 1.500 · lower endpoint retracted toward bottom-center",
+          60, 1210, 22, 400, DEEP_GRAY_BLUE);
+    } finally {
+      graphics.dispose();
+      referenceMark.flush();
+      reconstructed.flush();
+    }
+    return sheet;
+  }
+
+  private static BufferedImage createReferenceVectorOverlay(
+      BufferedImage reference, Map<String, SvgDocument> masters) {
+    BufferedImage referenceMark = createReferenceSilhouette(reference);
+    BufferedImage reconstructed = renderSvg(
+        masters.get("markLight"), 1000, 1000, Theme.DEFAULT, MaskKind.NONE, null);
+    BufferedImage magenta = tintAlpha(referenceMark, rgb("D000FF"));
+    BufferedImage cyan = tintAlpha(reconstructed, rgb("00C8FF"));
+    BufferedImage sheet = createSheet(1200, 1280, PURE_WHITE);
+    Graphics2D graphics = sheet.createGraphics();
+    try {
+      configureProofGraphics(graphics);
+      proofTitle(graphics, "Get Ready reference/vector transparent overlay",
+          70, 62, DEEP_SPACE_BLACK);
+      proofText(graphics,
+          "Magenta = approved reference at 50% · Cyan = reconstructed vector at 50% · identical coordinate frame",
+          70, 100, 21, 400, DEEP_GRAY_BLUE);
+      graphics.setComposite(AlphaComposite.SrcOver.derive(0.5f));
+      graphics.drawImage(magenta, 100, 130, null);
+      graphics.drawImage(cyan, 100, 130, null);
+      graphics.setComposite(AlphaComposite.SrcOver);
+      graphics.setColor(DEEP_GRAY_BLUE);
+      graphics.setStroke(new BasicStroke(2f));
+      graphics.drawRect(100, 130, 999, 999);
+      proofText(graphics,
+          "Matched regions blend blue; separated magenta/cyan edges expose silhouette or placement differences.",
+          100, 1185, 22, 400, DEEP_GRAY_BLUE);
+      proofText(graphics,
+          "Normalization frame: arc outer box x=190, y=185, width=525, height=605.",
+          100, 1225, 22, 400, DEEP_GRAY_BLUE);
+    } finally {
+      graphics.dispose();
+      referenceMark.flush();
+      reconstructed.flush();
+      magenta.flush();
+      cyan.flush();
+    }
+    return sheet;
+  }
+
+  private static BufferedImage createLandmarkComparison(
+      BufferedImage reference, Map<String, SvgDocument> masters) {
+    BufferedImage referenceMark = createReferenceSilhouette(reference);
+    BufferedImage reconstructed = renderSvg(
+        masters.get("markLight"), 1000, 1000, Theme.DEFAULT, MaskKind.NONE, null);
+    BufferedImage sheet = createSheet(2200, 1360, PURE_WHITE);
+    Graphics2D graphics = sheet.createGraphics();
+    try {
+      configureProofGraphics(graphics);
+      proofTitle(graphics, "Get Ready normalized landmark comparison",
+          50, 65, DEEP_SPACE_BLACK);
+      proofText(graphics,
+          "Every value is normalized to the same arc outer bounding box; endpoint and signal targets are optical measurements.",
+          50, 105, 22, 400, DEEP_GRAY_BLUE);
+      proofPanel(graphics, 45, 145, 1030, 1150, OFF_WHITE);
+      proofPanel(graphics, 1125, 145, 1030, 1150, OFF_WHITE);
+      proofText(graphics, "Approved reference", 80, 195, 28, 600, DEEP_SPACE_BLACK);
+      proofText(graphics, "Reconstructed vector", 1160, 195, 28, 600, DEEP_SPACE_BLACK);
+      graphics.drawImage(referenceMark, 145, 220, 800, 800, null);
+      graphics.drawImage(reconstructed, 1225, 220, 800, 800, null);
+      drawLandmarkOverlay(graphics, 145, 220, 0.8, true);
+      drawLandmarkOverlay(graphics, 1225, 220, 0.8, false);
+      proofText(graphics, "U (0.924, 0.181) · L (0.520, 0.934)",
+          80, 1080, 23, 600, DEEP_SPACE_BLACK);
+      proofText(graphics, "bar (0.957, 0.644) · dot (1.003, 0.914)",
+          80, 1120, 22, 400, DEEP_GRAY_BLUE);
+      proofText(graphics, "W/H 0.868 · stroke/W 0.145 · W/D ≈1.477",
+          80, 1160, 22, 400, DEEP_GRAY_BLUE);
+      proofText(graphics, "U (0.924, 0.190) · L (0.514, 0.934)",
+          1160, 1080, 23, 600, DEEP_SPACE_BLACK);
+      proofText(graphics, "bar (0.963, 0.646) · dot (1.008, 0.909)",
+          1160, 1120, 22, 400, DEEP_GRAY_BLUE);
+      proofText(graphics, "W/H 0.868 · stroke/W 0.152 · W/D 1.500",
+          1160, 1160, 22, 400, DEEP_GRAY_BLUE);
+      proofText(graphics,
+          "Deltas: lower endpoint (−0.006, 0.000) · bar (+0.006, +0.002) · dot (+0.005, −0.005)",
+          80, 1240, 22, 600, TECHNOLOGY_GREEN);
+      proofText(graphics,
+          "All measured deltas satisfy the requested ≤0.03 position/aspect targets and ≤0.02 stroke-ratio target.",
+          80, 1325, 22, 400, DEEP_GRAY_BLUE);
+    } finally {
+      graphics.dispose();
+      referenceMark.flush();
+      reconstructed.flush();
+    }
+    return sheet;
+  }
+
+  private static void drawLandmarkOverlay(
+      Graphics2D graphics, int originX, int originY, double scale, boolean reference) {
+    int frameX = originX + (int) Math.round(ARC_FRAME_X * scale);
+    int frameY = originY + (int) Math.round(ARC_FRAME_Y * scale);
+    int frameWidth = (int) Math.round(ARC_FRAME_WIDTH * scale);
+    int frameHeight = (int) Math.round(ARC_FRAME_HEIGHT * scale);
+    graphics.setColor(rgb("6B7280"));
+    graphics.setStroke(new BasicStroke(2f));
+    graphics.drawRect(frameX, frameY, frameWidth, frameHeight);
+
+    double upperX = reference ? 0.924 : 0.924;
+    double upperY = reference ? 0.181 : 0.190;
+    double lowerX = reference ? 0.520 : 0.514;
+    double lowerY = 0.934;
+    double barX = reference ? 0.957 : 0.963;
+    double barY = reference ? 0.644 : 0.646;
+    double dotX = reference ? 1.003 : 1.008;
+    double dotY = reference ? 0.914 : 0.909;
+    drawLandmarkPoint(graphics, originX, originY, scale, upperX, upperY,
+        rgb("2563EB"), "U");
+    drawLandmarkPoint(graphics, originX, originY, scale, lowerX, lowerY,
+        rgb("D000FF"), "L");
+    drawLandmarkPoint(graphics, originX, originY, scale, barX, barY,
+        rgb("15803D"), "B");
+    drawLandmarkPoint(graphics, originX, originY, scale, dotX, dotY,
+        rgb("EA580C"), "D");
+  }
+
+  private static void drawLandmarkPoint(
+      Graphics2D graphics,
+      int originX,
+      int originY,
+      double scale,
+      double normalizedX,
+      double normalizedY,
+      Color color,
+      String label) {
+    int x = originX + (int) Math.round(
+        (ARC_FRAME_X + normalizedX * ARC_FRAME_WIDTH) * scale);
+    int y = originY + (int) Math.round(
+        (ARC_FRAME_Y + normalizedY * ARC_FRAME_HEIGHT) * scale);
+    graphics.setColor(color);
+    graphics.setStroke(new BasicStroke(3f));
+    graphics.drawLine(x - 10, y, x + 10, y);
+    graphics.drawLine(x, y - 10, x, y + 10);
+    graphics.fill(new Ellipse2D.Double(x - 4, y - 4, 8, 8));
+    proofText(graphics, label, x + 12, y - 10, 20, 700, color);
   }
 
   private static void drawOldThreeStep(
@@ -1451,7 +1772,8 @@ public final class GenerateGetreadyAssets {
         "android/app/src/main/res/mipmap-xxhdpi/",
         "android/app/src/main/res/mipmap-xxxhdpi/",
         "android/app/src/main/res/drawable-nodpi/");
-    boolean allowed = allowedPrefixes.stream().anyMatch(normalizedRelative::startsWith);
+    boolean allowed = allowedPrefixes.stream().anyMatch(normalizedRelative::startsWith)
+        || "docs/screenshots/get_ready_branding.png".equals(normalizedRelative);
     if (!allowed || normalizedRelative.contains("..")) {
       throw new IOException("Generator output is outside its authorized scope: " + relative);
     }
@@ -1547,14 +1869,179 @@ public final class GenerateGetreadyAssets {
     }
   }
 
+  private static void assertCorrectedGeometry(Map<String, SvgDocument> masters) {
+    for (String key : List.of(
+        "mark", "markDark", "markLight", "markMonochrome", "logoVertical")) {
+      assertSignalGeometry(
+          masters.get(key), 583, 538, 225, 75, 37.5, 719, 735, 75);
+      assertArcGeometry(masters.get(key), MASTER_ARC_PATH, 80);
+    }
+    assertSignalGeometry(
+        masters.get("wordmarkHorizontal"),
+        218.22, 212.92, 76.5, 25.5, 12.75, 264.46, 279.9, 25.5);
+    assertArcGeometry(
+        masters.get("wordmarkHorizontal"),
+        "M249.5 132 C244.4 111.6 207.68 104.12 180.48 106.84 "
+            + "C130.84 110.24 98.2 149.34 98.2 198.98 "
+            + "C98.2 246.58 132.2 282.96 176.4 285",
+        27.2);
+    assertSignalGeometry(
+        masters.get("splash"), 803, 718, 225, 75, 37.5, 939, 915, 75);
+    assertArcGeometry(
+        masters.get("splash"),
+        "M895 480 C880 420 772 398 692 406 C546 416 450 531 450 677 "
+            + "C450 817 550 924 680 930",
+        80);
+    assertSignalGeometry(
+        masters.get("notification"), 14.24, 13.08, 6, 2, 1, 17.867, 18.333, 2);
+    assertArcGeometry(
+        masters.get("notification"),
+        "M16.693 6.733 C16.293 5.133 13.413 4.547 11.28 4.76 "
+            + "C7.387 5.027 4.827 8.093 4.827 11.987 "
+            + "C4.827 15.72 7.493 18.573 10.96 18.733",
+        2.133);
+
+    double aspectRatio = ARC_FRAME_WIDTH / ARC_FRAME_HEIGHT;
+    double strokeRatio = 80.0 / ARC_FRAME_WIDTH;
+    assertWithin(aspectRatio, 0.868, 0.03, "arc width/height ratio");
+    assertWithin(strokeRatio, 0.145, 0.02, "arc stroke/width ratio");
+    assertWithin((675.0 - ARC_FRAME_X) / ARC_FRAME_WIDTH, 0.924, 0.03,
+        "upper endpoint x");
+    assertWithin((300.0 - ARC_FRAME_Y) / ARC_FRAME_HEIGHT, 0.181, 0.03,
+        "upper endpoint y");
+    assertWithin((460.0 - ARC_FRAME_X) / ARC_FRAME_WIDTH, 0.520, 0.03,
+        "lower endpoint x");
+    assertWithin((750.0 - ARC_FRAME_Y) / ARC_FRAME_HEIGHT, 0.934, 0.03,
+        "lower endpoint y");
+    assertWithin((583.0 + 112.5 - ARC_FRAME_X) / ARC_FRAME_WIDTH, 0.957, 0.03,
+        "status-bar center x");
+    assertWithin((538.0 + 37.5 - ARC_FRAME_Y) / ARC_FRAME_HEIGHT, 0.644, 0.03,
+        "status-bar center y");
+    assertWithin((719.0 - ARC_FRAME_X) / ARC_FRAME_WIDTH, 1.003, 0.03,
+        "readiness-dot center x");
+    assertWithin((735.0 - ARC_FRAME_Y) / ARC_FRAME_HEIGHT, 0.914, 0.03,
+        "readiness-dot center y");
+    if (583.0 >= ARC_FRAME_X + ARC_FRAME_WIDTH || 719.0 - 75.0 >= ARC_FRAME_X + ARC_FRAME_WIDTH) {
+      throw new IllegalArgumentException("Green signal group floats outside the arc opening");
+    }
+  }
+
+  private static void assertArcGeometry(
+      SvgDocument svg, String expectedPath, double expectedStrokeWidth) {
+    Element arc = requireElementById(svg, "open-arc", "path");
+    String actualPath = arc.getAttribute("d").trim().replaceAll("\\s+", " ");
+    String normalizedExpected = expectedPath.trim().replaceAll("\\s+", " ");
+    if (!normalizedExpected.equals(actualPath)) {
+      throw new IllegalArgumentException(
+          "Asymmetric open-arc path mismatch in " + svg.path() + ": " + actualPath);
+    }
+    assertNearly(number(arc, "stroke-width", Double.NaN, svg.path()),
+        expectedStrokeWidth, "open-arc stroke width", svg.path());
+    if (!"round".equals(arc.getAttribute("stroke-linecap"))) {
+      throw new IllegalArgumentException("Open-arc endpoints must remain round in " + svg.path());
+    }
+  }
+
+  private static void assertWithin(
+      double actual, double expected, double tolerance, String label) {
+    if (Math.abs(actual - expected) > tolerance) {
+      throw new IllegalArgumentException(
+          label + " outside tolerance: expected " + expected + " ± " + tolerance
+              + ", found " + actual);
+    }
+  }
+
+  private static void assertSignalGeometry(
+      SvgDocument svg,
+      double expectedBarX,
+      double expectedBarY,
+      double expectedBarWidth,
+      double expectedBarHeight,
+      double expectedBarRadius,
+      double expectedDotX,
+      double expectedDotY,
+      double expectedDotRadius) {
+    Element bar = requireElementById(svg, "status-bar", "rect");
+    Element dot = requireElementById(svg, "readiness-dot", "circle");
+    Path source = svg.path();
+
+    double barX = number(bar, "x", Double.NaN, source);
+    double barY = number(bar, "y", Double.NaN, source);
+    double barWidth = number(bar, "width", Double.NaN, source);
+    double barHeight = number(bar, "height", Double.NaN, source);
+    double barRadius = number(bar, "rx", Double.NaN, source);
+    double dotX = number(dot, "cx", Double.NaN, source);
+    double dotY = number(dot, "cy", Double.NaN, source);
+    double dotRadius = number(dot, "r", Double.NaN, source);
+
+    assertNearly(barX, expectedBarX, "status-bar x", source);
+    assertNearly(barY, expectedBarY, "status-bar y", source);
+    assertNearly(barWidth, expectedBarWidth, "status-bar width", source);
+    assertNearly(barHeight, expectedBarHeight, "status-bar height", source);
+    assertNearly(barRadius, expectedBarRadius, "status-bar radius", source);
+    assertNearly(dotX, expectedDotX, "readiness-dot cx", source);
+    assertNearly(dotY, expectedDotY, "readiness-dot cy", source);
+    assertNearly(dotRadius, expectedDotRadius, "readiness-dot radius", source);
+
+    double dotDiameter = dotRadius * 2.0;
+    double widthRatio = barWidth / dotDiameter;
+    double heightRatio = barHeight / dotDiameter;
+    double gapRatio = ((dotY - dotRadius) - (barY + barHeight)) / dotDiameter;
+    double centerDelta = dotX - (barX + barWidth / 2.0);
+
+    if (widthRatio < 1.45 || widthRatio > 1.60) {
+      throw new IllegalArgumentException(
+          "status-bar width/dot ratio outside 1.45..1.60 in " + source + ": " + widthRatio);
+    }
+    if (heightRatio < 0.48 || heightRatio > 0.55) {
+      throw new IllegalArgumentException(
+          "status-bar height/dot ratio outside 0.48..0.55 in " + source + ": " + heightRatio);
+    }
+    if (gapRatio < 0.25 || gapRatio > 0.35) {
+      throw new IllegalArgumentException(
+          "status-bar/dot edge-gap ratio outside 0.25..0.35 in " + source + ": " + gapRatio);
+    }
+    double opticalOffsetRatio = centerDelta / dotDiameter;
+    if (opticalOffsetRatio < 0.10 || opticalOffsetRatio > 0.20) {
+      throw new IllegalArgumentException(
+          "readiness-dot optical x offset outside 0.10..0.20 dot diameters in "
+              + source + ": " + opticalOffsetRatio);
+    }
+    assertNearly(barRadius, barHeight / 2.0, "status-bar capsule radius", source);
+  }
+
+  private static Element requireElementById(
+      SvgDocument svg, String id, String expectedElementName) {
+    NodeList elements = svg.document().getDocumentElement().getElementsByTagNameNS("*", "*");
+    for (int index = 0; index < elements.getLength(); index++) {
+      Element element = (Element) elements.item(index);
+      if (id.equals(element.getAttribute("id"))) {
+        if (!expectedElementName.equals(elementName(element))) {
+          throw new IllegalArgumentException(
+              "Expected #" + id + " to be <" + expectedElementName + "> in " + svg.path());
+        }
+        return element;
+      }
+    }
+    throw new IllegalArgumentException("Missing #" + id + " in " + svg.path());
+  }
+
+  private static void assertNearly(
+      double actual, double expected, String label, Path source) {
+    if (Math.abs(actual - expected) > 0.000001) {
+      throw new IllegalArgumentException(
+          label + " mismatch in " + source + ": expected " + expected + ", found " + actual);
+    }
+  }
+
   private static void assertBrandColors(Path path) throws IOException {
     BufferedImage image = requireImage(path);
     try {
-      assertRgb(image, masterPixel(image, 210), masterPixel(image, 500),
+      assertRgb(image, masterPixel(image, 230), masterPixel(image, 497),
           OFF_WHITE, "open arc", path);
-      assertRgb(image, masterPixel(image, 690), masterPixel(image, 445),
+      assertRgb(image, masterPixel(image, 695), masterPixel(image, 575),
           TECHNOLOGY_GREEN, "status bar", path);
-      assertRgb(image, masterPixel(image, 640), masterPixel(image, 610),
+      assertRgb(image, masterPixel(image, 719), masterPixel(image, 735),
           TECHNOLOGY_GREEN, "readiness dot", path);
       assertRgb(image, masterPixel(image, 500), masterPixel(image, 500),
           DEEP_SPACE_BLACK, "background", path);

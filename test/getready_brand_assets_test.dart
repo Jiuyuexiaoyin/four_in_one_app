@@ -34,21 +34,36 @@ const _requiredRasterDimensions = <String, (int, int)>{
   'get_ready_mark_64.png': (64, 64),
   'get_ready_mark_32.png': (32, 32),
   'get_ready_mark_24.png': (24, 24),
+  'get_ready_mark_16.png': (16, 16),
   'get_ready_wordmark_horizontal.png': (1600, 400),
   'get_ready_splash_dark.png': (1440, 2560),
   'get_ready_splash_light.png': (1440, 2560),
 };
 
-const _requiredProofs = <String>[
-  'get_ready_master_contact_sheet.png',
-  'get_ready_launcher_mask_preview.png',
-  'get_ready_dark_light_preview.png',
-  'get_ready_small_size_preview.png',
-  'get_ready_notification_preview.png',
-  'get_ready_splash_preview.png',
-  'get_ready_wordmark_preview.png',
-  'old_vs_new_brand_comparison.png',
-];
+const _requiredProofDimensions = <String, (int, int)>{
+  'get_ready_master_contact_sheet.png': (2400, 1600),
+  'get_ready_launcher_mask_preview.png': (2200, 780),
+  'get_ready_dark_light_preview.png': (2200, 1100),
+  'get_ready_small_size_preview.png': (2304, 1900),
+  'get_ready_notification_preview.png': (1800, 900),
+  'get_ready_splash_preview.png': (2200, 1400),
+  'get_ready_wordmark_preview.png': (2200, 1200),
+  'old_vs_new_brand_comparison.png': (2200, 1100),
+  'get_ready_geometry_before_after.png': (2240, 1240),
+  'get_ready_corrected_small_size_preview.png': (2304, 1900),
+  'get_ready_corrected_contact_sheet.png': (2400, 1600),
+  'get_ready_same_scale_comparison.png': (2240, 1240),
+  'get_ready_reference_vector_overlay.png': (1200, 1280),
+  'get_ready_landmark_comparison.png': (2200, 1360),
+  'get_ready_silhouette_corrected_contact_sheet.png': (2400, 1600),
+  'get_ready_silhouette_small_size_preview.png': (2304, 1900),
+};
+
+const _requiredReferenceCropDimensions = <String, (int, int)>{
+  'reference_primary_mark.png': (840, 856),
+  'reference_construction_mark.png': (988, 1008),
+  'reference_launcher_mark.png': (608, 600),
+};
 
 void main() {
   group('Get Ready 2.6 production brand assets', () {
@@ -89,20 +104,52 @@ void main() {
 
       expect(primary, contains('viewBox="0 0 1000 1000"'));
       expect(primary, contains('id="open-arc"'));
-      expect(primary, contains('M556.187 680.213'));
-      expect(primary, contains('556.187 319.787'));
+      expect(
+        primary,
+        contains(
+          'M675 300 C660 240 552 218 472 226 C326 236 230 351 230 497 C230 637 330 744 460 750',
+        ),
+      );
+      expect(primary, isNot(contains('M556.187 680.213')));
       expect(primary, contains('stroke-width="80"'));
       expect(primary, contains('stroke-linecap="round"'));
       expect(
         primary,
         contains(
-          'id="status-bar" x="575" y="405" width="230" height="80" rx="40"',
+          'id="status-bar" x="583" y="538" width="225" height="75" rx="37.5"',
         ),
       );
-      expect(primary, contains('id="readiness-dot" cx="640" cy="610" r="44"'));
+      expect(primary, contains('id="readiness-dot" cx="719" cy="735" r="75"'));
       expect(RegExp(r'id="open-arc"').allMatches(primary), hasLength(1));
       expect(RegExp(r'id="status-bar"').allMatches(primary), hasLength(1));
       expect(RegExp(r'id="readiness-dot"').allMatches(primary), hasLength(1));
+
+      final barX = _svgNumber(primary, 'status-bar', 'x');
+      final barY = _svgNumber(primary, 'status-bar', 'y');
+      final barWidth = _svgNumber(primary, 'status-bar', 'width');
+      final barHeight = _svgNumber(primary, 'status-bar', 'height');
+      final dotX = _svgNumber(primary, 'readiness-dot', 'cx');
+      final dotY = _svgNumber(primary, 'readiness-dot', 'cy');
+      final dotRadius = _svgNumber(primary, 'readiness-dot', 'r');
+      final dotDiameter = dotRadius * 2;
+      expect(barWidth / dotDiameter, closeTo(1.5, 0.000001));
+      expect(barHeight / dotDiameter, closeTo(0.5, 0.000001));
+      expect(
+        ((dotY - dotRadius) - (barY + barHeight)) / dotDiameter,
+        closeTo(47 / 150, 0.000001),
+      );
+      expect(
+        (dotX - (barX + barWidth / 2)) / dotDiameter,
+        closeTo(23.5 / 150, 0.000001),
+      );
+      expect(525 / 605, closeTo(0.868, 0.001));
+      expect(80 / 525, closeTo(0.145, 0.02));
+      expect((460 - 190) / 525, closeTo(0.520, 0.03));
+      expect((750 - 185) / 605, closeTo(0.934, 0.03));
+      expect((barX + barWidth / 2 - 190) / 525, closeTo(0.957, 0.03));
+      expect((barY + barHeight / 2 - 185) / 605, closeTo(0.644, 0.03));
+      expect((dotX - 190) / 525, closeTo(1.003, 0.03));
+      expect((dotY - 185) / 605, closeTo(0.914, 0.03));
     });
 
     test('approved naming, tagline, and light/dark colors are exact', () {
@@ -148,15 +195,32 @@ void main() {
       );
     });
 
-    test('all eight P11 brand proofs exist and are repository-stable PNGs', () {
-      for (final name in _requiredProofs) {
+    test('all sixteen P11 brand proofs and three reference crops are stable', () {
+      for (final entry in _requiredProofDimensions.entries) {
+        final name = entry.key;
         final file = File('reports/p11_get_ready_brand_assets/$name');
         expect(file.existsSync(), isTrue, reason: name);
-        final dimensions = _pngDimensions(file);
-        expect(dimensions.$1, greaterThanOrEqualTo(1600), reason: name);
-        expect(dimensions.$2, greaterThanOrEqualTo(700), reason: name);
+        expect(_pngDimensions(file), entry.value, reason: name);
         expect(_pngChunkTypes(file), contains('sRGB'), reason: name);
       }
+      for (final entry in _requiredReferenceCropDimensions.entries) {
+        final file = File(
+          'reports/p11_get_ready_brand_assets/reference_crops/${entry.key}',
+        );
+        expect(file.existsSync(), isTrue, reason: entry.key);
+        expect(_pngDimensions(file), entry.value, reason: entry.key);
+        expect(_pngChunkTypes(file), contains('sRGB'), reason: entry.key);
+      }
+
+      final readmeBrand = File('docs/screenshots/get_ready_branding.png');
+      expect(readmeBrand.existsSync(), isTrue);
+      expect(_pngDimensions(readmeBrand), (2400, 1600));
+      expect(
+        readmeBrand.readAsBytesSync(),
+        File(
+          'reports/p11_get_ready_brand_assets/get_ready_silhouette_corrected_contact_sheet.png',
+        ).readAsBytesSync(),
+      );
     });
 
     test('legacy launcher and round icons cover every Android density', () {
@@ -200,6 +264,16 @@ void main() {
       );
       expect(foreground, contains('android:strokeWidth="8.64"'));
       expect(foreground, contains('@color/getready_brand_green'));
+      expect(
+        foreground,
+        contains('M72.9,32.4C71.28,25.92 59.616,23.544 50.976,24.408'),
+      );
+      expect(
+        foreground,
+        contains('M67.014,58.104H83.214A4.05,4.05 0,0 1,87.264 62.154'),
+      );
+      expect(foreground, contains('M77.652,71.28A8.1,8.1 0,1 1,77.652 87.48'));
+      expect(foreground, isNot(contains('M60.068,73.463')));
       expect(foreground, isNot(contains('<shape')));
       expect(monochrome, contains('android:strokeColor="#FFFFFFFF"'));
       expect(monochrome, isNot(contains('@color/getready_brand_green')));
@@ -235,6 +309,10 @@ void main() {
         expect(icon, contains('android:strokeColor="#FFFFFFFF"'));
         expect(icon, contains('android:fillColor="#FFFFFFFF"'));
         expect(icon, contains('android:strokeLineCap="round"'));
+        expect(icon, contains('M16.693,6.733C16.293,5.133'));
+        expect(icon, contains('M15.24,13.08H19.24A1,1'));
+        expect(icon, contains('M17.867,16.333A2,2'));
+        expect(icon, isNot(contains('M13.228,17.324')));
         expect(icon, isNot(contains('#16A34A')));
         expect(icon, isNot(contains('@color/')));
         expect(icon, isNot(contains('gradient')));
@@ -335,12 +413,26 @@ void main() {
       expect(generator, contains('reports/p11_get_ready_brand_assets/'));
       expect(
         generator,
-        contains('new int[] {1024, 512, 256, 128, 64, 32, 24}'),
+        contains('new int[] {1024, 512, 256, 128, 64, 32, 24, 16}'),
       );
       expect(generator, contains('old_vs_new_brand_comparison.png'));
+      expect(generator, contains('get_ready_geometry_before_after.png'));
+      expect(generator, contains('get_ready_same_scale_comparison.png'));
+      expect(generator, contains('get_ready_reference_vector_overlay.png'));
+      expect(generator, contains('get_ready_landmark_comparison.png'));
+      expect(generator, contains('reference_primary_mark.png'));
+      expect(generator, contains('MASTER_ARC_PATH'));
+      expect(generator, isNot(contains('M556.187 680.213')));
+      expect(generator, contains('assertCorrectedGeometry(masters)'));
       expect(generator, isNot(contains('reports/p10_getready_brand_assets/')));
     });
   });
+}
+
+double _svgNumber(String svg, String id, String attribute) {
+  final match = RegExp('id="$id"[^>]*\\b$attribute="([^"]+)"').firstMatch(svg);
+  expect(match, isNotNull, reason: '#$id $attribute');
+  return double.parse(match!.group(1)!);
 }
 
 (int, int) _pngDimensions(File file) {

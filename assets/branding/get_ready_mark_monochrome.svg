@@ -2,7 +2,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
   <title id="title">Get Ready monochrome mark</title>
   <desc id="desc">A single-color open arc, status bar, and readiness dot on transparency.</desc>
-  <path id="open-arc" d="M556.187 680.213 C488.985 727.269 401.184 733.023 328.415 695.142 C255.647 657.261 210 582.038 210 500 C210 417.962 255.647 342.739 328.415 304.858 C401.184 266.977 488.985 272.731 556.187 319.787" fill="none" stroke="#FFFFFF" data-light-stroke="#111111" stroke-width="80" stroke-linecap="round" />
-  <rect id="status-bar" x="575" y="405" width="230" height="80" rx="40" fill="#FFFFFF" data-light-fill="#111111" />
-  <circle id="readiness-dot" cx="640" cy="610" r="44" fill="#FFFFFF" data-light-fill="#111111" />
+  <path id="open-arc" d="M675 300 C660 240 552 218 472 226 C326 236 230 351 230 497 C230 637 330 744 460 750" fill="none" stroke="#FFFFFF" data-light-stroke="#111111" stroke-width="80" stroke-linecap="round" />
+  <rect id="status-bar" x="583" y="538" width="225" height="75" rx="37.5" fill="#FFFFFF" data-light-fill="#111111" />
+  <circle id="readiness-dot" cx="719" cy="735" r="75" fill="#FFFFFF" data-light-fill="#111111" />
 </svg>

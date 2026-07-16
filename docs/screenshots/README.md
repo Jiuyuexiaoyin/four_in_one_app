@@ -22,7 +22,7 @@
 | `review.png` | Review 的真实 Store 数据指标 | 1280 × 900 | `reports/p8_system_qa_screenshots/05_review.png` |
 | `settings.png` | Settings Theme Studio 与常用色卡 | 390 × 844 | `reports/p8_targeted_component_polish/after/settings_color_palette_after.png` |
 | `create_habit.png` | 新建习惯对话框 | 1280 × 900 | `reports/p8_system_qa_screenshots/07_create_habit_dialog.png` |
-| `get_ready_branding.png` | P11 Get Ready 最终品牌证明 | 2304 × 1600 | `reports/p11_get_ready_brand_assets/get_ready_master_contact_sheet.png` |
+| `get_ready_branding.png` | P11 Get Ready 轮廓锁定品牌证明 | 2400 × 1600 | `reports/p11_get_ready_brand_assets/get_ready_silhouette_corrected_contact_sheet.png` |
 
 ## 证据说明
 
@@ -49,7 +49,7 @@
 
 ## 品牌证明图
 
-README 引用 `get_ready_branding.png`。该文件必须在 P11 新品牌证明资产生成后，从 `reports/p11_get_ready_brand_assets/` 的最终 contact sheet 或专用 README 品牌图复制。
+README 引用 `get_ready_branding.png`。品牌生成器会把轮廓锁定 contact sheet 同步写入这个稳定路径；不得手工从参考板裁切或用不同几何替换。
 
 禁止把 P10 三阶标志、旧 Wordmark、旧 Splash proof 或旧 Launcher proof 重命名后放入该位置。
 

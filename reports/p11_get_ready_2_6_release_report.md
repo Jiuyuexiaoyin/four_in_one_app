@@ -20,7 +20,7 @@ Android namespace 与 application ID 均保持 `com.example.four_in_one_app`，�
 
 ## 4. 新标志几何
 
-1000 × 1000 母版画布；圆弧中心 `(430, 500)`、半径 `220`、描边 `80`、向右打开 `110°`，端点圆角半径 `40`；状态条为 `230 × 80`、圆角半径 `40`；就绪圆点直径 `88`。主色为 Ink black `#111111` 与 Brand green `#16A34A`。完整安全区、最小尺寸和禁止变形规则见 `reports/p11_get_ready_geometry_spec.md`。
+1000 × 1000 母版画布；标志使用自定义不对称 Bézier 开放圆弧，描边 `80`，外接框约 `525 × 605`（W/H `0.868`）。上端点归一化约 `(0.924, 0.190)`，下端点收向底部中心至 `(0.514, 0.934)`，不再使用对称 C。绿色状态条为 `225 × 75`，就绪圆点直径 `150`，边缘间距 `47`；归一化比例为 `W/D=1.500`、`H/D=0.500`、`gap/D≈0.313`。圆点中心相对状态条略向右，绿色信号组整体下移并嵌入圆弧开口。主色保持 Ink black `#111111` 与 Brand green `#16A34A`。完整规则见 `reports/p11_get_ready_geometry_spec.md`，最新同尺度、透明叠加与 landmark 证据见 `reports/p11_get_ready_logo_silhouette_correction_report.md`。
 
 ## 5. 旧品牌替换
 
@@ -69,8 +69,8 @@ Git 阻塞前记录为 54 个已跟踪修改和 211 个未跟踪项目文件；�
 ## 16. APK 路径、大小与 SHA-256
 
 - 路径：`build/app/outputs/flutter-apk/app-debug.apk`
-- 大小：154,612,423 字节（147.45 MiB）
-- SHA-256：`E7DD305C42E9BF6329EEF434D19771A424881F5E36DB6F8F2D4524FB14A92F6A`
+- 大小：154,634,625 字节（147.47 MiB）
+- SHA-256：`BF2F87146F34FBC084C6FD4375418207A19F94A29D3A86849E6FFEE434824C8D`
 - min SDK：24
 - target SDK：36
 - compile SDK：36
